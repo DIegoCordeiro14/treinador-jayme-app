@@ -39,7 +39,7 @@ import type { WorkoutPlan } from "@/types";
 import { GOAL_LABELS } from "@/types";
 
 const createPlanSchema = z.object({
-  name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
+  name: z.string().min(2, "Nome deve ter no mÃ­nimo 2 caracteres"),
   description: z.string().optional(),
   days_per_week: z.number().min(2).max(6),
   goal: z.enum(["hypertrophy", "weight_loss", "definition", "strength"]),
@@ -73,7 +73,7 @@ const DEFAULT_DAYS = {
   ],
 };
 
-// ── Bioimpedance suggestion helper ────────────────────────────────────────────
+// ââ Bioimpedance suggestion helper ââââââââââââââââââââââââââââââââââââââââââââ
 type BioSuggestion = {
   goal: CreatePlanForm["goal"];
   label: string;
@@ -92,32 +92,32 @@ function buildSuggestion(bio: Record<string, any>): BioSuggestion {
   if (bio.weight_kg) metrics.push(`${bio.weight_kg}kg`);
   if (bmi)           metrics.push(`IMC ${bmi}`);
   if (bf)            metrics.push(`Gordura ${bf}%`);
-  if (muscle)        metrics.push(`Músculo ${muscle}kg`);
-  if (visceral)      metrics.push(`Visceral nível ${visceral}`);
+  if (muscle)        metrics.push(`MÃºsculo ${muscle}kg`);
+  if (visceral)      metrics.push(`Visceral nÃ­vel ${visceral}`);
 
   if ((bf && bf >= 28) || (visceral && visceral >= 10)) {
     return {
       goal: "weight_loss",
       label: "Emagrecimento",
-      reason: "Gordura corporal elevada e/ou gordura visceral alta. A EDN recomenda foco em emagrecimento com exercícios compostos e déficit calórico.",
-      metrics: metrics.join(" · "),
+      reason: "Gordura corporal elevada e/ou gordura visceral alta. A EDN recomenda foco em emagrecimento com exercÃ­cios compostos e dÃ©ficit calÃ³rico.",
+      metrics: metrics.join(" Â· "),
       days: 4,
     };
   }
   if (bf && bf >= 20) {
     return {
       goal: "definition",
-      label: "Definição",
-      reason: "Gordura acima do ideal para hipertrofia pura. A EDN recomenda definição para melhorar composição corporal antes de focar em massa.",
-      metrics: metrics.join(" · "),
+      label: "DefiniÃ§Ã£o",
+      reason: "Gordura acima do ideal para hipertrofia pura. A EDN recomenda definiÃ§Ã£o para melhorar composiÃ§Ã£o corporal antes de focar em massa.",
+      metrics: metrics.join(" Â· "),
       days: 4,
     };
   }
   return {
     goal: "hypertrophy",
     label: "Hipertrofia",
-    reason: "Composição corporal favorável. A EDN recomenda foco em hipertrofia com progressão de carga e superávit calórico controlado.",
-    metrics: metrics.join(" · "),
+    reason: "ComposiÃ§Ã£o corporal favorÃ¡vel. A EDN recomenda foco em hipertrofia com progressÃ£o de carga e superÃ¡vit calÃ³rico controlado.",
+    metrics: metrics.join(" Â· "),
     days: 4,
   };
 }
@@ -288,7 +288,7 @@ export default function TreinosPage() {
           <Dumbbell className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
           <h3 className="font-semibold text-zinc-300 mb-2">Nenhum plano criado</h3>
           <p className="text-sm text-zinc-500 mb-5">
-            Crie seu primeiro plano de treino e comece a registrar sua progressão
+            Crie seu primeiro plano de treino e comece a registrar sua progressÃ£o
           </p>
           <Button onClick={openDialog} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -297,7 +297,7 @@ export default function TreinosPage() {
           {bioSuggestion && (
             <p className="text-xs text-blue-400 mt-3 flex items-center justify-center gap-1">
               <Sparkles className="h-3 w-3" />
-              A IA vai sugerir o treino ideal com base na sua bioimpedância
+              A IA vai sugerir o treino ideal com base na sua bioimpedÃ¢ncia
             </p>
           )}
         </div>
@@ -342,7 +342,7 @@ export default function TreinosPage() {
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                         <Dumbbell className="h-3 w-3" />
-                        {totalExercises} exercícios
+                        {totalExercises} exercÃ­cios
                       </div>
                     </div>
                   </div>
@@ -384,7 +384,7 @@ export default function TreinosPage() {
             <div className="rounded-xl border border-blue-600/30 bg-blue-600/10 p-3.5 space-y-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-blue-400 shrink-0" />
-                <p className="text-xs font-semibold text-blue-300">Sugestão da IA — baseada na sua bioimpedância</p>
+                <p className="text-xs font-semibold text-blue-300">SugestÃ£o da IA â baseada na sua bioimpedÃ¢ncia</p>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <Activity className="h-3 w-3 text-zinc-500" />
@@ -392,7 +392,7 @@ export default function TreinosPage() {
               </div>
               <p className="text-xs text-zinc-300 leading-relaxed">{bioSuggestion.reason}</p>
               <div className="flex items-center gap-2 pt-0.5">
-                <span className="text-[11px] text-zinc-500">Pré-selecionado:</span>
+                <span className="text-[11px] text-zinc-500">PrÃ©-selecionado:</span>
                 <span className="text-[11px] font-semibold text-blue-300 bg-blue-600/20 px-2 py-0.5 rounded-full">{bioSuggestion.label}</span>
                 <span className="text-[11px] text-blue-300 bg-blue-600/20 px-2 py-0.5 rounded-full">{bioSuggestion.days}x/semana</span>
               </div>
@@ -411,7 +411,7 @@ export default function TreinosPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="plan-desc">Descrição (opcional)</Label>
+              <Label htmlFor="plan-desc">DescriÃ§Ã£o (opcional)</Label>
               <Input
                 {...register("description")}
                 id="plan-desc"
@@ -454,110 +454,8 @@ export default function TreinosPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="hypertrophy">Hipertrofia</SelectItem>
-                    <SelectItem value="strength">Força</SelectItem>
-                    <SelectItem value="definition">Definição</SelectItem>
-                    <SelectItem value="weight_loss">Emagrecimento</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => setDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" className="flex-1" loading={isSubmitting}>
-                Criar Plano
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-ggestion banner */}
-          {bioSuggestion && (
-            <div className="rounded-xl border border-blue-600/30 bg-blue-600/10 p-3.5 space-y-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-400 shrink-0" />
-                <p className="text-xs font-semibold text-blue-300">Sugestão da IA — baseada na sua bioimpedância</p>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Activity className="h-3 w-3 text-zinc-500" />
-                <p className="text-[11px] text-zinc-400">{bioSuggestion.metrics}</p>
-              </div>
-              <p className="text-xs text-zinc-300 leading-relaxed">{bioSuggestion.reason}</p>
-              <div className="flex items-center gap-2 pt-0.5">
-                <span className="text-[11px] text-zinc-500">Pré-selecionado:</span>
-                <span className="text-[11px] font-semibold text-blue-300 bg-blue-600/20 px-2 py-0.5 rounded-full">{bioSuggestion.label}</span>
-                <span className="text-[11px] text-blue-300 bg-blue-600/20 px-2 py-0.5 rounded-full">{bioSuggestion.days}x/semana</span>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="plan-name">Nome do plano</Label>
-              <Input
-                {...register("name")}
-                id="plan-name"
-                placeholder="Ex: Meu Treino ABC"
-                error={errors.name?.message}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="plan-desc">Descrição (opcional)</Label>
-              <Input
-                {...register("description")}
-                id="plan-desc"
-                placeholder="Descreva o objetivo deste plano..."
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Dias por semana</Label>
-                <Select
-                  value={String(watch("days_per_week"))}
-                  onValueChange={(v) =>
-                    setValue("days_per_week", Number(v) as 2 | 3 | 4 | 5 | 6)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[2, 3, 4, 5, 6].map((d) => (
-                      <SelectItem key={d} value={String(d)}>
-                        {d} dias
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Objetivo</Label>
-                <Select
-                  value={watch("goal")}
-                  onValueChange={(v) =>
-                    setValue("goal", v as CreatePlanForm["goal"])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hypertrophy">Hipertrofia</SelectItem>
-                    <SelectItem value="strength">Força</SelectItem>
-                    <SelectItem value="definition">Definição</SelectItem>
+                    <SelectItem value="strength">ForÃ§a</SelectItem>
+                    <SelectItem value="definition">DefiniÃ§Ã£o</SelectItem>
                     <SelectItem value="weight_loss">Emagrecimento</SelectItem>
                   </SelectContent>
                 </Select>
