@@ -1,0 +1,168 @@
+import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+export type AIWorkoutDay = {
+  dayIndex: number;
+  focusLabel: string;
+  exercises: Array<{
+    exerciseId: string;
+    sets: number;
+    repsMin: number;
+    repsMax: number;
+    restSeconds: number;
+    notes: string;
+  }>;
+};
+
+// ─── POST /api/generate-workout ───────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json();
+    const {
+      goal,
+      daysPerWeek,
+      experienceLevel,
+      weightKg,
+      heightCm,
+      bodyFatPct,
+      exercises, // Exercise[] — full list with id, name, muscle_group, difficulty
+      dayCount,  // number of workout_days in the plan
+    } = body;
+
+    const provider = getDefaultProvider();
+
+    // ─── Fetch latest bioimpedance data ────────────────────────────────────────
+    const { data: bioData } = await supabase
+      .from('bioimpedance_data')
+      .select('weight_kg,bmi,body_fat_pct,skeletal_muscle_mass_kg,water_pct,visceral_fat_level,basal_metabolic_rate_kcal,protein_pct,bone_mass_kg,body_type,body_score,lean_mass_kg')
+      .eq('user_id', user.id)
+      .order('measured_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // ─── Exercise catalog ──────────────────────────────────────────────────────
+    const exerciseCatalog = (exercises as any[])
+      .map((ex: any) => `${ex.id}|${ex.name}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
+      .join('\n');
+
+    // ─── Biometric context (prefer bioimpedance over manual input) ─────────────
+    const effectiveWeight = bioData?.weight_kg ?? weightKg;
+    const effectiveBmi    = bioData?.bmi ?? (weightKg && heightCm ? parseFloat((weightKg / Math.pow(heightCm / 100, 2)).toFixed(1)) : null);
+    const effectiveBF     = bioData?.body_fat_pct ?? bodyFatPct;
+
+    const biometricCtx = [
+      effectiveWeight ? `peso=${effectiveWeight}kg` : null,
+      heightCm        ? `altura=${heightCm}cm` : null,
+      effectiveBmi    ? `IMC=${effectiveBmi}` : null,
+      effectiveBF     ? `BF=${effectiveBF}%` : null,
+    ].filter(Boolean).join(' ') || 'n/a';
+
+    // ─── Bioimpedance context (extra intelligence when available) ──────────────
+    const bioCtxParts: string[] = [];
+    if (bioData) {
+      if (bioData.skeletal_muscle_mass_kg) bioCtxParts.push(`músculo=${bioData.skeletal_muscle_mass_kg}kg`);
+      if (bioData.lean_mass_kg)            bioCtxParts.push(`massa_magra=${bioData.lean_mass_kg}kg`);
+      if (bioData.water_pct)               bioCtxParts.push(`água=${bioData.water_pct}%`);
+      if (bioData.visceral_fat_level)      bioCtxParts.push(`visceral=nível${bioData.visceral_fat_level}`);
+      if (bioData.basal_metabolic_rate_kcal) bioCtxParts.push(`TMB=${bioData.basal_metabolic_rate_kcal}kcal`);
+      if (bioData.protein_pct)             bioCtxParts.push(`proteína=${bioData.protein_pct}%`);
+      if (bioData.body_type)               bioCtxParts.push(`tipo_corpo=${bioData.body_type}`);
+    }
+    const bioCtx = bioCtxParts.length > 0
+      ? `\nBioimpedância: ${bioCtxParts.join(' ')}.`
+      : '';
+
+    // ─── EDN bioimpedance-specific rules ──────────────────────────────────────
+    const bioRules: string[] = [];
+    if (bioData?.visceral_fat_level && bioData.visceral_fat_level >= 10) {
+      bioRules.push('gordura_visceral≥10=priorizar compostos metabólicos e volume moderado');
+    }
+    if (effectiveBmi && effectiveBmi >= 28) {
+      bioRules.push('IMC≥28=preferir máquinas nos membros inferiores, reduzir impacto articular');
+    }
+    if (bioData?.body_fat_pct && bioData.body_fat_pct >= 28) {
+      bioRules.push('BF≥28%=adicionar exercícios multiarticulares de maior gasto calórico');
+    }
+    if (bioData?.water_pct && bioData.water_pct < 50) {
+      bioRules.push('hidratação_baixa=evitar exercícios de altíssima intensidade, preferir volume moderado');
+    }
+    if (bioData?.protein_pct && bioData.protein_pct < 17) {
+      bioRules.push('proteína_baixa=anotar nas notes que o usuário precisa aumentar ingestão proteica');
+    }
+    const bioRulesStr = bioRules.length > 0 ? `\nRegras extras (bioimpedância): ${bioRules.join('; ')}.` : '';
+
+    const goalMap: Record<string, string> = {
+      definition: 'Definição',
+      weight_loss: 'Emagrecimento',
+      hypertrophy: 'Hipertrofia',
+      strength: 'Força',
+    };
+    const levelMap: Record<string, string> = {
+      beginner: 'Iniciante',
+      intermediate: 'Intermediário',
+      advanced: 'Avançado',
+    };
+
+    // ─── Prompt (token-optimized + bioimpedance) ───────────────────────────────
+    const userPrompt = `Crie plano EDN. Perfil: ${goalMap[goal] ?? goal}, ${daysPerWeek}dias/sem, ${levelMap[experienceLevel] ?? experienceLevel}, ${biometricCtx}.${bioCtx}
+
+Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; 4-7ex/dia.${bioRulesStr}
+
+IDs disponíveis (id|nome, [ADV]=avançado):
+${exerciseCatalog}
+JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tr\u00edceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
+${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
+
+    // Call AI
+    let fullText = "";
+    for await (const chunk of provider.stream({
+      messages: [{ role: "user", content: userPrompt }],
+      systemPrompt: EDN_SYSTEM_PROMPT,
+      maxTokens: 2000,
+    })) {
+      if (chunk.text) fullText += chunk.text;
+    }
+
+    // Parse JSON
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return Response.json(
+        { error: "AI n\u00e3o retornou JSON v\u00e1lido", raw: fullText },
+        { status: 422 }
+      );
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!parsed?.days || !Array.isArray(parsed.days)) {
+      return Response.json(
+        { error: "Estrutura JSON inv\u00e1lida", raw: fullText },
+        { status: 422 }
+      );
+    }
+
+    const validIds = new Set((exercises as any[]).map((ex: any) => ex.id));
+    for (const day of parsed.days) {
+      day.exercises = (day.exercises ?? []).filter((ex: any) =>
+        validIds.has(ex.exerciseId)
+      );
+    }
+
+    return Response.json({ days: parsed.days });
+  } catch (err: any) {
+    console.error("[generate-workout] error:", err);
+    return Response.json(
+      { error: err?.message ?? "Erro interno" },
+      { status: 500 }
+    );
+  }
+}
