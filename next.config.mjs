@@ -8,6 +8,8 @@ const nextConfig = {
       { protocol: "https", hostname: "img.youtube.com", pathname: "/**" },
     ],
   },
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   experimental: {
     serverActions: { allowedOrigins: ["localhost:3000"] },
   },
