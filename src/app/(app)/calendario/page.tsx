@@ -525,27 +525,3 @@ export default function CalendarioPage() {
     </div>
   );
 }
-ração</li>
-                <li>Protocolo de cárdio para cada tipo de dia</li>
-                <li>Estratégia nutricional com macros e timings</li>
-              </ul>
-            </div>
-
-            {cfg && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-800/30 px-3 py-2">
-                <p className="text-[11px] text-zinc-500">Atual: {cfg.pattern.map(d => WEEKDAYS[d - 1]).join(', ')}</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setShowScheduleDialog(false)}>Cancelar</Button>
-              <Button className="flex-1 gap-1.5" disabled={isScheduling} onClick={async () => { await handleSchedule(); setShowScheduleDialog(false); }}>
-                {isScheduling ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Calculando…</> : <><Sparkles className="h-3.5 w-3.5" />Gerar plano</>}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
