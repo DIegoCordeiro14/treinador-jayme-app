@@ -210,7 +210,7 @@ export default function NutricaoPage() {
         {plan ? (
           <div className="flex justify-around mt-2">
             <MacroRing pct={plan.carbs_pct} color="text-yellow-300" label="Carbs" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
-            <MacroRing pct={Math.min(Math.round(plan.protein_g_per_kg * 4), 100)} color="text-blue-300" label="Proteina" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
+            <MacroRing pct={(plan as any).protein_pct ?? Math.min(Math.round((plan.protein_g_per_kg ?? 0) * 15), 100)} color="text-blue-300" label="Proteína" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
             <MacroRing pct={plan.fat_pct} color="text-pink-300" label="Gordura" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
           </div>
         ) : (
@@ -442,7 +442,7 @@ export default function NutricaoPage() {
                 </div>
                 {[
                   { label: 'Carboidratos', pct: plan.carbs_pct, color: 'bg-yellow-500' },
-                  { label: 'Proteinas', pct: Math.min(Math.round(plan.protein_g_per_kg * 4), 100), color: 'bg-blue-500' },
+                  { label: 'Proteínas', pct: (plan as any).protein_pct ?? Math.min(Math.round((plan.protein_g_per_kg ?? 0) * 15), 100), color: 'bg-blue-500' },
                   { label: 'Gorduras', pct: plan.fat_pct, color: 'bg-pink-500' },
                 ].map(m => (
                   <div key={m.label} className="space-y-1">
@@ -455,6 +455,31 @@ export default function NutricaoPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Ciclagem de Carboidratos */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+                <p className="text-sm font-semibold text-zinc-200 mb-1">📊 Ciclagem de Carboidratos</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3">
+                    <p className="text-xs font-bold text-blue-300 mb-2">🏋️ Dia de Treino</p>
+                    <p className="text-xs text-zinc-400">Carbs <span className="text-zinc-100 font-bold">{Math.min(plan.carbs_pct + 10, 65)}%</span></p>
+                    <p className="text-xs text-zinc-400">Proteína <span className="text-zinc-100 font-bold">{(plan as any).protein_pct ?? 35}%</span></p>
+                    <p className="text-[10px] text-zinc-600 mt-2 leading-relaxed">{plan.pre_workout ?? 'Carbs complexos + proteína 1-2h antes'}</p>
+                  </div>
+                  <div className="rounded-lg bg-zinc-800/50 border border-zinc-700 p-3">
+                    <p className="text-xs font-bold text-zinc-300 mb-2">😴 Dia de Descanso</p>
+                    <p className="text-xs text-zinc-400">Carbs <span className="text-zinc-100 font-bold">{Math.max(plan.carbs_pct - 10, 20)}%</span></p>
+                    <p className="text-xs text-zinc-400">Gordura <span className="text-zinc-100 font-bold">{Math.min(plan.fat_pct + 5, 40)}%</span></p>
+                    <p className="text-[10px] text-zinc-600 mt-2 leading-relaxed">{plan.rest_day_strategy ?? 'Reduzir carbs, manter proteína elevada'}</p>
+                  </div>
+                </div>
+                {plan.post_workout && (
+                  <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-2.5">
+                    <p className="text-[10px] font-bold text-green-400 mb-0.5">Pós-treino</p>
+                    <p className="text-[10px] text-zinc-400">{plan.post_workout}</p>
+                  </div>
+                )}
               </div>
 
               {/* Key tips */}
