@@ -14,13 +14,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
-import { useLatestMetrics, formatMetricsForAI } from '@/hooks/useLatestMetrics';
+import { useLatestMetrics } from '@/hooks/useLatestMetrics';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { format, subDays, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NutritionPlan {
