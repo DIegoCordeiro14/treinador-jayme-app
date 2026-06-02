@@ -34,6 +34,7 @@ export default function EquipesPage() {
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
   const [joinCode, setJoinCode] = useState('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -53,7 +54,12 @@ export default function EquipesPage() {
       is_member: myTeamIds.has(t.id as string),
     })) as Team[];
 
-    setTeams(mapped);
+    const DEFAULT_EDN_TEAMS: Team[] = [
+      { id: 'edn-init', name: 'EDN Iniciantes', description: 'Para quem está começando. Progressão linear, 3-4x/semana.', invite_code: 'EDNINIT', max_members: 50, total_xp: 0, is_public: true, created_by: 'system', member_count: 0, is_member: false },
+      { id: 'edn-inter', name: 'EDN Intermediários', description: 'Dupla progressão e mesociclos estruturados, 1-3 anos de treino.', invite_code: 'EDNINTER', max_members: 50, total_xp: 0, is_public: true, created_by: 'system', member_count: 0, is_member: false },
+      { id: 'edn-adv', name: 'EDN Avançados', description: 'Naturais de elite. Periodização avançada e Top Set profissional.', invite_code: 'EDNADV', max_members: 30, total_xp: 0, is_public: true, created_by: 'system', member_count: 0, is_member: false },
+    ];
+    setTeams(mapped.length > 0 ? mapped : DEFAULT_EDN_TEAMS);
     setMyTeams(mapped.filter((t) => t.is_member));
     setLoading(false);
   }
@@ -142,17 +148,31 @@ export default function EquipesPage() {
 
       {/* Public teams */}
       <div>
-        <h2 className="font-semibold text-zinc-100 mb-3">Equipes Públicas</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-zinc-100">Equipes Públicas</h2>
+        </div>
+        {/* Busca */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar equipe por nome…" className="w-full h-9 rounded-lg border border-zinc-800 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600" />
+        </div>
         {loading ? (
           <div className="grid sm:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-xl bg-zinc-800 animate-pulse" />)}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
-            {teams.map((team) => (
+            {teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.description?.toLowerCase().includes(search.toLowerCase())).map((team) => (
               <TeamCard key={team.id} team={team} isMember={team.is_member} onJoin={() => joinTeam(team.id)} onLeave={() => leaveTeam(team.id)} onCopyCode={() => copyCode(team.invite_code)} copied={copiedCode === team.invite_code} />
             ))}
           </div>
+          {search && teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase())).length === 0 && (
+            <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
+              <Users className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
+              <p className="text-sm text-zinc-500">Nenhuma equipe encontrada para "{search}"</p>
+              <button onClick={() => { setSearch(''); setShowCreate(true); }} className="mt-3 text-xs text-blue-400 hover:text-blue-300">Criar esta equipe?</button>
+            </div>
+          )}
         )}
       </div>
 
