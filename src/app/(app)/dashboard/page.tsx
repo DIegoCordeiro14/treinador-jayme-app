@@ -9,6 +9,10 @@ import {
   Clock,
   Dumbbell,
   ChevronRight,
+  Bot,
+  CheckCircle2,
+  Circle,
+  TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -213,6 +217,66 @@ export default async function DashboardPage() {
         />
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
+
+      {/* Coach Jayme proativo */}
+      <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20">
+            <Bot className="h-4 w-4 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-100">Recomendação do dia</p>
+            <p className="text-[10px] text-zinc-500">Treinador Jayme · baseado no seu progresso</p>
+          </div>
+          <Link href="/app/ia" className="ml-auto text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+            Conversar <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        {monthlySessions.length === 0 ? (
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            Bem-vindo ao Treinador Jayme! 💪 Seu plano está pronto — comece pelo{" "}
+            <strong className="text-zinc-100">Treino A</strong> hoje. Foco na técnica antes da carga.
+          </p>
+        ) : streak >= 3 ? (
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            🔥 <strong className="text-zinc-100">{streak} dias de sequência!</strong> Excelente consistência.{" "}
+            {weeklyVolume > 0 ? `Seu volume semanal está em ${Math.round(weeklyVolume)}kg — ` : ""}
+            Continue progredindo e considere um deload se sentir fadiga acumulada.
+          </p>
+        ) : (
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            {todayWorkoutDay
+              ? <>Execute o <strong className="text-zinc-100">{todayWorkoutDay.name}</strong> hoje com foco em progressão de carga. Registre RIR em todas as séries.</>
+              : <>Hoje é dia de descanso. Aproveite para recuperar e mantenha hidratação elevada.</>}
+          </p>
+        )}
+      </div>
+
+      {/* Onboarding checklist — só aparece sem sessões */}
+      {monthlySessions.length === 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-semibold text-zinc-200 mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-blue-400" /> Primeiros passos
+          </p>
+          <div className="space-y-2">
+            {[
+              { label: "Perfil configurado", done: !!profile?.name, href: "/app/perfil" },
+              { label: "Peso registrado", done: !!latestWeightKg, href: "/app/evolucao" },
+              { label: "Plano de treino criado", done: !!typedPlan, href: "/app/treinos" },
+              { label: "Primeiro treino concluído", done: monthlySessions.length > 0, href: todayWorkoutDay ? `/app/treinos/${typedPlan?.id}/executar?day=${todayWorkoutDay.id}` : "/app/treinos" },
+            ].map(step => (
+              <Link key={step.label} href={step.href} className="flex items-center gap-3 py-1.5 group">
+                {step.done
+                  ? <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                  : <Circle className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 shrink-0 transition-colors" />}
+                <span className={step.done ? "text-sm text-zinc-400 line-through" : "text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors"}>
+                  {step.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Active Plan */}
       {typedPlan && (
