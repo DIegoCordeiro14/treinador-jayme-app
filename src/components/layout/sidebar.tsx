@@ -137,7 +137,7 @@ export function Sidebar({ profile }: SidebarProps) {
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-zinc-100 truncate">{profile?.name ?? "Usuário"}</p>
-            <p className="text-[10px] text-zinc-500 capitalize">(GOAL_LABELS as Record<string, string>)[profile?.goal ?? ''] ?? profile?.goal ?? ''</p>
+            <p className="text-[10px] text-zinc-500 capitalize">{GOAL_LABELS[profile?.goal as keyof typeof GOAL_LABELS] ?? profile?.goal ?? ''}</p>
           </div>
           <button onClick={handleLogout} className="text-zinc-600 hover:text-red-400 transition-colors p-1" title="Sair">
             <LogOut size={14} />

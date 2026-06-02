@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Satellite } from 'lucide-react';
+import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -369,7 +369,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         {/* Acquiring GPS overlay */}
         {status === 'acquiring' && (
           <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-center gap-2 bg-black/70 backdrop-blur-sm py-2">
-            <Satellite className="h-4 w-4 text-orange-400 animate-pulse" />
+            <Radio className="h-4 w-4 text-orange-400 animate-pulse" />
             <p className="text-xs text-orange-300 font-semibold">Aguardando sinal de GPS…</p>
           </div>
         )}
@@ -452,7 +452,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
             )}
             {status === 'acquiring' && (
               <div className="w-full py-4 rounded-2xl bg-orange-500/20 border border-orange-500/30 text-orange-400 font-bold text-base flex items-center justify-center gap-2">
-                <Satellite className="h-5 w-5 animate-pulse" />
+                <Radio className="h-5 w-5 animate-pulse" />
                 Buscando sinal GPS…
               </div>
             )}
