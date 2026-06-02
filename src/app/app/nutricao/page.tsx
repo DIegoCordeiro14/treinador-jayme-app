@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; 
 import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
