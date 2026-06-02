@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import {
-  ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot,
+  ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
   Pause, Square, PlayCircle, Info,
 } from 'lucide-react';
@@ -95,6 +95,7 @@ export default function ExecutarPage() {
   const [loading, setLoading] = useState(true);
   const [exStates, setExStates] = useState<ExState[]>([]);
   const [prevLoads, setPrevLoads] = useState<Record<string, number>>({});
+  const [ednSuggestions, setEdnSuggestions] = useState<Record<string, { suggestedWeight: number; model: string; stagnant: boolean }>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [phase, setPhase] = useState<'warmup' | 'active' | 'summary'>('warmup');
   const [isPaused, setIsPaused] = useState(false);
@@ -121,11 +122,28 @@ export default function ExecutarPage() {
       setExercises(exs);
       if (sessions?.length) {
         const ids = sessions.map(s => s.id);
-        const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg').in('session_id', ids).eq('completed', true).order('weight_kg', { ascending: false });
+        const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg, session_id').in('session_id', ids).eq('completed', true);
         if (ps) {
           const loads: Record<string, number> = {};
-          ps.forEach(s => { if (!loads[s.exercise_id]) loads[s.exercise_id] = Number(s.weight_kg); });
+          // Agrupar por exercise_id e session para detectar estagnação
+          const byEx: Record<string, number[]> = {};
+          ps.forEach(s => {
+            const eid = s.exercise_id;
+            const w = Number(s.weight_kg);
+            if (!byEx[eid]) byEx[eid] = [];
+            byEx[eid].push(w);
+            if (!loads[eid] || w > loads[eid]) loads[eid] = w;
+          });
           setPrevLoads(loads);
+          // Calcular sugestões EDN simples
+          const suggestions: Record<string, { suggestedWeight: number; model: string; stagnant: boolean }> = {};
+          Object.entries(byEx).forEach(([eid, weights]) => {
+            const sorted = [...new Set(weights)].sort((a, b) => b - a);
+            const top = sorted[0] ?? 0;
+            const stagnant = sorted.length < 2 ? false : (sorted[0] - sorted[sorted.length - 1]) < 2.5;
+            suggestions[eid] = { suggestedWeight: stagnant ? top : top + 2.5, model: stagnant ? 'Estagnado — tente aumentar o volume' : 'Progressão linear', stagnant };
+          });
+          setEdnSuggestions(suggestions);
           setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, loads[ex.exercise_id] ?? null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
         } else {
           setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
@@ -457,6 +475,22 @@ export default function ExecutarPage() {
               </span>
             </div>
           )}
+
+          {/* Sugestão EDN + alerta de estagnação */}
+          {ex && ednSuggestions[ex.exercise_id] && (() => {
+            const sg = ednSuggestions[ex.exercise_id];
+            return (
+              <div className={cn('rounded-lg border px-3 py-2.5 flex items-center gap-3', sg.stagnant ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-blue-500/20 bg-blue-500/5')}>
+                <TrendingUp className={cn('h-4 w-4 shrink-0', sg.stagnant ? 'text-yellow-400' : 'text-blue-400')} />
+                <div>
+                  <p className={cn('text-xs font-bold', sg.stagnant ? 'text-yellow-300' : 'text-blue-300')}>
+                    {sg.stagnant ? '⚠ Estagnação detectada — aumente volume ou mude progressão' : `Sugestão EDN: ${sg.suggestedWeight}kg (Top Set)`}
+                  </p>
+                  <p className="text-[10px] text-zinc-500">{sg.model}</p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Exercise video thumbnail */}
           {thumbnail && ex && (
