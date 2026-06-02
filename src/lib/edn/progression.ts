@@ -451,9 +451,10 @@ export function xpForNextLevel(currentLevel: number): number {
 
 export function xpProgress(totalXp: number): { level: number; current: number; needed: number; pct: number } {
   const level = xpToLevel(totalXp);
-  const currentLevelXp = level * level * 100;
+  // Level 1 starts at 0 XP, subsequent levels at level² × 100
+  const currentLevelXp = level <= 1 ? 0 : level * level * 100;
   const nextLevelXp = xpForNextLevel(level);
-  const current = totalXp - currentLevelXp;
+  const current = Math.max(0, totalXp - currentLevelXp);
   const needed = nextLevelXp - currentLevelXp;
   return { level, current, needed, pct: Math.round((current / needed) * 100) };
 }
