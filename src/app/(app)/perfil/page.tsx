@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { getInitials } from '@/lib/utils';
 import { xpProgress } from '@/lib/edn/progression';
-import type { Profile, GoalType, ExperienceLevel } from '@/types';
+import type { Profile, GoalType, ExperienceLevel, GenderType } from '@/types';
 import { GOAL_LABELS, EXPERIENCE_LABELS } from '@/types';
 
 export default function PerfilPage() {
@@ -20,7 +20,7 @@ export default function PerfilPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [xp, setXp] = useState({ xp_total: 0, level: 1 });
-  const [form, setForm] = useState({ name: '', age: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3' });
+  const [form, setForm] = useState({ name: '', age: '', gender: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3' });
   const [saving, setSaving] = useState(false);
   const [email, setEmail] = useState('');
 
@@ -40,6 +40,7 @@ export default function PerfilPage() {
         setForm({
           name: prof.name ?? '',
           age: prof.age?.toString() ?? '',
+          gender: prof.gender ?? '',
           weight_kg: prof.weight_kg?.toString() ?? '',
           height_cm: prof.height_cm?.toString() ?? '',
           body_fat_pct: '',
@@ -62,6 +63,7 @@ export default function PerfilPage() {
       id: user.id,
       name: form.name,
       age: form.age ? parseInt(form.age) : null,
+      gender: form.gender as GenderType || null,
       weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       goal: form.goal as GoalType,
@@ -148,6 +150,19 @@ export default function PerfilPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
+            <Label>Sexo</Label>
+            <Select value={form.gender} onValueChange={set('gender')}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                <SelectValue placeholder="Selecionar…" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                <SelectItem value="male" className="text-zinc-100">Masculino</SelectItem>
+                <SelectItem value="female" className="text-zinc-100">Feminino</SelectItem>
+                <SelectItem value="other" className="text-zinc-100">Outro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
             <Label>Objetivo</Label>
             <Select value={form.goal} onValueChange={set('goal')}>
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
@@ -175,27 +190,4 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        <Button className="w-full gap-2" onClick={saveProfile} disabled={saving}>
-          <Save className="h-4 w-4" />
-          {saving ? 'Salvando…' : 'Salvar Perfil'}
-        </Button>
-      </div>
-
-      {/* Account */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-        <h2 className="font-semibold text-zinc-100 mb-4">Conta</h2>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm text-zinc-300">E-mail</p>
-              <p className="text-xs text-zinc-500">{email}</p>
-            </div>
-          </div>
-        </div>
-        <Button variant="outline" className="w-full mt-4 gap-2 border-red-800 text-red-400 hover:bg-red-600/10" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" /> Sair da conta
-        </Button>
-      </div>
-    </div>
-  );
-}
+        <Button className="w-full gap-2" onClick={saveProfile} disabled
