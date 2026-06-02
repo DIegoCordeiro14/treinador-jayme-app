@@ -257,7 +257,7 @@ export default function CalendarioPage() {
                 onClick={() => inMonth && loadDaySessions(day)}
                 className={cn(
                   'relative flex flex-col items-center justify-center rounded-lg p-1 min-h-[48px] transition-all text-sm font-medium',
-                  !inMonth && 'opacity-20 cursor-default',
+                  !inMonth && 'opacity-20 pointer-events-none',
                   inMonth && 'hover:bg-zinc-800',
                   isToday(day) && 'ring-1 ring-blue-600',
                   isSelected && 'bg-zinc-800',
@@ -272,11 +272,12 @@ export default function CalendarioPage() {
                   <>
                     <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-blue-500/70" />
                     {workoutLabel && (
-                      <span className="absolute top-0.5 right-0.5 text-[7px] text-blue-400/70 font-medium leading-none truncate max-w-[46px]">
-                        {shortLabel(workoutLabel)}
-                      </span>
+                      <span className="absolute top-0 left-0 right-0 bottom-0 rounded-lg" title={workoutLabel} />
                     )}
                   </>
+                )}
+                {session && workoutLabel && (
+                  <span className="absolute top-0 left-0 right-0 bottom-0 rounded-lg" title={`Treino realizado: ${workoutLabel}`} />
                 )}
               </button>
             );
