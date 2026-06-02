@@ -86,8 +86,6 @@ function NumInput({ label, field, placeholder, form, setForm, step = '0.1' }: {
   label: string; field: string; placeholder: string;
   form: Record<string, string>; setForm: (fn: (f: Record<string, string>) => Record<string, string>) => void; step?: string;
 }) {
-  }
-
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-zinc-400">{label}</Label>
@@ -120,10 +118,11 @@ export default function EvolucaoPage() {
 
   // forms
   const [measForm, setMeasForm] = useState({ weight_kg: '', body_fat_pct: '', arm_cm: '', chest_cm: '', waist_cm: '', thigh_cm: '' });
-  const [bioForm, setBioForm] = useState<Record<string, string>>({
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportGeneratedAt, setReportGeneratedAt] = useState<string | null>(null);
+
+  const [bioForm, setBioForm] = useState<Record<string, string>>({
     source: 'Zepp Life', body_score: '', body_type: '',
     weight_kg: '', bmi: '', body_fat_pct: '', water_pct: '',
     basal_metabolic_rate_kcal: '', visceral_fat_level: '',
@@ -245,15 +244,6 @@ export default function EvolucaoPage() {
   const weightDelta = latest?.weight_kg && prev?.weight_kg ? latest.weight_kg - prev.weight_kg : null;
   const totalVolume = sessions.reduce((s, sess) => s + (sess.total_volume_kg ?? 0), 0);
   const latestBio = bioList[0] ?? null;
-  const bioChartData = [...bioList].reverse().map((b) => ({
-    date: format(parseISO(b.measured_at), 'dd/MM', { locale: ptBR }),
-    gordura: b.body_fat_pct,
-    musculo: b.skeletal_muscle_mass_kg,
-    peso: b.weight_kg,
-  }));
-
-  }
-
 
   async function generateReport() {
     setReportLoading(true);
@@ -269,6 +259,13 @@ export default function EvolucaoPage() {
       setReportLoading(false);
     }
   }
+
+  const bioChartData = [...bioList].reverse().map((b) => ({
+    date: format(parseISO(b.measured_at), 'dd/MM', { locale: ptBR }),
+    gordura: b.body_fat_pct,
+    musculo: b.skeletal_muscle_mass_kg,
+    peso: b.weight_kg,
+  }));
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
@@ -311,10 +308,7 @@ export default function EvolucaoPage() {
           <TabsTrigger value="peso">Peso</TabsTrigger>
           <TabsTrigger value="volume">Volume</TabsTrigger>
           <TabsTrigger value="medidas">Medidas</TabsTrigger>
-          <TabsTrigger value="relatorio" className="gap-1.5">
-            <FileText className="h-3.5 w-3.5" />
-            Relatorio
-          </TabsTrigger>
+          <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatorio</TabsTrigger>
         </TabsList>
 
         {/* ── Bioimpedância tab ────────────────────────────── */}
@@ -509,9 +503,8 @@ export default function EvolucaoPage() {
             )}
           </div>
         </TabsContent>
-        {/* ── Relatorio Semanal tab ────────────────────────── */}
+        {/* Relatorio Semanal tab */}
         <TabsContent value="relatorio" className="mt-4 space-y-4">
-          {/* Generate button */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/20">
@@ -542,7 +535,6 @@ export default function EvolucaoPage() {
 
           {report && (
             <>
-              {/* Stats da semana */}
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: 'Sessoes', value: report.sessions_count, icon: <Dumbbell className="h-4 w-4" />, color: 'text-blue-400' },
@@ -557,7 +549,6 @@ export default function EvolucaoPage() {
                 ))}
               </div>
 
-              {/* Summary */}
               <div className="rounded-xl border border-blue-600/30 bg-blue-600/10 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-blue-400 shrink-0" />
@@ -566,7 +557,6 @@ export default function EvolucaoPage() {
                 <p className="text-sm text-zinc-200 leading-relaxed">{report.summary}</p>
               </div>
 
-              {/* Volume Assessment */}
               <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Avaliacao de Volume</p>
                 <p className="text-sm text-zinc-300 leading-relaxed">{report.volume_assessment}</p>
@@ -579,21 +569,16 @@ export default function EvolucaoPage() {
                 )}
               </div>
 
-              {/* Progression */}
               <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Progressao</p>
-                {report.progression.positive.length > 0 && (
-                  <div className="space-y-1.5">
-                    {report.progression.positive.map((item: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
-                        <p className="text-sm text-zinc-300">{item}</p>
-                      </div>
-                    ))}
+                {report.progression.positive.map((item: string, i: number) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+                    <p className="text-sm text-zinc-300">{item}</p>
                   </div>
-                )}
+                ))}
                 {report.progression.to_improve.length > 0 && (
-                  <div className="space-y-1.5 pt-1 border-t border-zinc-800">
+                  <div className="space-y-1.5 pt-2 border-t border-zinc-800">
                     {report.progression.to_improve.map((item: string, i: number) => (
                       <div key={i} className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
@@ -604,26 +589,15 @@ export default function EvolucaoPage() {
                 )}
               </div>
 
-              {/* Suggestions */}
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Sugestoes de Evolucao</p>
                 {(report.suggestions ?? []).map((s: any, i: number) => {
-                  const priorityStyle = s.priority === 'alta'
-                    ? 'border-red-500/40 bg-red-500/5'
-                    : s.priority === 'media'
-                    ? 'border-yellow-500/40 bg-yellow-500/5'
-                    : 'border-blue-500/40 bg-blue-500/5';
-                  const priorityBadge = s.priority === 'alta'
-                    ? 'text-red-400 bg-red-500/10'
-                    : s.priority === 'media'
-                    ? 'text-yellow-400 bg-yellow-500/10'
-                    : 'text-blue-400 bg-blue-500/10';
+                  const ps = s.priority === 'alta' ? 'border-red-500/40 bg-red-500/5' : s.priority === 'media' ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-blue-500/40 bg-blue-500/5';
+                  const pb = s.priority === 'alta' ? 'text-red-400 bg-red-500/10' : s.priority === 'media' ? 'text-yellow-400 bg-yellow-500/10' : 'text-blue-400 bg-blue-500/10';
                   return (
-                    <div key={i} className={cn('rounded-xl border p-4', priorityStyle)}>
+                    <div key={i} className={cn('rounded-xl border p-4', ps)}>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide', priorityBadge)}>
-                          {s.priority}
-                        </span>
+                        <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide', pb)}>{s.priority}</span>
                         <span className="text-[10px] text-zinc-500 uppercase tracking-wide">{s.category}</span>
                       </div>
                       <p className="text-sm font-semibold text-zinc-100 mb-1">{s.title}</p>
@@ -633,7 +607,6 @@ export default function EvolucaoPage() {
                 })}
               </div>
 
-              {/* Next week focus */}
               <div className="rounded-xl border border-green-600/30 bg-green-600/10 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ArrowRight className="h-4 w-4 text-green-400 shrink-0" />
@@ -642,7 +615,6 @@ export default function EvolucaoPage() {
                 <p className="text-sm text-zinc-200 leading-relaxed">{report.next_week_focus}</p>
               </div>
 
-              {/* EDN Tip */}
               <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-purple-400 shrink-0" />
