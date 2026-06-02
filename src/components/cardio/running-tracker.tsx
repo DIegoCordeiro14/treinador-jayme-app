@@ -4,12 +4,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2 } from 'lucide-react';
+import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Satellite } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface GpsPoint { lat: number; lng: number; timestamp: number; }
-type RunStatus = 'idle' | 'running' | 'paused' | 'finished' | 'saving';
+type RunStatus = 'idle' | 'acquiring' | 'running' | 'paused' | 'finished' | 'saving';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function haversineKm(p1: GpsPoint, p2: GpsPoint): number {
@@ -43,30 +43,29 @@ interface Props { onClose: () => void; onSaved: () => void; }
 export default function RunningTracker({ onClose, onSaved }: Props) {
   const supabase = createClient();
 
-  // Refs (stable across renders)
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const leafletRef = useRef<any>(null);
   const polylineRef = useRef<LPolyline | null>(null);
-  const markerRef = useRef<LMarker | null>(null);
+  const currentMarkerRef = useRef<LMarker | null>(null);
+  const startMarkerRef = useRef<LMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const distRef = useRef(0);
   const pointsRef = useRef<GpsPoint[]>([]);
   const elapsedRef = useRef(0);
 
-  // State (for re-renders)
   const [status, setStatus] = useState<RunStatus>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [distance, setDistance] = useState(0);
   const [mapReady, setMapReady] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
   // ── Leaflet init ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapEl.current) return;
-
     let mounted = true;
 
     (async () => {
@@ -75,13 +74,31 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
       leafletRef.current = L;
 
-      // Inject Leaflet CSS if not already present
+      // Load Leaflet CSS (from reliable CDN + fallback)
       if (!document.getElementById('leaflet-css')) {
         const link = document.createElement('link');
         link.id = 'leaflet-css';
         link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
         document.head.appendChild(link);
+      }
+
+      // Inject global styles for route animation
+      if (!document.getElementById('run-tracker-styles')) {
+        const style = document.createElement('style');
+        style.id = 'run-tracker-styles';
+        style.textContent = `
+          @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(249,115,22,0.4), 0 2px 8px rgba(0,0,0,0.6); }
+            50%       { box-shadow: 0 0 0 12px rgba(249,115,22,0.1), 0 2px 8px rgba(0,0,0,0.6); }
+          }
+          @keyframes pulse-start {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.5); }
+            50%       { box-shadow: 0 0 0 8px rgba(34,197,94,0.1); }
+          }
+          .leaflet-container { background: #18181b; }
+        `;
+        document.head.appendChild(style);
       }
 
       const m = L.map(mapEl.current, {
@@ -96,7 +113,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       mapRef.current = m;
       setMapReady(true);
 
-      // Initial position
+      // Center on current position
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           if (!mounted) return;
@@ -104,7 +121,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         },
         () => {
           if (!mounted) return;
-          m.setView([-23.5505, -46.6333], 14); // São Paulo fallback
+          m.setView([-23.5505, -46.6333], 14);
         },
         { enableHighAccuracy: true, timeout: 8000 },
       );
@@ -119,22 +136,34 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     };
   }, []);
 
-  // ── GPS ─────────────────────────────────────────────────────────────────────
+  // ── GPS watch ────────────────────────────────────────────────────────────────
   const startGps = useCallback(() => {
     if (!navigator.geolocation) {
       setGpsError('GPS não disponível neste dispositivo');
       return;
     }
+    setGpsAccuracy(null);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
+        const accuracy = pos.coords.accuracy;
+        setGpsAccuracy(Math.round(accuracy));
+
+        // Skip low-accuracy points while acquiring (first fix)
+        const isFirstPoint = pointsRef.current.length === 0;
+
         const pt: GpsPoint = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           timestamp: pos.timestamp,
         };
 
-        // Accumulate distance (ignore GPS jumps > 200m)
+        // If this is the first point, move from 'acquiring' to 'running'
+        if (isFirstPoint) {
+          setStatus('running');
+        }
+
+        // Accumulate distance (ignore jumps > 200m)
         const prev = pointsRef.current[pointsRef.current.length - 1];
         if (prev) {
           const d = haversineKm(prev, pt);
@@ -146,50 +175,82 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
         pointsRef.current = [...pointsRef.current, pt];
 
-        // Update map
         const L = leafletRef.current;
         const map = mapRef.current;
         if (!L || !map) return;
 
-        const latlngs = pointsRef.current.map((p) => [p.lat, p.lng] as [number, number]);
+        const latLng: [number, number] = [pt.lat, pt.lng];
 
+        // ── Polyline: use addLatLng for incremental updates ──────────────────
         if (!polylineRef.current) {
-          polylineRef.current = L.polyline(latlngs, {
+          polylineRef.current = L.polyline([latLng], {
             color: '#f97316',
-            weight: 5,
-            opacity: 0.9,
+            weight: 6,
+            opacity: 1,
             lineCap: 'round',
             lineJoin: 'round',
           }).addTo(map);
+
+          // Shadow/glow layer under the main line
+          L.polyline([latLng], {
+            color: '#7c2d12',
+            weight: 10,
+            opacity: 0.3,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }).addTo(map);
+
         } else {
-          polylineRef.current.setLatLngs(latlngs);
+          (polylineRef.current as any).addLatLng(latLng);
         }
 
-        // Pulsing orange dot
-        if (!markerRef.current) {
-          const icon = L.divIcon({
+        // ── Start marker (green, stays at origin) ────────────────────────────
+        if (!startMarkerRef.current && pointsRef.current.length === 1) {
+          const startIcon = L.divIcon({
             html: `<div style="
-              width:18px;height:18px;border-radius:50%;
-              background:#f97316;border:3px solid white;
-              box-shadow:0 0 0 6px rgba(249,115,22,0.25),0 2px 8px rgba(0,0,0,0.5);
-              animation:pulse 1.5s ease-in-out infinite;
-            "></div>
-            <style>@keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(249,115,22,0.3)}50%{box-shadow:0 0 0 10px rgba(249,115,22,0.1)}}</style>`,
+              width:14px;height:14px;border-radius:50%;
+              background:#22c55e;border:2px solid white;
+              animation:pulse-start 2s ease-in-out infinite;
+            "></div>`,
             className: '',
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
           });
-          markerRef.current = L.marker([pt.lat, pt.lng], { icon }).addTo(map);
-        } else {
-          markerRef.current.setLatLng([pt.lat, pt.lng]);
+          startMarkerRef.current = L.marker(latLng, { icon: startIcon }).addTo(map);
         }
 
-        map.panTo([pt.lat, pt.lng]);
+        // ── Current position marker (orange pulsing dot) ─────────────────────
+        const currentIcon = L.divIcon({
+          html: `<div style="
+            width:20px;height:20px;border-radius:50%;
+            background:#f97316;border:3px solid white;
+            animation:pulse-dot 1.2s ease-in-out infinite;
+          "></div>`,
+          className: '',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
+        });
+
+        if (!currentMarkerRef.current) {
+          currentMarkerRef.current = L.marker(latLng, { icon: currentIcon }).addTo(map);
+        } else {
+          currentMarkerRef.current.setLatLng(latLng);
+          currentMarkerRef.current.setIcon(currentIcon);
+        }
+
+        // Auto-pan to current position
+        map.panTo(latLng, { animate: true, duration: 0.5 });
       },
       (err) => {
-        setGpsError(`GPS: ${err.message}`);
+        const msg = err.code === 1
+          ? 'Permissão de GPS negada. Habilite nas configurações.'
+          : err.code === 2
+          ? 'Sinal de GPS indisponível. Vá para um local aberto.'
+          : 'Tempo limite de GPS excedido. Tente novamente.';
+        setGpsError(msg);
+        setStatus('idle');
       },
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
   }, []);
 
@@ -215,7 +276,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   // ── Controls ─────────────────────────────────────────────────────────────────
   function handleStart() {
     setGpsError(null);
-    setStatus('running');
+    setStatus('acquiring');
     startTimer();
     startGps();
   }
@@ -228,7 +289,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
   function handleResume() {
     setGpsError(null);
-    setStatus('running');
+    setStatus('acquiring');
     startTimer();
     startGps();
   }
@@ -236,6 +297,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   function handleFinish() {
     stopTimer();
     stopGps();
+    // Fit map to show full route
+    const map = mapRef.current;
+    const poly = polylineRef.current;
+    if (map && poly && pointsRef.current.length > 1) {
+      map.fitBounds((poly as any).getBounds(), { padding: [40, 40] });
+    }
     setStatus('finished');
   }
 
@@ -246,7 +313,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
     const km = distRef.current;
     const durationMin = Math.max(1, Math.round(elapsedRef.current / 60));
-    const speed = km / (elapsedRef.current / 3600); // km/h
+    const speed = km / (elapsedRef.current / 3600);
     const intensity = speed > 12 ? 'muito alta' : speed > 8 ? 'alta' : speed > 5 ? 'moderada' : 'leve';
     const calories = Math.round(km * 65);
 
@@ -274,14 +341,15 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const pace = fmtPace(elapsed, distance);
   const cals = Math.round(distance * 65);
   const isFinished = status === 'finished' || status === 'saving';
+  const isActive = status === 'running' || status === 'paused' || status === 'acquiring';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
-      {/* Close button (idle only) */}
-      {status === 'idle' && (
+      {/* Close button */}
+      {(status === 'idle' || status === 'finished') && (
         <button
           onClick={onClose}
-          className="absolute top-safe-top top-4 left-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg"
+          className="absolute top-4 left-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg"
         >
           <X className="h-4 w-4" />
         </button>
@@ -289,6 +357,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
       {/* MAP ─────────────────────────────────────────────────────────────────── */}
       <div ref={mapEl} className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
+
         {/* Loading overlay */}
         {!mapReady && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-900 gap-3">
@@ -297,7 +366,15 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
           </div>
         )}
 
-        {/* Top controls */}
+        {/* Acquiring GPS overlay */}
+        {status === 'acquiring' && (
+          <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-center gap-2 bg-black/70 backdrop-blur-sm py-2">
+            <Satellite className="h-4 w-4 text-orange-400 animate-pulse" />
+            <p className="text-xs text-orange-300 font-semibold">Aguardando sinal de GPS…</p>
+          </div>
+        )}
+
+        {/* Zoom controls */}
         {mapReady && (
           <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
             <button
@@ -312,25 +389,29 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         )}
 
         {/* Re-center button */}
-        {mapReady && status !== 'idle' && (
+        {mapReady && isActive && (
           <button
             onClick={() => {
               const last = pointsRef.current[pointsRef.current.length - 1];
               if (last) mapRef.current?.panTo([last.lat, last.lng]);
             }}
-            className="absolute bottom-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg shadow-orange-500/40"
+            className="absolute bottom-4 right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg shadow-orange-500/40"
           >
             <Navigation2 className="h-5 w-5" />
           </button>
         )}
 
-        {/* Route stats badge (visible while running/paused) */}
-        {(status === 'running' || status === 'paused') && (
-          <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 rounded-xl bg-black/70 backdrop-blur-sm px-3 py-2 shadow">
-            <p className="text-orange-400 text-xl font-black tabular-nums">{fmtTime(elapsed)}</p>
-            <p className="text-zinc-300 text-sm font-semibold tabular-nums">{distance.toFixed(2)} km</p>
+        {/* Live stats badge */}
+        {(status === 'running' || status === 'paused' || status === 'acquiring') && (
+          <div className="absolute top-4 left-4 z-10 flex flex-col gap-0.5 rounded-xl bg-black/75 backdrop-blur-sm px-3 py-2.5 shadow">
+            <p className="text-orange-400 text-2xl font-black tabular-nums leading-none">{fmtTime(elapsed)}</p>
+            <p className="text-zinc-200 text-sm font-bold tabular-nums">{distance.toFixed(2)} km</p>
+            <p className="text-zinc-500 text-xs tabular-nums">{pace} /km</p>
             {status === 'paused' && (
-              <span className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wider">● Pausado</span>
+              <span className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wider mt-0.5">⏸ Pausado</span>
+            )}
+            {gpsAccuracy !== null && status === 'running' && (
+              <span className="text-[10px] text-zinc-600">GPS ±{gpsAccuracy}m</span>
             )}
           </div>
         )}
@@ -357,7 +438,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
             </div>
 
             {gpsError && (
-              <p className="text-xs text-red-400 text-center">{gpsError}</p>
+              <p className="text-xs text-red-400 text-center bg-red-500/10 rounded-lg px-3 py-2">{gpsError}</p>
             )}
 
             {/* Controls */}
@@ -368,6 +449,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
               >
                 Iniciar corrida
               </button>
+            )}
+            {status === 'acquiring' && (
+              <div className="w-full py-4 rounded-2xl bg-orange-500/20 border border-orange-500/30 text-orange-400 font-bold text-base flex items-center justify-center gap-2">
+                <Satellite className="h-5 w-5 animate-pulse" />
+                Buscando sinal GPS…
+              </div>
             )}
             {status === 'running' && (
               <div className="flex gap-3">
