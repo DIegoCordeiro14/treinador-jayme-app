@@ -13,10 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const PRIMARY_ITEMS = [
-  { href: "/app/dashboard", label: "Início", icon: LayoutDashboard },
+  { href: "/app/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
   { href: "/app/ia", label: "Jayme IA", icon: Bot },
-  { href: "/app/nutricao", label: "Nutrição", icon: Utensils },
+  { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
   { href: "/app/perfil", label: "Perfil", icon: User },
 ];
 
@@ -27,7 +27,6 @@ interface BottomNavProps {
 export function BottomNav({ onOpenDrawer }: BottomNavProps) {
   const pathname = usePathname();
 
-  // Check if current page is NOT in primary items → highlight "Mais"
   const inPrimary = PRIMARY_ITEMS.some(
     (item) =>
       pathname === item.href ||
@@ -51,4 +50,35 @@ export function BottomNav({ onOpenDrawer }: BottomNavProps) {
                 isActive ? "text-blue-400" : "text-zinc-500 hover:text-zinc-300"
               )}
             >
-            
+              <Icon
+                size={19}
+                className={cn(
+                  "transition-all shrink-0",
+                  isActive && "drop-shadow-[0_0_6px_rgba(96,165,250,0.8)]"
+                )}
+              />
+              <span className="text-[9px] font-medium leading-none">{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <button
+          onClick={onOpenDrawer}
+          className={cn(
+            "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all min-w-0",
+            !inPrimary ? "text-blue-400" : "text-zinc-500 hover:text-zinc-300"
+          )}
+        >
+          <MoreHorizontal
+            size={19}
+            className={cn(
+              "shrink-0",
+              !inPrimary && "drop-shadow-[0_0_6px_rgba(96,165,250,0.8)]"
+            )}
+          />
+          <span className="text-[9px] font-medium leading-none">Mais</span>
+        </button>
+      </div>
+    </nav>
+  );
+}

@@ -33,11 +33,11 @@ const NAV_GROUPS = [
     items: [
       { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
-      { href: "/app/exercicios", label: "Exercícios", icon: BookOpen },
-      { href: "/app/calendario", label: "Calendário", icon: Calendar },
-      { href: "/app/evolucao", label: "Evolução", icon: TrendingUp },
-      { href: "/app/cardio", label: "Cárdio", icon: Flame },
-      { href: "/app/nutricao", label: "Nutrição", icon: Utensils },
+      { href: "/app/exercicios", label: "Exercicios", icon: BookOpen },
+      { href: "/app/calendario", label: "Calendario", icon: Calendar },
+      { href: "/app/evolucao", label: "Evolucao", icon: TrendingUp },
+      { href: "/app/cardio", label: "Cardio", icon: Flame },
+      { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
     ],
   },
   {
@@ -77,14 +77,13 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
   async function handleLogout() {
     await supabase.auth.signOut();
     onClose();
-    toast.success("Sessão encerrada");
+    toast.success("Sessao encerrada");
     router.push("/login");
     router.refresh();
   }
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className={cn(
           "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden",
@@ -93,14 +92,12 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
         onClick={onClose}
       />
 
-      {/* Drawer panel */}
       <aside
         className={cn(
           "fixed left-0 top-0 bottom-0 z-50 w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col transition-transform duration-300 ease-in-out md:hidden",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
@@ -119,7 +116,6 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
@@ -154,7 +150,6 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
           ))}
         </nav>
 
-        {/* User section */}
         <div className="p-3 border-t border-zinc-800">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-zinc-800 transition-colors">
             <Avatar className="h-8 w-8 shrink-0">
@@ -164,9 +159,9 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-zinc-100 truncate">{profile?.name ?? "Usuário"}</p>
+              <p className="text-xs font-semibold text-zinc-100 truncate">{profile?.name ?? "Usuario"}</p>
               <p className="text-[10px] text-zinc-500 capitalize">
-                {GOAL_LABELS[profile?.goal as keyof typeof GOAL_LABELS] ?? profile?.goal ?? ''}
+                {GOAL_LABELS[profile?.goal as keyof typeof GOAL_LABELS] ?? profile?.goal ?? ""}
               </p>
             </div>
             <button
@@ -177,4 +172,8 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
               <LogOut size={14} />
             </button>
           </div>
-        </d
+        </div>
+      </aside>
+    </>
+  );
+}
