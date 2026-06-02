@@ -160,7 +160,7 @@ export default function EquipesPage() {
           <div className="grid sm:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-xl bg-zinc-800 animate-pulse" />)}
           </div>
-        ) : (
+        ) : (<>
           <div className="grid sm:grid-cols-2 gap-3">
             {teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.description?.toLowerCase().includes(search.toLowerCase())).map((team) => (
               <TeamCard key={team.id} team={team} isMember={team.is_member} onJoin={() => joinTeam(team.id)} onLeave={() => leaveTeam(team.id)} onCopyCode={() => copyCode(team.invite_code)} copied={copiedCode === team.invite_code} />
@@ -173,7 +173,7 @@ export default function EquipesPage() {
               <button onClick={() => { setSearch(''); setShowCreate(true); }} className="mt-3 text-xs text-blue-400 hover:text-blue-300">Criar esta equipe?</button>
             </div>
           )}
-        )}
+        </>)}
       </div>
 
       {/* Create dialog */}
