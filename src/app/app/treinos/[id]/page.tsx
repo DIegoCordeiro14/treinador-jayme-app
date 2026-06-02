@@ -225,8 +225,8 @@ export default function PlanDetailPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setIsGenerating(false); return; }
 
-    const { data: rawProfile } = await supabase.from("profiles").select("experience_level,weight_kg,height_cm,gender,age").eq("id",user.id).single();
-    const profile = rawProfile as { experience_level:string; weight_kg:number|null; height_cm:number|null; gender:string|null; age:number|null }|null;
+    const { data: rawProfile } = await supabase.from("profiles").select("experience_level,weight_kg,height_cm").eq("id",user.id).single();
+    const profile = rawProfile as { experience_level:string; weight_kg:number|null; height_cm:number|null }|null;
 
     const { data: rawMeasurement } = await supabase.from("body_measurements").select("body_fat_pct,weight_kg").eq("user_id",user.id).order("date",{ascending:false}).limit(1).maybeSingle();
     const measurement = rawMeasurement as { body_fat_pct:number|null; weight_kg:number|null }|null;
@@ -264,7 +264,6 @@ export default function PlanDetailPage() {
         body: JSON.stringify({
           goal: plan.goal, daysPerWeek: plan.days_per_week,
           experienceLevel, weightKg, heightCm, bodyFatPct,
-          gender: profile?.gender ?? null, age: profile?.age ?? null,
           exercises, dayCount: sortedDays.length,
         }),
       });
@@ -624,4 +623,11 @@ export default function PlanDetailPage() {
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1" onClick={()=>setShowAutoDialog(false)} disabled={isConfirming}>Cancelar</Button>
             <Button className="flex-1 gap-2" onClick={confirmAutoPopulate} loading={isConfirming}>
-              <Sparkles className="h-4 w-4" />Co
+              <Sparkles className="h-4 w-4" />Confirmar e adicionar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
