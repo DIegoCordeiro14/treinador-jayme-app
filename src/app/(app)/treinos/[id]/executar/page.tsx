@@ -12,7 +12,27 @@ import {
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
 
-interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; }
+type SetType = 'aquecimento' | 'feeder' | 'top' | 'working';
+interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; }
+
+const SET_TYPE_CONFIG: Record<SetType, { label: string; color: string; bg: string }> = {
+  aquecimento: { label: 'Aquecimento', color: 'text-sky-400',    bg: 'bg-sky-400/15 border-sky-400/30' },
+  feeder:      { label: 'Feeder',      color: 'text-yellow-400', bg: 'bg-yellow-400/15 border-yellow-400/30' },
+  top:         { label: 'Top Set',     color: 'text-orange-400', bg: 'bg-orange-400/15 border-orange-400/30' },
+  working:     { label: 'Working',     color: 'text-zinc-300',   bg: 'bg-zinc-700/50 border-zinc-600/30' },
+};
+const SET_TYPE_CYCLE: SetType[] = ['aquecimento', 'feeder', 'top', 'working'];
+
+function autoSetTypes(count: number): SetType[] {
+  if (count === 1) return ['top'];
+  if (count === 2) return ['aquecimento', 'top'];
+  if (count === 3) return ['aquecimento', 'top', 'working'];
+  if (count === 4) return ['aquecimento', 'feeder', 'top', 'working'];
+  // 5+: aquecimento(s) + feeder + top + working(s)
+  const types: SetType[] = ['aquecimento', 'aquecimento', 'feeder', 'top'];
+  for (let i = 4; i < count; i++) types.push('working');
+  return types;
+}
 interface ExState {
   sets: SetEntry[];
   tip: string | null; tipLoading: boolean;
@@ -52,7 +72,14 @@ const MUSCLE_PT: Record<string, string> = {
 const RIR_OPTS = ['0', '1', '2', '3', '4'];
 
 function defaultSets(count: number, prevW: number | null): SetEntry[] {
-  return Array.from({ length: count }, () => ({ weight: prevW ? String(prevW) : '', reps: '', rir: '2', completed: false }));
+  const types = autoSetTypes(count);
+  return Array.from({ length: count }, (_, i) => ({
+    weight: prevW ? String(prevW) : '',
+    reps: '',
+    rir: types[i] === 'aquecimento' ? '4' : types[i] === 'feeder' ? '3' : '2',
+    completed: false,
+    setType: types[i],
+  }));
 }
 
 export default function ExecutarPage() {
@@ -169,6 +196,18 @@ export default function ExecutarPage() {
     setPhase('summary');
   }
 
+  function cycleSetType(exIdx: number, sIdx: number) {
+    setExStates(p => {
+      const n = [...p];
+      const sets = [...n[exIdx].sets];
+      const curr = sets[sIdx].setType;
+      const nextIdx = (SET_TYPE_CYCLE.indexOf(curr) + 1) % SET_TYPE_CYCLE.length;
+      sets[sIdx] = { ...sets[sIdx], setType: SET_TYPE_CYCLE[nextIdx] };
+      n[exIdx] = { ...n[exIdx], sets };
+      return n;
+    });
+  }
+
   function updateSet(exIdx: number, sIdx: number, field: keyof SetEntry, val: string | boolean) {
     setExStates(p => { const n = [...p]; const sets = [...n[exIdx].sets]; sets[sIdx] = { ...sets[sIdx], [field]: val }; n[exIdx] = { ...n[exIdx], sets }; return n; });
   }
@@ -210,7 +249,7 @@ export default function ExecutarPage() {
         if (!s.completed) return;
         const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
         totalVolume += w * r;
-        allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: 'working' });
+        allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType });
       });
     });
     const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '' }).select('id').single();
@@ -472,16 +511,25 @@ export default function ExecutarPage() {
           {/* Sets table */}
           {st && ex && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-              <div className="grid grid-cols-[36px_1fr_1fr_90px_44px] items-center gap-2 px-4 py-2 border-b border-zinc-800">
-                <span className="text-[10px] font-bold text-zinc-600 uppercase">#</span>
+              <div className="grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2 border-b border-zinc-800">
+                <span className="text-[10px] font-bold text-zinc-600 uppercase">Tipo</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">Carga (kg)</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">Reps</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">RIR</span>
                 <span />
               </div>
-              {st.sets.map((s, si) => (
-                <div key={si} className={cn('grid grid-cols-[36px_1fr_1fr_90px_44px] items-center gap-2 px-4 py-2.5 border-b border-zinc-800/50 last:border-0 transition-colors', s.completed && 'bg-green-500/5')}>
-                  <span className={cn('text-sm font-black text-center', s.completed ? 'text-green-400' : 'text-zinc-500')}>{si + 1}</span>
+              {st.sets.map((s, si) => {
+                const typeConf = SET_TYPE_CONFIG[s.setType];
+                return (
+                <div key={si} className={cn('grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2.5 border-b border-zinc-800/50 last:border-0 transition-colors', s.completed && 'bg-green-500/5')}>
+                  <button
+                    onClick={() => !s.completed && cycleSetType(currentIdx, si)}
+                    disabled={s.completed}
+                    title="Clique para mudar o tipo"
+                    className={cn('text-[9px] font-bold px-1.5 py-1 rounded-md border text-center leading-tight truncate transition-colors', typeConf.bg, typeConf.color, s.completed ? 'cursor-default opacity-70' : 'hover:brightness-110 cursor-pointer')}
+                  >
+                    {typeConf.label}
+                  </button>
                   <input type="number" step="0.5" placeholder="--" value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   <input type="number" step="1" min="0" placeholder="--" value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
@@ -494,7 +542,8 @@ export default function ExecutarPage() {
                     {s.completed ? <CheckCircle2 className="h-5 w-5 text-green-400" /> : <Circle className="h-5 w-5 text-zinc-600" />}
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
