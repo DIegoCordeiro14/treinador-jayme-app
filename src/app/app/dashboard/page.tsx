@@ -30,7 +30,7 @@ import {
   isSameDay,
   parseISO,
 } from "date-fns";
-import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS } from "@/types";
+import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS, GOAL_LABELS } from "@/types";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
 export default async function DashboardPage() {
@@ -217,7 +217,7 @@ export default async function DashboardPage() {
               <Badge variant="secondary">
                 {typedPlan.days_per_week}x por semana
               </Badge>
-              <Badge variant="outline">{typedPlan.goal}</Badge>
+              <Badge variant="outline">{GOAL_LABELS[typedPlan.goal as keyof typeof GOAL_LABELS] ?? typedPlan.goal}</Badge>
               <Badge variant="outline">
                 {typedPlan.workout_days?.length ?? 0} divisões
               </Badge>
