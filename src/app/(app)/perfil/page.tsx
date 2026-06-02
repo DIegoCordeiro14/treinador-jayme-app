@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { User, Save, LogOut, Camera, Zap } from 'lucide-react';
+import { User, Save, LogOut, Camera, Zap, Bell, Shield, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,13 @@ export default function PerfilPage() {
   const [form, setForm] = useState({ name: '', age: '', gender: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3', meals_per_day: '3' });
   const [saving, setSaving] = useState(false);
   const [email, setEmail] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showInRanking, setShowInRanking] = useState(true);
+  const [notifTraining, setNotifTraining] = useState(true);
+  const [notifChallenge, setNotifChallenge] = useState(true);
+  const [notifLevel, setNotifLevel] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -76,6 +83,35 @@ export default function PerfilPage() {
     setSaving(false);
     if (error) { toast.error('Erro ao salvar perfil'); return; }
     toast.success('Perfil salvo!');
+  }
+
+  async function handleAvatarUpload(file: File) {
+    if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem válida'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Imagem deve ter menos de 2MB'); return; }
+    setUploadingAvatar(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setUploadingAvatar(false); return; }
+    const ext = file.name.split('.').pop();
+    const path = `avatars/${user.id}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    if (upErr) { toast.error('Erro ao enviar foto'); setUploadingAvatar(false); return; }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+    setProfile(p => p ? { ...p, avatar_url: publicUrl } : p);
+    toast.success('Foto atualizada!');
+    setUploadingAvatar(false);
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setDeleting(false); return; }
+    // Deletar dados do usuário e fazer logout
+    await supabase.from('profiles').delete().eq('id', user.id);
+    await supabase.auth.signOut();
+    toast.success('Conta excluída');
+    router.push('/');
+    setDeleting(false);
   }
 
   async function handleLogout() {
@@ -199,6 +235,52 @@ export default function PerfilPage() {
         </Button>
       </div>
 
+      {/* Privacidade */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="font-semibold text-zinc-100 mb-4 flex items-center gap-2">
+          <Shield className="h-4 w-4 text-zinc-400" /> Privacidade
+        </h2>
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <p className="text-sm text-zinc-300">Aparecer no ranking público</p>
+            <p className="text-xs text-zinc-500">Outros usuários poderão ver seu score</p>
+          </div>
+          <button
+            onClick={() => setShowInRanking(v => !v)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showInRanking ? 'bg-blue-600' : 'bg-zinc-700'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showInRanking ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Notificações */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="font-semibold text-zinc-100 mb-4 flex items-center gap-2">
+          <Bell className="h-4 w-4 text-zinc-400" /> Notificações
+        </h2>
+        <div className="space-y-3 divide-y divide-zinc-800">
+          {[
+            { label: 'Lembrete de treino', sub: 'Notificação diária para não perder o treino', state: notifTraining, set: setNotifTraining },
+            { label: 'Desafio próximo do prazo', sub: 'Alerta quando um desafio vence em ≤ 2 dias', state: notifChallenge, set: setNotifChallenge },
+            { label: 'Subiu de nível', sub: 'Comemoração ao atingir um novo nível de XP', state: notifLevel, set: setNotifLevel },
+          ].map(n => (
+            <div key={n.label} className="flex items-center justify-between py-2.5 first:pt-0">
+              <div>
+                <p className="text-sm text-zinc-300">{n.label}</p>
+                <p className="text-xs text-zinc-500">{n.sub}</p>
+              </div>
+              <button
+                onClick={() => n.set(v => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${n.state ? 'bg-blue-600' : 'bg-zinc-700'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${n.state ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Account */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
         <h2 className="font-semibold text-zinc-100 mb-4">Conta</h2>
@@ -213,6 +295,24 @@ export default function PerfilPage() {
         <Button variant="outline" className="w-full mt-4 gap-2 border-red-800 text-red-400 hover:bg-red-600/10" onClick={handleLogout}>
           <LogOut className="h-4 w-4" /> Sair da conta
         </Button>
+        <div className="mt-3 pt-3 border-t border-zinc-800">
+          {!showDeleteConfirm ? (
+            <button onClick={() => setShowDeleteConfirm(true)} className="w-full text-xs text-zinc-600 hover:text-red-400 transition-colors py-1">
+              Excluir minha conta
+            </button>
+          ) : (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 space-y-3">
+              <p className="text-sm text-red-300 font-semibold">Tem certeza? Esta ação é irreversível.</p>
+              <p className="text-xs text-zinc-500">Todos os seus dados (treinos, evolução, XP) serão excluídos permanentemente.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:bg-zinc-800 transition-colors">Cancelar</button>
+                <button onClick={handleDeleteAccount} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60">
+                  <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
