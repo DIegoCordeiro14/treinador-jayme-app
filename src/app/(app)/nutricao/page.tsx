@@ -14,6 +14,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
+import { useLatestMetrics, formatMetricsForAI } from '@/hooks/useLatestMetrics';
+import { format, parseISO, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
@@ -75,6 +78,7 @@ const STATUS_CONFIG = {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function NutricaoPage() {
   const supabase = createClient();
+  const { metrics: bodyMetrics, loading: metricsLoading, refetch: refetchMetrics } = useLatestMetrics();
   const [plan, setPlan] = useState<NutritionPlan | null>(null);
   const [activeGoal, setActiveGoal] = useState('');
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
@@ -168,21 +172,35 @@ export default function NutricaoPage() {
   const smartMacros = coachData?.smart_macros;
 
   // Cálculo local do TDEE quando a análise IA ainda não foi executada
+  // Priorizar TMB da bioimpedância (mais preciso que fórmula)
   const localTdee = (() => {
-    const w = currentWeight ?? profile?.weight_kg;
+    // 1. TMB direto da bioimpedância × fator atividade
+    if (bodyMetrics.basal_metabolic_rate_kcal) {
+      const freq = profile?.weekly_frequency ?? 3;
+      const factor = freq >= 5 ? 1.55 : freq >= 3 ? 1.375 : 1.2;
+      return Math.round(bodyMetrics.basal_metabolic_rate_kcal * factor);
+    }
+    // 2. Fallback: Harris-Benedict com dados do perfil
+    const w = bodyMetrics.weight_kg ?? currentWeight ?? profile?.weight_kg;
     const h = profile?.height_cm;
     const a = profile?.age;
     const g = profile?.gender;
     const freq = profile?.weekly_frequency ?? 3;
     if (!w || !h || !a) return null;
-    // Harris-Benedict
     const bmr = g === 'female' || g === 'feminino'
       ? 655 + 9.6 * w + 1.8 * h - 4.7 * a
       : 88.36 + 13.4 * w + 4.8 * h - 5.7 * a;
-    const activityFactor = freq >= 5 ? 1.55 : freq >= 3 ? 1.375 : 1.2;
-    return Math.round(bmr * activityFactor);
+    const factor = freq >= 5 ? 1.55 : freq >= 3 ? 1.375 : 1.2;
+    return Math.round(bmr * factor);
   })();
   const displayTdee = smartMacros?.tdee ?? localTdee;
+
+  // Verificar se dados estão desatualizados (> 60 dias)
+  const metricsStale = bodyMetrics.is_stale;
+  const hasBodyMetrics = !!bodyMetrics.weight_kg;
+  const metricsDate = bodyMetrics.measured_at
+    ? format(parseISO(bodyMetrics.measured_at), "dd 'de' MMM 'de' yyyy", { locale: ptBR })
+    : null;
 
   return (
     <div className="space-y-5 animate-in fade-in-0 duration-300 pb-6">
@@ -201,6 +219,44 @@ export default function NutricaoPage() {
       </div>
 
       {/* ── Macro hero card ──────────────────────────────────────── */}
+      {/* Banner de fonte de dados corporais */}
+      {hasBodyMetrics && !metricsStale && (
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 flex items-start gap-3">
+          <span className="shrink-0 mt-0.5 text-base">📊</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-blue-300">Dados corporais obtidos automaticamente</p>
+            <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+              {bodyMetrics.source === 'bioimpedance' ? 'Última bioimpedância' : 'Última medição'}:{' '}
+              <span className="text-zinc-200">{metricsDate}</span>
+              {bodyMetrics.weight_kg ? <> · Peso <span className="text-zinc-200">{bodyMetrics.weight_kg}kg</span></> : null}
+              {bodyMetrics.body_fat_pct ? <> · Gordura <span className="text-zinc-200">{bodyMetrics.body_fat_pct}%</span></> : null}
+              {bodyMetrics.basal_metabolic_rate_kcal ? <> · TMB <span className="text-zinc-200">{bodyMetrics.basal_metabolic_rate_kcal}kcal</span></> : null}
+            </p>
+          </div>
+          <a href="/app/evolucao" className="shrink-0 text-[10px] text-blue-400 hover:text-blue-300 underline whitespace-nowrap mt-0.5">Atualizar</a>
+        </div>
+      )}
+      {metricsStale && (
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-3 flex items-center gap-3">
+          <span className="text-lg shrink-0">⚠️</span>
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-yellow-300">Avaliação corporal desatualizada</p>
+            <p className="text-[11px] text-zinc-400 mt-0.5">Última medição há {bodyMetrics.days_since_measurement} dias. Recomendamos atualizar para macros precisos.</p>
+          </div>
+          <a href="/app/evolucao" className="shrink-0 text-xs font-semibold text-yellow-400 border border-yellow-500/30 rounded-lg px-2.5 py-1.5">Atualizar</a>
+        </div>
+      )}
+      {!hasBodyMetrics && !metricsLoading && (
+        <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-3 flex items-center gap-3">
+          <span className="text-lg shrink-0">📏</span>
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-zinc-300">Sem avaliação corporal registrada</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Registre sua bioimpedância em Evolução para personalizar seus macros automaticamente.</p>
+          </div>
+          <a href="/app/evolucao" className="shrink-0 text-xs font-semibold text-blue-400 border border-blue-500/30 rounded-lg px-2.5 py-1.5">Registrar</a>
+        </div>
+      )}
+
       <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl', gradientClass)}>
         <div className="flex items-center gap-2 mb-3">
           <Utensils className="h-5 w-5" />
