@@ -13,6 +13,7 @@ import {
   ResponsiveContainer, BarChart, Bar, ReferenceLine,
 } from 'recharts';
 import { createClient } from '@/lib/supabase/client';
+import { useLatestMetrics } from '@/hooks/useLatestMetrics';
 import { format, parseISO, startOfWeek, subWeeks, isWithinInterval, startOfDay, endOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -95,6 +96,7 @@ const INTENSITIES = ['leve', 'moderada', 'alta', 'muito alta'];
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CardioPage() {
   const supabase = createClient();
+  const { metrics: bodyMetrics } = useLatestMetrics();
   const [sessions, setSessions] = useState<CardioSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTracker, setShowTracker] = useState(false);
@@ -156,7 +158,19 @@ export default function CardioPage() {
   async function fetchAiAnalysis() {
     setAiLoading(true);
     try {
-      const res = await fetch('/api/analyze-cardio', { method: 'POST' });
+      const res = await fetch('/api/analyze-cardio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bodyMetrics: bodyMetrics.weight_kg ? {
+            weight_kg: bodyMetrics.weight_kg,
+            body_fat_pct: bodyMetrics.body_fat_pct,
+            muscle_kg: bodyMetrics.muscle_kg,
+            basal_metabolic_rate_kcal: bodyMetrics.basal_metabolic_rate_kcal,
+            visceral_fat_level: bodyMetrics.visceral_fat_level,
+          } : null,
+        }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAiAnalysis(data.analysis);
@@ -404,6 +418,17 @@ export default function CardioPage() {
               </div>
             )}
 
+            {bodyMetrics.weight_kg && (
+              <div className="flex flex-wrap gap-2 mt-1 mb-2">
+                {[
+                  bodyMetrics.weight_kg && `${bodyMetrics.weight_kg}kg`,
+                  bodyMetrics.body_fat_pct && `${bodyMetrics.body_fat_pct}% gordura`,
+                  bodyMetrics.basal_metabolic_rate_kcal && `TMB ${bodyMetrics.basal_metabolic_rate_kcal}kcal`,
+                ].filter(Boolean).map(tag => (
+                  <span key={String(tag)} className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{tag}</span>
+                ))}
+              </div>
+            )}
             {!aiAnalysis && !aiLoading && (
               <button onClick={fetchAiAnalysis} className="w-full py-2.5 text-sm text-orange-400 font-medium hover:text-orange-300 transition-colors">
                 Analisar meu desempenho com IA

@@ -5,19 +5,37 @@ import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { useLatestMetrics } from '@/hooks/useLatestMetrics';
 import { toast } from 'sonner';
 import type { AIMessage } from '@/lib/ai-coach';
 
-const QUICK_PROMPTS = [
-  { icon: '💪', label: 'Analisar meu treino', prompt: 'Analise meu histórico de treino recente e diga o que posso melhorar segundo a metodologia EDN.' },
+const BASE_PROMPTS = [
+  { icon: '💪', label: 'Analisar meu treino', prompt: 'Analise meu treino recente e diga o que melhorar segundo a EDN.' },
   { icon: '📈', label: 'Progressão travada', prompt: 'Minha progressão travou. Como devo proceder segundo a EDN?' },
   { icon: '🔄', label: 'Preciso fazer deload?', prompt: 'Como sei quando preciso fazer um deload? Quais sinais devo observar?' },
-  { icon: '🍽️', label: 'Nutrição para natural', prompt: 'Qual deve ser minha estratégia nutricional para hipertrofia como natural?' },
-  { icon: '📅', label: 'Montar mesociclo', prompt: 'Me ajude a estruturar um mesociclo de 10 semanas com foco em hipertrofia para intermediário.' },
+  { icon: '🍽️', label: 'Nutrição para natural', prompt: 'Qual deve ser minha estratégia nutricional como natural?' },
+  { icon: '📅', label: 'Montar mesociclo', prompt: 'Me ajude a estruturar um mesociclo de 10 semanas para intermediário.' },
   { icon: '❓', label: 'RIR na prática', prompt: 'Como aplicar o sistema RIR no dia a dia? Dê exemplos práticos.' },
 ];
 
 export default function IAPage() {
+  const { metrics: bodyMetrics } = useLatestMetrics();
+
+  // Sugestões dinâmicas baseadas nas métricas do usuário
+  const dynamicPrompts = (() => {
+    const prompts = [...BASE_PROMPTS];
+    if (bodyMetrics.visceral_fat_level && bodyMetrics.visceral_fat_level > 10) {
+      prompts.unshift({ icon: '🫀', label: 'Gordura visceral alta', prompt: `Minha gordura visceral está no nível ${bodyMetrics.visceral_fat_level}. Como devo treinar e me alimentar para reduzir?` });
+    }
+    if (bodyMetrics.body_fat_pct && bodyMetrics.body_fat_pct > 25) {
+      prompts.unshift({ icon: '🎯', label: 'Estratégia de emagrecimento', prompt: `Minha gordura corporal está em ${bodyMetrics.body_fat_pct}%. Monte uma estratégia EDN completa de treino + nutrição para emagrecer preservando músculo.` });
+    }
+    if (bodyMetrics.protein_pct && bodyMetrics.protein_pct < 18) {
+      prompts.unshift({ icon: '🥩', label: 'Proteína corporal baixa', prompt: `Minha proteína corporal está em ${bodyMetrics.protein_pct}%. Quais ajustes de treino e dieta preciso fazer?` });
+    }
+    return prompts.slice(0, 6);
+  })();
+
   const supabase = createClient();
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState('');
@@ -234,8 +252,19 @@ export default function IAPage() {
               <blockquote className="text-sm text-zinc-500 italic border-l-2 border-blue-600/40 pl-3 text-left max-w-xs">
                 &ldquo;Se o seu treino melhora, o seu físico melhora.&rdquo;
               </blockquote>
+              {bodyMetrics.weight_kg && (
+                <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-left w-full max-w-sm">
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Seus dados (já analisei)</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {bodyMetrics.weight_kg && <p className="text-xs text-zinc-300">Peso <span className="font-semibold text-zinc-100">{bodyMetrics.weight_kg}kg</span></p>}
+                    {bodyMetrics.body_fat_pct && <p className="text-xs text-zinc-300">Gordura <span className="font-semibold text-zinc-100">{bodyMetrics.body_fat_pct}%</span></p>}
+                    {bodyMetrics.muscle_kg && <p className="text-xs text-zinc-300">Músculo <span className="font-semibold text-zinc-100">{bodyMetrics.muscle_kg}kg</span></p>}
+                    {bodyMetrics.basal_metabolic_rate_kcal && <p className="text-xs text-zinc-300">TMB <span className="font-semibold text-zinc-100">{bodyMetrics.basal_metabolic_rate_kcal}kcal</span></p>}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2 mt-6 w-full max-w-md">
-                {QUICK_PROMPTS.map((qp) => (
+                {dynamicPrompts.map((qp) => (
                   <button
                     key={qp.label}
                     onClick={() => sendMessage(qp.prompt)}

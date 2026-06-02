@@ -231,8 +231,25 @@ export default function EvolucaoPage() {
     };
     const { error } = await supabase.from('bioimpedance_data').insert(payload);
     if (error) { toast.error('Erro ao salvar bioimpedância: ' + error.message); return; }
-    toast.success('Bioimpedância registrada!');
+    toast.success('Bioimpedância registrada! Recalculando macros nutricionais…');
     setShowBioDialog(false);
+    // Disparar recálculo automático de nutrição em background
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (u) {
+      const activePlan = await supabase
+        .from('workout_plans')
+        .select('id')
+        .eq('user_id', u.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (activePlan.data?.id) {
+        fetch('/api/generate-nutrition', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: activePlan.data.id, auto_trigger: true }),
+        }).catch(() => {}); // silencioso — não bloqueia a UI
+      }
+    }
     setBioForm({ source: 'Zepp Life', body_score: '', body_type: '', weight_kg: '', bmi: '', body_fat_pct: '', water_pct: '', basal_metabolic_rate_kcal: '', visceral_fat_level: '', bone_mass_kg: '', protein_pct: '', skeletal_muscle_mass_kg: '', lean_mass_kg: '', fat_mass_kg: '' });
     load();
   }

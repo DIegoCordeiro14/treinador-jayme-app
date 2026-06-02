@@ -44,11 +44,21 @@ function buildSystemPrompt(bio: Record<string, any> | null): string {
     suggestedFocus = 'FOCO RECOMENDADO: Recomposição — equilíbrio entre ganho muscular e perda de gordura, manutenção calórica com alta proteína.';
   }
 
+  const measuredAt = bio.measured_at
+    ? new Date(bio.measured_at).toLocaleDateString('pt-BR')
+    : null;
+
   const bioCtx = `
 
-DADOS DE BIOIMPEDÂNCIA DO ALUNO (${bio.source ?? 'balança'}, use sempre estas informações nas suas respostas):
+DADOS CORPORAIS DO ALUNO — FONTE: ${bio.source ?? 'bioimpedância'} ${measuredAt ? `(${measuredAt})` : ''}
 ${lines.join(' | ')}
-${suggestedFocus}${rules.length > 0 ? `\nRegras EDN para este perfil: ${rules.join('; ')}.` : ''}`;
+${suggestedFocus}${rules.length > 0 ? `\nRegras EDN para este perfil: ${rules.join('; ')}.` : ''}
+
+INSTRUÇÕES CRÍTICAS SOBRE ESSES DADOS:
+1. NUNCA pergunte peso, gordura corporal, TMB, IMC ou dados corporais ao aluno — você já tem essas informações acima.
+2. Ao iniciar qualquer análise, apresente os dados que você já tem: "Analisei sua última avaliação corporal: Peso ${bio.weight_kg}kg, Gordura ${bio.body_fat_pct}%${bio.basal_metabolic_rate_kcal ? ', TMB ' + bio.basal_metabolic_rate_kcal + 'kcal' : ''}."
+3. Use esses dados automaticamente em todas as recomendações de treino, nutrição e progressão.
+4. Se os dados tiverem mais de 60 dias, avise gentilmente que uma nova avaliação seria útil.`;
 
   return EDN_SYSTEM_PROMPT + bioCtx;
 }
@@ -70,16 +80,26 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Invalid messages' }, { status: 400 });
     }
 
-    // Fetch latest bioimpedance data for personalization
-    const { data: bio } = await supabase
-      .from('bioimpedance_data')
-      .select('weight_kg,bmi,body_fat_pct,skeletal_muscle_mass_kg,lean_mass_kg,water_pct,visceral_fat_level,basal_metabolic_rate_kcal,protein_pct,body_type,body_score,source')
-      .eq('user_id', user.id)
-      .order('measured_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const systemPrompt = buildSystemPrompt(bio);
+    // Fetch latest bioimpedance data (source of truth) + fallback body_measurements
+    const [{ data: bio }, { data: meas }] = await Promise.all([
+      supabase
+        .from('bioimpedance_data')
+        .select('weight_kg,bmi,body_fat_pct,skeletal_muscle_mass_kg,lean_mass_kg,water_pct,visceral_fat_level,basal_metabolic_rate_kcal,protein_pct,body_type,body_score,source,measured_at')
+        .eq('user_id', user.id)
+        .order('measured_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('body_measurements')
+        .select('weight_kg, body_fat_pct, date')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    // Usar bioimpedância ou fallback com dados de medição manual
+    const bioData = bio ?? (meas ? { weight_kg: meas.weight_kg, body_fat_pct: meas.body_fat_pct, measured_at: meas.date, source: 'medição manual' } : null);
+    const systemPrompt = buildSystemPrompt(bioData as any);
     const provider = getDefaultProvider();
 
     // Cache de respostas (TTL 1h) — evita chamadas redundantes para perguntas idênticas
