@@ -21,6 +21,7 @@ interface Achievement {
 }
 
 const ALL_ACHIEVEMENTS = [
+  { id: 'welcome', title: 'Bem-vindo à EDN', description: 'Criou sua conta', icon: '🎉', xp: 10 },
   { id: 'first_workout', title: 'Primeiro Treino', description: 'Complete o primeiro treino', icon: '💪', xp: 50 },
   { id: 'streak_7', title: 'Semana Perfeita', description: '7 dias consecutivos', icon: '🔥', xp: 100 },
   { id: 'streak_30', title: 'Mês de Ferro', description: '30 dias consecutivos', icon: '🏆', xp: 500 },
@@ -43,6 +44,7 @@ export default function ConquistasPage() {
   const [userXP, setUserXP] = useState<UserXP | null>(null);
   const [earned, setEarned] = useState<Achievement[]>([]);
   const [xpLogs, setXpLogs] = useState<{ xp_earned: number; reason: string; earned_at: string }[]>([]);
+  const [sessCount, setSessCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,14 +52,16 @@ export default function ConquistasPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [{ data: xp }, { data: achievements }, { data: logs }] = await Promise.all([
+      const [{ data: xp }, { data: achievements }, { data: logs }, { count: sessCount }] = await Promise.all([
         supabase.from('user_xp').select('*').eq('user_id', user.id).single(),
         supabase.from('achievements').select('*').eq('user_id', user.id),
         supabase.from('xp_logs').select('*').eq('user_id', user.id).order('earned_at', { ascending: false }).limit(20),
+        supabase.from('workout_sessions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       ]);
 
       setUserXP(xp);
       setEarned(achievements ?? []);
+      setSessCount(sessCount ?? 0);
       setXpLogs(logs ?? []);
       setLoading(false);
     }
@@ -65,6 +69,16 @@ export default function ConquistasPage() {
   }, []);
 
   const earnedIds = new Set(earned.map((a) => a.type));
+  // Boas-vindas: sempre desbloqueado (usuário criou conta)
+  earnedIds.add('welcome');
+
+  // Mapa de progresso para conquistas por sessões
+  const sessionProgressMap: Record<string, { current: number; total: number }> = {
+    first_workout: { current: Math.min(sessCount, 1), total: 1 },
+    sessions_10:   { current: Math.min(sessCount, 10), total: 10 },
+    sessions_50:   { current: Math.min(sessCount, 50), total: 50 },
+    sessions_100:  { current: Math.min(sessCount, 100), total: 100 },
+  };
   const progress = userXP ? xpProgress(userXP.xp_total) : { level: 1, current: 0, needed: 100, pct: 0 };
 
   return (
@@ -137,6 +151,21 @@ export default function ConquistasPage() {
                     {new Date(earnedRecord.earned_at).toLocaleDateString('pt-BR')}
                   </p>
                 )}
+                {!isEarned && sessionProgressMap[def.id] && (() => {
+                  const p = sessionProgressMap[def.id];
+                  const pct = Math.round((p.current / p.total) * 100);
+                  return (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-600">
+                        <span>{p.current}/{p.total}</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-zinc-800">
+                        <div className="h-full rounded-full bg-blue-500/50" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}

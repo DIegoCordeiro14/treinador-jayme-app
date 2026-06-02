@@ -53,6 +53,7 @@ export default function DesafiosPage() {
   const [personal, setPersonal] = useState<Challenge[]>([]);
   const [community, setCommunity] = useState<Challenge[]>([]);
   const [userLevel, setUserLevel] = useState(1);
+  const [sessionCount, setSessionCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [awardingIds, setAwardingIds] = useState<Set<string>>(new Set());
@@ -63,6 +64,7 @@ export default function DesafiosPage() {
 
     const [{ data: xp }, { data: challenges }, { data: sessions }] = await Promise.all([
       supabase.from('user_xp').select('level').eq('user_id', user.id).single(),
+      supabase.from('workout_sessions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('challenges').select('*').eq('is_active', true).order('end_date', { ascending: true }),
       supabase.from('workout_sessions')
         .select('started_at, total_volume_kg')
@@ -71,6 +73,7 @@ export default function DesafiosPage() {
     ]);
 
     setUserLevel(xp?.level ?? 1);
+    setSessionCount(sCount ?? 0);
 
     const { data: myPart } = await supabase
       .from('challenge_participants')
@@ -173,6 +176,10 @@ export default function DesafiosPage() {
   }
 
   const allPersonalDone = personal.length > 0 && personal.every(c => c.completed);
+  const activePersonal = personal.filter(c => !c.completed);
+  const completedPersonal = personal.filter(c => c.completed);
+  // Para iniciantes sem treinos, priorizar desafios de prazo maior
+  const isNewUser = sessionCount === 0;
 
   if (loading) return (
     <div className="space-y-4">
@@ -187,7 +194,7 @@ export default function DesafiosPage() {
           <h1 className="text-2xl font-bold text-zinc-100">Desafios</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Complete desafios, ganhe XP e evolua</p>
         </div>
-        <Button onClick={handleGenerate} disabled={generating} className="gap-2 shrink-0">
+        <Button onClick={handleGenerate} disabled={generating} className="gap-2 shrink-0" title="Gera novos desafios personalizados para seu nível atual">
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {personal.length === 0 ? 'Gerar Desafios' : allPersonalDone ? 'Novos Desafios' : 'Regenerar'}
         </Button>
@@ -214,8 +221,22 @@ export default function DesafiosPage() {
           )}
 
           <div className="grid md:grid-cols-2 gap-3">
-            {personal.map(c => <ChallengeCard key={c.id} challenge={c} />)}
+            {(isNewUser ? [...activePersonal].sort((a, b) => {
+              const dA = differenceInDays(parseISO(a.end_date), new Date());
+              const dB = differenceInDays(parseISO(b.end_date), new Date());
+              return dB - dA;
+            }) : activePersonal).map(c => <ChallengeCard key={c.id} challenge={c} />)}
           </div>
+
+          {/* Histórico de desafios concluídos */}
+          {completedPersonal.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mt-2">Concluídos ✓</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                {completedPersonal.map(c => <ChallengeCard key={c.id} challenge={c} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
