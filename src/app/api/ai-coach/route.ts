@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from '@/lib/ai-coach';
+import { makeCacheKey, getCached, setCached } from '@/lib/ai-coach/cache';
 import type { AIMessage } from '@/lib/ai-coach';
 
 export const runtime = 'nodejs';
@@ -81,6 +82,17 @@ export async function POST(req: NextRequest) {
     const systemPrompt = buildSystemPrompt(bio);
     const provider = getDefaultProvider();
 
+    // Cache de respostas (TTL 1h) — evita chamadas redundantes para perguntas idênticas
+    const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content ?? '';
+    const cacheKey = makeCacheKey(systemPrompt, lastUserMsg);
+    const cached = getCached(cacheKey);
+    if (cached) {
+      return new Response(
+        `data: ${JSON.stringify({ type: 'text', text: cached })}\ndata: [DONE]\n\n`,
+        { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } }
+      );
+    }
+
     // Limit history to last 8 messages (4 turns) to cap token growth
     const trimmedMessages = messages.length > 8 ? messages.slice(-8) : messages;
 
@@ -102,6 +114,8 @@ export async function POST(req: NextRequest) {
             if (chunk.done) {
               try {
                 const assistantMessage: AIMessage = { role: 'assistant', content: fullText };
+                // Armazenar no cache para respostas futuras idênticas
+                setCached(cacheKey, fullText);
                 const allMessages = [...messages, assistantMessage];
                 if (conversationId) {
                   await supabase.from('ai_conversations').update({ messages: allMessages }).eq('id', conversationId).eq('user_id', user.id);
