@@ -34,8 +34,6 @@ export async function POST(req: NextRequest) {
       weightKg,
       heightCm,
       bodyFatPct,
-      gender,    // 'male' | 'female' | 'other' | null
-      age,       // number | null
       exercises, // Exercise[] — full list with id, name, muscle_group, difficulty
       dayCount,  // number of workout_days in the plan
     } = body;
@@ -102,23 +100,6 @@ export async function POST(req: NextRequest) {
     }
     const bioRulesStr = bioRules.length > 0 ? `\nRegras extras (bioimpedância): ${bioRules.join('; ')}.` : '';
 
-    // ─── Gender & age rules ────────────────────────────────────────────────────
-    const genderMap: Record<string, string> = { male: 'Masculino', female: 'Feminino', other: 'Outro' };
-    const genderStr = gender ? genderMap[gender] ?? '' : '';
-    const ageStr = age ? `${age}anos` : '';
-    const profileCtx = [genderStr, ageStr].filter(Boolean).join(', ');
-
-    const genderRules: string[] = [];
-    if (gender === 'female') {
-      genderRules.push('sexo=feminino → maior tolerância a volume, prefira 4-5 séries em multiarticulares, inclua mais glúteos e isquiotibiais, descanso 60-75s, mais exercícios unilaterais');
-    }
-    if (age && age >= 40) {
-      genderRules.push(`idade≥40 → priorize mobilidade articular no aquecimento, avoid high-impact moves, descanso mínimo 90s, progressão conservadora`);
-    } else if (age && age >= 50) {
-      genderRules.push(`idade≥50 → exercícios de baixo impacto, evite cargas máximas, inclua exercícios de equilíbrio e estabilidade`);
-    }
-    const genderRulesStr = genderRules.length > 0 ? `\nRegras por perfil (sexo/idade): ${genderRules.join('; ')}.` : '';
-
     const goalMap: Record<string, string> = {
       definition: 'Definição',
       weight_loss: 'Emagrecimento',
@@ -131,10 +112,65 @@ export async function POST(req: NextRequest) {
       advanced: 'Avançado',
     };
 
-    // ─── Level-specific training rules ────────────────────────────────────────
+
     const levelRulesMap: Record<string, string> = {
       beginner:     'Iniciante: sem[ADV]; 3séries; RIR 3-4; 4-5ex/dia; descanso+30s; notes="foco na técnica"',
       intermediate: 'Intermediário: [ADV]opcionais; 4séries; RIR 2-3; 5-6ex/dia; notes="RIR atual"',
       advanced:     'Avançado(atleta natural profissional): todos[ADV] prioritários; compostos=TopSet+2BackOffs(−10%carga)=5-6séries totais; isolados=4-5séries; RIR 0-2; 6-8ex/dia; descanso compostos=120-180s; descanso isolados=60-90s; notes="Top Set RIR[n] + 2 Back-offs −10%"',
     };
-    con
+    const levelRule = levelRulesMap[experienceLevel] ?? levelRulesMap['beginner'];
+
+    // ─── Prompt (token-optimized + bioimpedance) ───────────────────────────────
+    const userPrompt = `Nível: ${levelRule}\nCrie plano EDN. Perfil: ${goalMap[goal] ?? goal}, ${daysPerWeek}dias/sem, ${levelMap[experienceLevel] ?? experienceLevel}, ${biometricCtx}.${bioCtx}
+
+Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; 4-7ex/dia.${bioRulesStr}
+
+IDs disponíveis (id|nome, [ADV]=avançado):
+${exerciseCatalog}
+JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tr\u00edceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
+${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
+
+    // Call AI
+    let fullText = "";
+    for await (const chunk of provider.stream({
+      messages: [{ role: "user", content: userPrompt }],
+      systemPrompt: EDN_SYSTEM_PROMPT,
+      maxTokens: 2000,
+    })) {
+      if (chunk.text) fullText += chunk.text;
+    }
+
+    // Parse JSON
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return Response.json(
+        { error: "AI n\u00e3o retornou JSON v\u00e1lido", raw: fullText },
+        { status: 422 }
+      );
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!parsed?.days || !Array.isArray(parsed.days)) {
+      return Response.json(
+        { error: "Estrutura JSON inv\u00e1lida", raw: fullText },
+        { status: 422 }
+      );
+    }
+
+    const validIds = new Set((exercises as any[]).map((ex: any) => ex.id));
+    for (const day of parsed.days) {
+      day.exercises = (day.exercises ?? []).filter((ex: any) =>
+        validIds.has(ex.exerciseId)
+      );
+    }
+
+    return Response.json({ days: parsed.days });
+  } catch (err: any) {
+    console.error("[generate-workout] error:", err);
+    return Response.json(
+      { error: err?.message ?? "Erro interno" },
+      { status: 500 }
+    );
+  }
+}

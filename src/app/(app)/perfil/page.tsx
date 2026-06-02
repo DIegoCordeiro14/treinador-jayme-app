@@ -186,4 +186,34 @@ export default function PerfilPage() {
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 {Object.entries(EXPERIENCE_LABELS).map(([k, v]) => (
- 
+                  <SelectItem key={k} value={k} className="text-zinc-100">{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Button className="w-full gap-2" onClick={saveProfile} disabled={saving}>
+          <Save className="h-4 w-4" />
+          {saving ? 'Salvando…' : 'Salvar Perfil'}
+        </Button>
+      </div>
+
+      {/* Account */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="font-semibold text-zinc-100 mb-4">Conta</h2>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm text-zinc-300">E-mail</p>
+              <p className="text-xs text-zinc-500">{email}</p>
+            </div>
+          </div>
+        </div>
+        <Button variant="outline" className="w-full mt-4 gap-2 border-red-800 text-red-400 hover:bg-red-600/10" onClick={handleLogout}>
+          <LogOut className="h-4 w-4" /> Sair da conta
+        </Button>
+      </div>
+    </div>
+  );
+}

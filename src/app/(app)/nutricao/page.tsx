@@ -221,4 +221,74 @@ export default function NutricaoPage() {
             {[
               { label: 'Pré-treino', value: plan.pre_workout, icon: <Clock className="h-4 w-4 text-yellow-400" />, accent: 'border-l-yellow-500' },
               { label: 'Pós-treino', value: plan.post_workout, icon: <CheckCircle2 className="h-4 w-4 text-green-400" />, accent: 'border-l-green-500' },
-              { label: 'Dia de descanso', value: plan.rest_day_strategy, icon: <Apple className="h-4 
+              { label: 'Dia de descanso', value: plan.rest_day_strategy, icon: <Apple className="h-4 w-4 text-blue-400" />, accent: 'border-l-blue-500' },
+            ].map(item => (
+              <div key={item.label} className={cn('flex gap-3 px-4 py-3.5 border-l-2', item.accent)}>
+                <div className="shrink-0 mt-0.5">{item.icon}</div>
+                <div>
+                  <p className="text-xs font-semibold text-zinc-300 mb-0.5">{item.label}</p>
+                  <p className="text-xs text-zinc-400 leading-relaxed">{item.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Macro breakdown */}
+      {plan && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Macros diários</h2>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500">Calorias diárias</span>
+              <span className="text-zinc-200 font-medium">{plan.daily_calories}</span>
+            </div>
+            {[
+              { label: 'Carboidratos', pct: plan.carbs_pct, color: 'bg-yellow-500', kcal: tdee ? Math.round(tdee * plan.carbs_pct / 400) : null, unit: 'g' },
+              { label: 'Proteínas', pct: Math.round(plan.protein_g_per_kg * 4), color: 'bg-blue-500', kcal: proteinTarget, unit: 'g' },
+              { label: 'Gorduras', pct: plan.fat_pct, color: 'bg-pink-500', kcal: tdee ? Math.round(tdee * plan.fat_pct / 900) : null, unit: 'g' },
+            ].map(macro => (
+              <div key={macro.label} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">{macro.label}</span>
+                  <span className="text-zinc-300">{macro.pct}%{macro.kcal ? ` · ~${macro.kcal}${macro.unit}` : ''}</span>
+                </div>
+                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                  <div className={cn('h-full rounded-full transition-all', macro.color)} style={{ width: `${Math.min(macro.pct, 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Key tips */}
+      {plan != null && (plan.key_tips?.length ?? 0) > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Dicas do Jayme</h2>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+            {(plan?.key_tips ?? []).map((tip, i) => (
+              <div key={i} className="flex gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 text-[11px] font-bold">{i + 1}</div>
+                <p className="text-xs text-zinc-300 leading-relaxed">{tip}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!plan && !loading && (
+        <div className="rounded-xl border border-dashed border-zinc-700 p-10 text-center">
+          <Sparkles className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
+          <p className="text-sm text-zinc-400 mb-1">Nenhum plano nutricional gerado</p>
+          <p className="text-xs text-zinc-600 mb-4">A IA vai criar um plano personalizado com base no seu perfil, biometria e evolução</p>
+          <Button onClick={generateNutrition} loading={generating} className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            Gerar plano com Treinador Jayme
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}

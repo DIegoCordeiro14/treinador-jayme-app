@@ -82,24 +82,23 @@ export async function POST(req: NextRequest) {
 
     const mealsPerDay = profile?.meals_per_day ?? 3;
     const experienceLevel = profile?.experience_level ?? 'beginner';
-    const levelMap: Record<string, string> = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' };
+    const levelMap2: Record<string, string> = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' };
     const levelNutritionRules: Record<string, string> = {
       beginner:     'proteína 1.6-2.0g/kg; superávit/déficit moderado ±300kcal; simples e prático',
       intermediate: 'proteína 2.0-2.2g/kg; ciclagem básica carb dias treino vs descanso',
       advanced:     'proteína 2.2-2.5g/kg; ciclagem carb otimizada; timing preciso pré/pós; atenção a micronutrientes; refeições a cada 3-4h máximo',
     };
     const levelRule = levelNutritionRules[experienceLevel] ?? levelNutritionRules['beginner'];
-
     const mealsTemplate = Array.from({ length: mealsPerDay }, (_, i) => `{"name":"Refeição ${i+1}","time":"00h","calories_pct":${Math.round(100/mealsPerDay)},"focus":"...","example":"..."}`).join(',');
 
     const daysPerWeek = plan.days_per_week;
     const prompt = 'Voce e Jayme De Lamadrid (EDN). Monte um plano semanal.\n\n' +
       'DADOS:\n' +
       '- Plano: ' + daysPerWeek + ' treinos/sem, objetivo: ' + (goalMap[plan.goal] ?? plan.goal) + '\n' +
-      '- Nível: ' + (levelMap[experienceLevel] ?? experienceLevel) + '\n' +
       '- Treinos: ' + dayNames + '\n' +
       '- Inicio: dia da semana ' + startWeekday + ' (1=Seg, 7=Dom)\n' +
       '- Bioimpedancia: ' + bioCtx + '\n' +
+      '- Nivel: ' + (levelMap2[experienceLevel] ?? experienceLevel) + '\n' +
       '- Refeicoes/dia: ' + mealsPerDay + '\n\n' +
       'Retorne SOMENTE este JSON (sem markdown):\n' +
       '{\n' +
@@ -124,11 +123,51 @@ export async function POST(req: NextRequest) {
       '    "key_tips": ["dica 1 ' + levelRule.slice(0, 30) + '...", "dica 2", "dica 3"]\n' +
       '  }\n' +
       '}\n\n' +
-      'Nutrition meals: exatamente ' + mealsPerDay + ' refeicoes com horarios, % calorias e exemplos de alimentos.\n' +
-      'O pattern deve ter exatamente ' + daysPerWeek + ' dias (1-7). Primeiro dia OBRIGATORIO: ' + startWeekday + '. Apenas JSON.';
+      'O pattern deve ter exatamente ' + daysPerWeek + ' dias (1-7). Primeiro dia OBRIGATORIO: ' + startWeekday + '.\n' +
+      'Nutrition meals: exatamente ' + mealsPerDay + ' refeicoes com horarios, % calorias e exemplos de alimentos. Apenas JSON.';
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return Response.json({ error: 'API key not configured' }, { status: 500 });
 
     const client = new Anthropic({ apiKey });
-    const response = await client.me
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return Response.json({ error: 'AI did not return valid JSON' }, { status: 422 });
+
+    const result = JSON.parse(jsonMatch[0]);
+    result.pattern = (result.pattern as number[]).map(Number).sort((a: number, b: number) => a - b);
+
+    // Build dayAssignments from actual muscle groups (server-side, not from AI)
+    const dayAssignments: Record<string, string> = {};
+    result.pattern.forEach((weekday: number, i: number) => {
+      const day = sortedDays[i % sortedDays.length];
+      dayAssignments[String(weekday)] = dayMuscleLabel(day);
+    });
+
+    const scheduleConfig = {
+      start_date,
+      pattern: result.pattern,
+      day_assignments: dayAssignments,
+      reasoning: result.reasoning ?? '',
+      cardio: result.cardio ?? null,
+      nutrition: result.nutrition ?? null,
+    };
+
+    await supabase
+      .from('workout_plans')
+      .update({ schedule_config: scheduleConfig })
+      .eq('id', plan_id)
+      .eq('user_id', user.id);
+
+    return Response.json({ schedule: scheduleConfig });
+  } catch (err: any) {
+    console.error('[schedule-workouts] error:', err);
+    return Response.json({ error: err?.message ?? 'Erro interno' }, { status: 500 });
+  }
+}
