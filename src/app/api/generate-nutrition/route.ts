@@ -131,15 +131,38 @@ ${mealsPerDay} refeições no array meals. Seja específico com gramas e horári
 
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1200,
+      max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return Response.json({ error: 'AI não retornou JSON válido', raw: text }, { status: 422 });
+    const jsonMatch = text.match(/\{[\s\S]*/);
+    if (!jsonMatch) return Response.json({ error: 'AI nao retornou JSON valido', raw: text }, { status: 422 });
 
-    const nutrition = JSON.parse(jsonMatch[0]);
+    let nutrition;
+    try {
+      nutrition = JSON.parse(jsonMatch[0]);
+    } catch {
+      // Try to fix truncated JSON by closing open structures
+      let raw = jsonMatch[0].trimEnd();
+      // Close unterminated string
+      if ((raw.match(/"/g) ?? []).length % 2 !== 0) raw += '"';
+      // Close open arrays/objects
+      const opens = (raw.match(/[\[\{]/g) ?? []).length;
+      const closes = (raw.match(/[\]\}]/g) ?? []).length;
+      const diff = opens - closes;
+      // Close array items first then objects
+      for (let i = 0; i < diff; i++) {
+        const lastOpen = Math.max(raw.lastIndexOf('['), raw.lastIndexOf('{'));
+        if (raw[lastOpen] === '[') raw = raw.slice(0, lastOpen + 1).trimEnd() + ']' + '}]}'.slice(0, diff - i - 1).split('').map((_, j) => '}').join('');
+        else raw += '}';
+      }
+      try {
+        nutrition = JSON.parse(raw);
+      } catch {
+        return Response.json({ error: 'Resposta da IA foi cortada. Tente novamente.' }, { status: 422 });
+      }
+    }
 
     // Save to active plan's schedule_config
     if (activePlan?.id) {
