@@ -5,10 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Dumbbell,
-  TrendingUp,
   Bot,
-  Medal,
-  Trophy,
+  Utensils,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,7 +15,7 @@ const navItems = [
   { href: "/app/dashboard", label: "Início", icon: LayoutDashboard },
   { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
   { href: "/app/ia", label: "Jayme IA", icon: Bot },
-  { href: "/app/ranking", label: "Ranking", icon: Medal },
+  { href: "/app/nutricao", label: "Nutrição", icon: Utensils },
   { href: "/app/perfil", label: "Perfil", icon: User },
 ];
 

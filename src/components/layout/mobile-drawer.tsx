@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Profile } from "@/types";
+import { GOAL_LABELS } from "@/types";
 
 const NAV_GROUPS = [
   {
@@ -164,7 +165,7 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-zinc-100 truncate">{profile?.name ?? "Usuário"}</p>
-              <p className="text-[10px] text-zinc-500 capitalize">{profile?.goal ?? ""}</p>
+              <p className="text-[10px] text-zinc-500 capitalize">(GOAL_LABELS as Record<string, string>)[profile?.goal ?? ''] ?? profile?.goal ?? ''</p>
             </div>
             <button
               onClick={handleLogout}
