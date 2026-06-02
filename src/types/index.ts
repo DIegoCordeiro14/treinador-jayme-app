@@ -44,6 +44,7 @@ export interface Profile {
   goal: GoalType;
   experience_level: ExperienceLevel;
   weekly_frequency: number;
+  meals_per_day: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -298,4 +299,4 @@ export const MUSCLE_GROUP_COLORS: Record<MuscleGroup, string> = {
   glutes: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
   abs: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   calves: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-  forearms: 'bg-amber-500/20 text-amber-400 borde
+  forearms: 'bg-a

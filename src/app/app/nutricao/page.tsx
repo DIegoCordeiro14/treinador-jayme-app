@@ -1,9 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Utensils, Apple, Zap, Droplets, Clock, CheckCircle2, Sparkles } from 'lucide-react';
+import { Utensils, Apple, Zap, Droplets, Clock, CheckCircle2, Sparkles, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+interface Meal {
+  name: string;
+  time: string;
+  calories_pct: number;
+  focus: string;
+  example: string;
+}
 
 interface NutritionPlan {
   strategy: string;
@@ -14,6 +24,7 @@ interface NutritionPlan {
   pre_workout: string;
   post_workout: string;
   rest_day_strategy: string;
+  meals?: Meal[];
   key_tips: string[];
 }
 
@@ -51,7 +62,10 @@ export default function NutricaoPage() {
   const [plan, setPlan] = useState<NutritionPlan | null>(null);
   const [bio, setBio] = useState<BioData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [activeGoal, setActiveGoal] = useState<string>('');
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [showMeals, setShowMeals] = useState(true);
 
   useEffect(() => { load(); }, []);
 
@@ -59,13 +73,33 @@ export default function NutricaoPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const [{ data: planData }, { data: bioData }] = await Promise.all([
-      supabase.from('workout_plans').select('schedule_config, goal').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
+      supabase.from('workout_plans').select('id, schedule_config, goal').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('bioimpedance_data').select('weight_kg,basal_metabolic_rate_kcal,body_fat_pct,skeletal_muscle_mass_kg,protein_pct,water_pct').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
     setPlan((planData?.schedule_config as any)?.nutrition ?? null);
     setActiveGoal(planData?.goal ?? '');
+    setActivePlanId(planData?.id ?? null);
     setBio(bioData ?? null);
     setLoading(false);
+  }
+
+  async function generateNutrition() {
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/generate-nutrition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_id: activePlanId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erro ao gerar nutrição');
+      setPlan(data.nutrition);
+      toast.success('Plano nutricional atualizado pelo Treinador Jayme!');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Erro ao gerar plano nutricional');
+    } finally {
+      setGenerating(false);
+    }
   }
 
   // Computed protein target
@@ -86,7 +120,7 @@ export default function NutricaoPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
-      {/* Strava-style header */}
+      {/* Header */}
       <div className={cn('rounded-2xl bg-gradient-to-br p-6 text-white shadow-xl', gradientClass)}>
         <div className="flex items-center gap-2 mb-3">
           <Utensils className="h-5 w-5" />
@@ -103,10 +137,25 @@ export default function NutricaoPage() {
         ) : (
           <div className="text-center py-4 opacity-60">
             <p className="text-sm">Nenhum plano gerado ainda</p>
-            <p className="text-xs mt-1">Vá ao Calendário → Programar treinos</p>
+            <p className="text-xs mt-1">Clique em "Gerar com IA" abaixo</p>
           </div>
         )}
       </div>
+
+      {/* Generate button */}
+      <Button
+        onClick={generateNutrition}
+        loading={generating}
+        className="w-full gap-2"
+        variant={plan ? 'outline' : 'default'}
+      >
+        {generating ? (
+          <RefreshCw className="h-4 w-4 animate-spin" />
+        ) : (
+          <Sparkles className="h-4 w-4 text-blue-400" />
+        )}
+        {plan ? 'Regenerar plano nutricional com IA' : 'Gerar plano nutricional com IA'}
+      </Button>
 
       {/* Bio-based targets */}
       {bio && (
@@ -127,6 +176,43 @@ export default function NutricaoPage() {
         </div>
       )}
 
+      {/* Meal distribution */}
+      {plan?.meals && plan.meals.length > 0 && (
+        <div className="space-y-3">
+          <button
+            className="w-full flex items-center justify-between text-sm font-semibold text-zinc-400 uppercase tracking-wide"
+            onClick={() => setShowMeals(v => !v)}
+          >
+            <span>Distribuição de refeições ({plan.meals.length}x/dia)</span>
+            {showMeals ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {showMeals && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+              {plan.meals.map((meal, i) => (
+                <div key={i} className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 text-[11px] font-bold">{i + 1}</span>
+                      <span className="text-sm font-semibold text-zinc-200">{meal.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                      <Clock className="h-3 w-3" />
+                      <span>{meal.time}</span>
+                      <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-medium">{meal.calories_pct}%</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-zinc-400 ml-7 mb-0.5">{meal.focus}</p>
+                  {meal.example && (
+                    <p className="text-xs text-zinc-600 ml-7 italic">{meal.example}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Timing nutrition */}
       {plan && (
         <div className="space-y-3">
@@ -135,70 +221,4 @@ export default function NutricaoPage() {
             {[
               { label: 'Pré-treino', value: plan.pre_workout, icon: <Clock className="h-4 w-4 text-yellow-400" />, accent: 'border-l-yellow-500' },
               { label: 'Pós-treino', value: plan.post_workout, icon: <CheckCircle2 className="h-4 w-4 text-green-400" />, accent: 'border-l-green-500' },
-              { label: 'Dia de descanso', value: plan.rest_day_strategy, icon: <Apple className="h-4 w-4 text-blue-400" />, accent: 'border-l-blue-500' },
-            ].map(item => (
-              <div key={item.label} className={cn('flex gap-3 px-4 py-3.5 border-l-2', item.accent)}>
-                <div className="shrink-0 mt-0.5">{item.icon}</div>
-                <div>
-                  <p className="text-xs font-semibold text-zinc-300 mb-0.5">{item.label}</p>
-                  <p className="text-xs text-zinc-400 leading-relaxed">{item.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Macro breakdown */}
-      {plan && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Macros diários</h2>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-zinc-500">Calorias diárias</span>
-              <span className="text-zinc-200 font-medium">{plan.daily_calories}</span>
-            </div>
-            {[
-              { label: 'Carboidratos', pct: plan.carbs_pct, color: 'bg-yellow-500', kcal: tdee ? Math.round(tdee * plan.carbs_pct / 400) : null, unit: 'g' },
-              { label: 'Proteínas', pct: Math.round(plan.protein_g_per_kg * 4), color: 'bg-blue-500', kcal: proteinTarget, unit: 'g' },
-              { label: 'Gorduras', pct: plan.fat_pct, color: 'bg-pink-500', kcal: tdee ? Math.round(tdee * plan.fat_pct / 900) : null, unit: 'g' },
-            ].map(macro => (
-              <div key={macro.label} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">{macro.label}</span>
-                  <span className="text-zinc-300">{macro.pct}%{macro.kcal ? ` · ~${macro.kcal}${macro.unit}` : ''}</span>
-                </div>
-                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
-                  <div className={cn('h-full rounded-full transition-all', macro.color)} style={{ width: `${Math.min(macro.pct, 100)}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Key tips */}
-      {plan != null && (plan.key_tips?.length ?? 0) > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Dicas do Jayme</h2>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
-            {(plan?.key_tips ?? []).map((tip, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 text-[11px] font-bold">{i + 1}</div>
-                <p className="text-xs text-zinc-300 leading-relaxed">{tip}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!plan && !loading && (
-        <div className="rounded-xl border border-dashed border-zinc-700 p-10 text-center">
-          <Sparkles className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
-          <p className="text-sm text-zinc-400 mb-1">Nenhum plano nutricional gerado</p>
-          <p className="text-xs text-zinc-600">Vá ao Calendário → Programar treinos para o Jayme criar sua estratégia nutricional</p>
-        </div>
-      )}
-    </div>
-  );
-}
+              { label: 'Dia de descanso', value: plan.rest_day_strategy, icon: <Apple className="h-4 

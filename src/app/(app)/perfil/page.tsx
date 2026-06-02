@@ -20,7 +20,7 @@ export default function PerfilPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [xp, setXp] = useState({ xp_total: 0, level: 1 });
-  const [form, setForm] = useState({ name: '', age: '', gender: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3' });
+  const [form, setForm] = useState({ name: '', age: '', gender: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3', meals_per_day: '3' });
   const [saving, setSaving] = useState(false);
   const [email, setEmail] = useState('');
 
@@ -47,6 +47,7 @@ export default function PerfilPage() {
           goal: prof.goal ?? 'hypertrophy',
           experience_level: prof.experience_level ?? 'beginner',
           weekly_frequency: prof.weekly_frequency?.toString() ?? '3',
+          meals_per_day: (prof as any).meals_per_day?.toString() ?? '3',
         });
       }
       if (xpData) setXp(xpData);
@@ -69,6 +70,7 @@ export default function PerfilPage() {
       goal: form.goal as GoalType,
       experience_level: form.experience_level as ExperienceLevel,
       weekly_frequency: parseInt(form.weekly_frequency),
+      meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : 3,
     });
 
     setSaving(false);
@@ -133,6 +135,7 @@ export default function PerfilPage() {
             { key: 'weight_kg', label: 'Peso (kg)', placeholder: '75', type: 'number' },
             { key: 'height_cm', label: 'Altura (cm)', placeholder: '175', type: 'number' },
             { key: 'weekly_frequency', label: 'Treinos/semana', placeholder: '4', type: 'number' },
+            { key: 'meals_per_day', label: 'Refeições/dia', placeholder: '3', type: 'number' },
           ].map((f) => (
             <div key={f.key} className="space-y-1.5">
               <Label>{f.label}</Label>
@@ -183,11 +186,4 @@ export default function PerfilPage() {
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 {Object.entries(EXPERIENCE_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k} className="text-zinc-100">{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <Button className="w-full gap-2" onClick={saveProfile} disabled
+ 

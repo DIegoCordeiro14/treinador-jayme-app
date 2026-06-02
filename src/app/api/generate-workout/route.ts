@@ -131,11 +131,10 @@ export async function POST(req: NextRequest) {
       advanced: 'Avançado',
     };
 
-    // ─── Prompt (token-optimized + bioimpedance) ───────────────────────────────
-    const userPrompt = `Crie plano EDN. Perfil: ${goalMap[goal] ?? goal}, ${daysPerWeek}dias/sem, ${levelMap[experienceLevel] ?? experienceLevel}${profileCtx ? `, ${profileCtx}` : ''}, ${biometricCtx}.${bioCtx}
-
-Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; 4-7ex/dia.${bioRulesStr}${genderRulesStr}
-
-IDs disponíveis (id|nome, [ADV]=avançado):
-${exerciseCatalog}
-JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito
+    // ─── Level-specific training rules ────────────────────────────────────────
+    const levelRulesMap: Record<string, string> = {
+      beginner:     'Iniciante: sem[ADV]; 3séries; RIR 3-4; 4-5ex/dia; descanso+30s; notes="foco na técnica"',
+      intermediate: 'Intermediário: [ADV]opcionais; 4séries; RIR 2-3; 5-6ex/dia; notes="RIR atual"',
+      advanced:     'Avançado(atleta natural profissional): todos[ADV] prioritários; compostos=TopSet+2BackOffs(−10%carga)=5-6séries totais; isolados=4-5séries; RIR 0-2; 6-8ex/dia; descanso compostos=120-180s; descanso isolados=60-90s; notes="Top Set RIR[n] + 2 Back-offs −10%"',
+    };
+    con
