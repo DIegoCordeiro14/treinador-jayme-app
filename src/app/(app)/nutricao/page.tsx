@@ -88,14 +88,17 @@ export default function NutricaoPage() {
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
   const [savingWeight, setSavingWeight] = useState(false);
   const [activeTab, setActiveTab] = useState('coach');
+  const [profile, setProfile] = useState<{ weight_kg: number | null; height_cm: number | null; age: number | null; gender: string | null; weekly_frequency: number | null; goal: string | null } | null>(null);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [{ data: planData }, { data: logs }] = await Promise.all([
+    const [{ data: planData }, { data: logs }, { data: profileData }] = await Promise.all([
       supabase.from('workout_plans').select('id, schedule_config, goal').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('body_weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
+      supabase.from('profiles').select('weight_kg, height_cm, age, gender, weekly_frequency, goal').eq('id', user.id).single(),
     ]);
+    if (profileData) setProfile(profileData as any);
     setPlan((planData?.schedule_config as any)?.nutrition ?? null);
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
@@ -164,6 +167,23 @@ export default function NutricaoPage() {
   const analysis = coachData?.analysis;
   const smartMacros = coachData?.smart_macros;
 
+  // Cálculo local do TDEE quando a análise IA ainda não foi executada
+  const localTdee = (() => {
+    const w = currentWeight ?? profile?.weight_kg;
+    const h = profile?.height_cm;
+    const a = profile?.age;
+    const g = profile?.gender;
+    const freq = profile?.weekly_frequency ?? 3;
+    if (!w || !h || !a) return null;
+    // Harris-Benedict
+    const bmr = g === 'female' || g === 'feminino'
+      ? 655 + 9.6 * w + 1.8 * h - 4.7 * a
+      : 88.36 + 13.4 * w + 4.8 * h - 5.7 * a;
+    const activityFactor = freq >= 5 ? 1.55 : freq >= 3 ? 1.375 : 1.2;
+    return Math.round(bmr * activityFactor);
+  })();
+  const displayTdee = smartMacros?.tdee ?? localTdee;
+
   return (
     <div className="space-y-5 animate-in fade-in-0 duration-300 pb-6">
 
@@ -202,7 +222,7 @@ export default function NutricaoPage() {
         {(smartMacros || plan) && (
           <div className="flex justify-between mt-4 pt-3 border-t border-white/20 text-xs">
             <span className="opacity-70">TDEE estimado</span>
-            <span className="font-bold">{smartMacros?.tdee ?? '—'} kcal</span>
+            <span className="font-bold">{displayTdee ? displayTdee + ' kcal' : '—'}</span>
             <span className="opacity-70">Meta</span>
             <span className="font-bold">{smartMacros?.target_calories ?? plan?.daily_calories ?? '—'} {smartMacros ? 'kcal' : ''}</span>
           </div>
