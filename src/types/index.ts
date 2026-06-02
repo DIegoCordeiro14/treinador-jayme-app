@@ -31,14 +31,11 @@ export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 // Database Tables
 // ================================================
 
-export type GenderType = 'male' | 'female' | 'other';
-
 export interface Profile {
   id: string;
   name: string;
   avatar_url: string | null;
   age: number | null;
-  gender: GenderType | null;
   weight_kg: number | null;
   height_cm: number | null;
   goal: GoalType;
@@ -299,4 +296,6 @@ export const MUSCLE_GROUP_COLORS: Record<MuscleGroup, string> = {
   glutes: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
   abs: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   calves: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-  forearms: 'bg-a
+  forearms: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  full_body: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+};
