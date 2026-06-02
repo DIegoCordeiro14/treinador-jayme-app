@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Scale, TrendingUp, BarChart2, Dumbbell, Plus, Activity, Droplets, Flame, Heart, Upload, Loader2, Sparkles, FileText, CheckCircle2, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -137,6 +137,7 @@ export default function EvolucaoPage() {
     if (!user) return;
     const [{ data: meas }, { data: sess }, { data: bio }] = await Promise.all([
       supabase.from('body_measurements').select('*').eq('user_id', user.id).order('date', { ascending: true }).limit(90),
+      supabase.from('profiles').select('goal').eq('id', user.id).single(),
       supabase.from('workout_sessions').select('started_at, total_volume_kg').eq('user_id', user.id).order('started_at', { ascending: true }).limit(90),
       supabase.from('bioimpedance_data').select('*').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(20),
     ]);
@@ -267,6 +268,14 @@ export default function EvolucaoPage() {
     peso: b.weight_kg,
   }));
 
+  // Calcular meta de gordura corporal baseada no objetivo
+  const latestBioForGoal = bioList[0];
+  const gorduraMeta = latestBioForGoal?.body_fat_pct
+    ? (profile?.goal === 'weight_loss' || profile?.goal === 'cutting' ? Math.max(latestBioForGoal.body_fat_pct - 5, 8)
+      : profile?.goal === 'hypertrophy' ? latestBioForGoal.body_fat_pct - 2
+      : latestBioForGoal.body_fat_pct - 3)
+    : null;
+
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
       {/* Header */}
@@ -332,15 +341,15 @@ export default function EvolucaoPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-blue-400', badge: latestBio.bmi !== null ? statusBadge(latestBio.bmi, { ok: 24.9, warn: 29.9 }, ['Normal', 'Sobrepeso', 'Obeso']) : null },
-                    { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-yellow-400', badge: null },
+                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-blue-400', badge: null },
+                    { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-yellow-400', badge: latestBio.bmi !== null ? (() => { const b = latestBio.bmi!; return b < 25 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Meta atingida</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400">Meta: &lt; 25</span>; })() : null },
                     { label: 'Gordura Corporal', value: latestBio.body_fat_pct ? `${latestBio.body_fat_pct}%` : null, icon: <TrendingUp className="h-3.5 w-3.5" />, color: 'text-orange-400', badge: statusBadge(latestBio.body_fat_pct, { ok: 20, warn: 25 }, ['Normal', 'Alta', 'Muito alta']) },
                     { label: 'Músculo', value: latestBio.skeletal_muscle_mass_kg ? `${latestBio.skeletal_muscle_mass_kg} kg` : null, icon: <Dumbbell className="h-3.5 w-3.5" />, color: 'text-green-400', badge: null },
                     { label: 'Água Corporal', value: latestBio.water_pct ? `${latestBio.water_pct}%` : null, icon: <Droplets className="h-3.5 w-3.5" />, color: 'text-cyan-400', badge: statusBadge(latestBio.water_pct, { ok: 50, warn: 45 }, ['Normal', 'Baixa', 'Muito baixa'], true) },
                     { label: 'Metabolismo Basal', value: latestBio.basal_metabolic_rate_kcal ? `${latestBio.basal_metabolic_rate_kcal} kcal` : null, icon: <Flame className="h-3.5 w-3.5" />, color: 'text-red-400', badge: null },
                     { label: 'Gordura Visceral', value: latestBio.visceral_fat_level ? `Nível ${latestBio.visceral_fat_level}` : null, icon: <Heart className="h-3.5 w-3.5" />, color: 'text-pink-400', badge: statusBadge(latestBio.visceral_fat_level, { ok: 9, warn: 14 }, ['Normal', 'Alta', 'Muito alta']) },
                     { label: 'Massa Óssea', value: latestBio.bone_mass_kg ? `${latestBio.bone_mass_kg} kg` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-zinc-400', badge: null },
-                    { label: 'Proteína', value: latestBio.protein_pct ? `${latestBio.protein_pct}%` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-purple-400', badge: null },
+                    { label: 'Proteína corporal', value: latestBio.protein_pct ? `${latestBio.protein_pct}%` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-purple-400', badge: latestBio.protein_pct !== null ? (latestBio.protein_pct < 18 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400">Aumentar proteína</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Normal</span>) : null },
                   ].filter((item) => item.value !== null).map((item) => (
                     <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
                       <div className={cn('flex items-center gap-1.5 mb-1', item.color)}>
@@ -401,6 +410,9 @@ export default function EvolucaoPage() {
                         <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
                         <Line type="monotone" dataKey="gordura" name="Gordura%" stroke="#f97316" strokeWidth={2} dot={{ r: 3, fill: '#f97316' }} connectNulls />
                         <Line type="monotone" dataKey="musculo" name="Músculo kg" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} connectNulls />
+                        {gorduraMeta !== null && (
+                          <ReferenceLine y={gorduraMeta} stroke="#f97316" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: `Meta ${gorduraMeta?.toFixed(1)}%`, fill: '#f97316', fontSize: 10, position: 'insideTopRight' }} />
+                        )}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
