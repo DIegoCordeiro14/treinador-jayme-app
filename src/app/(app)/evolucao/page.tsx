@@ -137,7 +137,6 @@ export default function EvolucaoPage() {
     if (!user) return;
     const [{ data: meas }, { data: sess }, { data: bio }] = await Promise.all([
       supabase.from('body_measurements').select('*').eq('user_id', user.id).order('date', { ascending: true }).limit(90),
-      supabase.from('profiles').select('goal').eq('id', user.id).single(),
       supabase.from('workout_sessions').select('started_at, total_volume_kg').eq('user_id', user.id).order('started_at', { ascending: true }).limit(90),
       supabase.from('bioimpedance_data').select('*').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(20),
     ]);
@@ -287,10 +286,9 @@ export default function EvolucaoPage() {
 
   // Calcular meta de gordura corporal baseada no objetivo
   const latestBioForGoal = bioList[0];
+  // Meta de gordura: redução de 4pp (meta conservadora para qualquer objetivo)
   const gorduraMeta = latestBioForGoal?.body_fat_pct
-    ? (profile?.goal === 'weight_loss' || profile?.goal === 'cutting' ? Math.max(latestBioForGoal.body_fat_pct - 5, 8)
-      : profile?.goal === 'hypertrophy' ? latestBioForGoal.body_fat_pct - 2
-      : latestBioForGoal.body_fat_pct - 3)
+    ? Math.max(latestBioForGoal.body_fat_pct - 4, 8)
     : null;
 
   return (
