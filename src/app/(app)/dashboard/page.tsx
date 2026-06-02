@@ -103,13 +103,34 @@ export default async function DashboardPage() {
   }
 
   // Latest weight
-  const { data: latestMeasurement } = await supabase
-    .from("body_measurements")
-    .select("weight_kg")
-    .eq("user_id", user.id)
-    .order("date", { ascending: false })
-    .limit(1)
-    .single();
+  // Buscar peso mais recente: prioriza bioimpedance_data, depois body_measurements
+  const [{ data: latestBioWeight }, { data: latestMeasurement }] = await Promise.all([
+    supabase
+      .from("bioimpedance_data")
+      .select("weight_kg, measured_at")
+      .eq("user_id", user.id)
+      .order("measured_at", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("body_measurements")
+      .select("weight_kg, date")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(1)
+      .single(),
+  ]);
+  // Usar o registro mais recente entre as duas fontes
+  const latestWeightKg = (() => {
+    const bioW = latestBioWeight?.weight_kg ?? null;
+    const measW = latestMeasurement?.weight_kg ?? null;
+    if (bioW && measW) {
+      const bioDate = new Date(latestBioWeight!.measured_at);
+      const measDate = new Date(latestMeasurement!.date);
+      return bioDate >= measDate ? bioW : measW;
+    }
+    return bioW ?? measW;
+  })();
 
   // Today's workout day (based on day of week or sequential)
   const todayDayOfWeek = today.getDay();
@@ -177,11 +198,7 @@ export default async function DashboardPage() {
         />
         <StatsCard
           label="Peso Atual"
-          value={
-            latestMeasurement?.weight_kg
-              ? formatWeight(latestMeasurement.weight_kg)
-              : "—"
-          }
+          value={latestWeightKg ? formatWeight(latestWeightKg) : "—"}
           icon={<Scale className="h-4 w-4" />}
           color="purple"
         />
