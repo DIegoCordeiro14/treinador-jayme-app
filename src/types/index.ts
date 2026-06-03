@@ -32,6 +32,18 @@ export type EquipmentType =
   | 'bands';
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 
+// ── Módulo 0 — Anamnese Esportiva Inteligente ──
+export type TrainingYears = 'lt_6m' | '6m_2y' | '2y_5y' | 'gt_5y';
+export type SleepHours = 'lt_5h' | '5_6h' | '7_8h' | 'gt_8h';
+export type SleepQuality = 'poor' | 'regular' | 'good' | 'excellent';
+export type StressLevel = 'low' | 'medium' | 'high';
+export type WorkType = 'sedentary' | 'moderate' | 'active';
+export type CardioFrequency = 'none' | '1_2x' | '3_4x' | '5x_plus';
+export type TrainingLocation = 'full_gym' | 'basic_gym' | 'condo' | 'home' | 'bodyweight';
+export type PreferredTime = 'morning' | 'afternoon' | 'evening';
+export type EdnPhase = 'adaptation' | 'fat_loss' | 'recomp' | 'hypertrophy' | 'specialization' | 'deload';
+export type RecommendedComplexity = 'basic' | 'intermediate' | 'advanced';
+
 // ================================================
 // Database Tables
 // ================================================
@@ -56,6 +68,33 @@ export interface Profile {
   limitations: string[] | null;
   available_equipment: string[] | null;
   mesocycle_number: number | null;
+  // ── Módulo 0 — Anamnese ──
+  priority_muscle_1: MuscleGroup | null;
+  priority_muscle_2: MuscleGroup | null;
+  training_years: TrainingYears | null;
+  has_periodization_exp: boolean | null;
+  knows_rir: boolean | null;
+  has_used_top_set: boolean | null;
+  has_used_back_off: boolean | null;
+  has_used_deload: boolean | null;
+  session_duration_min: number | null;
+  preferred_time: PreferredTime | null;
+  training_location: TrainingLocation | null;
+  sleep_hours: SleepHours | null;
+  sleep_quality: SleepQuality | null;
+  stress_level: StressLevel | null;
+  work_type: WorkType | null;
+  cardio_frequency: CardioFrequency | null;
+  cardio_types: string[] | null;
+  limitation_description: string | null;
+  favorite_exercises: string[] | null;
+  disliked_exercises: string[] | null;
+  forbidden_exercises: string[] | null;
+  // ── Avaliação automática EDN ──
+  edn_phase: EdnPhase | null;
+  progression_potential: number | null;
+  recommended_complexity: RecommendedComplexity | null;
+  profile_completion_pct: number | null;
 }
 
 export interface Exercise {
@@ -323,6 +362,94 @@ export const AESTHETIC_GOAL_LABELS_FEMALE: Record<AestheticGoalFemale, string> =
 
 export const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
   beginner: 'Iniciante',
+  intermediate: 'Intermediário',
+  advanced: 'Avançado',
+};
+
+// ── Módulo 0 — Label Maps ──
+
+export const TRAINING_YEARS_LABELS: Record<TrainingYears, string> = {
+  lt_6m: 'Menos de 6 meses',
+  '6m_2y': '6 meses a 2 anos',
+  '2y_5y': '2 a 5 anos',
+  gt_5y: 'Mais de 5 anos',
+};
+
+export const SLEEP_HOURS_LABELS: Record<SleepHours, string> = {
+  lt_5h: 'Menos de 5h',
+  '5_6h': '5–6h',
+  '7_8h': '7–8h',
+  gt_8h: 'Mais de 8h',
+};
+
+export const SLEEP_QUALITY_LABELS: Record<SleepQuality, string> = {
+  poor: 'Ruim',
+  regular: 'Regular',
+  good: 'Boa',
+  excellent: 'Excelente',
+};
+
+export const STRESS_LEVEL_LABELS: Record<StressLevel, string> = {
+  low: 'Baixo',
+  medium: 'Médio',
+  high: 'Alto',
+};
+
+export const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  sedentary: 'Sedentário',
+  moderate: 'Moderadamente ativo',
+  active: 'Muito ativo',
+};
+
+export const CARDIO_FREQUENCY_LABELS: Record<CardioFrequency, string> = {
+  none: 'Nenhum',
+  '1_2x': '1–2x/semana',
+  '3_4x': '3–4x/semana',
+  '5x_plus': '5x ou mais',
+};
+
+export const CARDIO_TYPE_LABELS: Record<string, string> = {
+  walking: 'Caminhada',
+  running: 'Corrida',
+  bike: 'Bike',
+  swimming: 'Natação',
+  other: 'Outros',
+};
+
+export const TRAINING_LOCATION_LABELS: Record<TrainingLocation, string> = {
+  full_gym: 'Academia completa',
+  basic_gym: 'Academia básica',
+  condo: 'Condomínio',
+  home: 'Casa',
+  bodyweight: 'Peso corporal',
+};
+
+export const PREFERRED_TIME_LABELS: Record<PreferredTime, string> = {
+  morning: 'Manhã',
+  afternoon: 'Tarde',
+  evening: 'Noite',
+};
+
+export const LIMITATION_LABELS: Record<string, string> = {
+  shoulder: 'Ombro',
+  knee: 'Joelho',
+  lower_back: 'Lombar',
+  hip: 'Quadril',
+  elbow: 'Cotovelo',
+  wrist: 'Punho',
+};
+
+export const EDN_PHASE_LABELS: Record<EdnPhase, string> = {
+  adaptation: 'Adaptação',
+  fat_loss: 'Emagrecimento',
+  recomp: 'Recomposição',
+  hypertrophy: 'Hipertrofia',
+  specialization: 'Especialização',
+  deload: 'Deload',
+};
+
+export const COMPLEXITY_LABELS: Record<RecommendedComplexity, string> = {
+  basic: 'Básico',
   intermediate: 'Intermediário',
   advanced: 'Avançado',
 };
