@@ -77,13 +77,17 @@ const STATUS_CONFIG = {
 export default function NutricaoPage() {
   const supabase = createClient();
   const { metrics: bodyMetrics, loading: metricsLoading, refetch: refetchMetrics } = useLatestMetrics();
-  const [plan, setPlan] = useState<NutritionPlan | null>(null);
+  const [plan, setPlan] = useState<NutritionPlan | null>(() => {
+    try { const s = typeof window !== 'undefined' ? sessionStorage.getItem('edn_nutrition_plan') : null; return s ? JSON.parse(s) : null; } catch { return null; }
+  });
   const [activeGoal, setActiveGoal] = useState('');
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [coachData, setCoachData] = useState<{ analysis: CoachAnalysis; smart_macros: SmartMacros; current_weight: number | null; target_weight: number | null; weight_trend: number | null; bio: any } | null>(null);
+  const [coachData, setCoachData] = useState<{ analysis: CoachAnalysis; smart_macros: SmartMacros; current_weight: number | null; target_weight: number | null; weight_trend: number | null; bio: any } | null>(() => {
+    try { const s = typeof window !== 'undefined' ? sessionStorage.getItem('edn_coach_data') : null; return s ? JSON.parse(s) : null; } catch { return null; }
+  });
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [showMeals, setShowMeals] = useState(true);
   const [showWeightModal, setShowWeightModal] = useState(false);
@@ -101,12 +105,13 @@ export default function NutricaoPage() {
       supabase.from('profiles').select('weight_kg, height_cm, age, gender, weekly_frequency, goal').eq('id', user.id).single(),
     ]);
     if (profileData) setProfile(profileData as any);
-    // Preferir plano do DB; fallback = sessionStorage (persiste enquanto a aba estiver aberta)
+    // DB tem prioridade; se DB não tiver plano, manter o que já está no state (sessionStorage)
     const dbPlan = (planData?.schedule_config as any)?.nutrition ?? null;
-    const cachedPlan = dbPlan ?? (() => {
-      try { const s = sessionStorage.getItem('edn_nutrition_plan'); return s ? JSON.parse(s) : null; } catch { return null; }
-    })();
-    setPlan(cachedPlan);
+    if (dbPlan) {
+      setPlan(dbPlan);
+      try { sessionStorage.setItem('edn_nutrition_plan', JSON.stringify(dbPlan)); } catch {}
+    }
+    // Se dbPlan=null, manter plan do state (já carregado do sessionStorage no useState)
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
     setWeightLogs((logs as WeightLog[]) ?? []);
@@ -123,14 +128,22 @@ export default function NutricaoPage() {
   // Mantém planRef sincronizado com o state sem adicionar "plan" como dep do useEffect
   useEffect(() => { planRef.current = plan; }, [plan]);
 
+  // coachDataRef para verificar no effect sem adicionar ao dep array
+  const coachDataRef = useRef<typeof coachData>(coachData);
+  useEffect(() => { coachDataRef.current = coachData; }, [coachData]);
+
   useEffect(() => {
     if (loading) return;
     if (activeTab === 'coach' && !hasRunCoach.current) {
       hasRunCoach.current = true;
-      runCoachAnalysis();
+      // Só re-analisa se não há cache válido (< 30 min)
+      const cacheTs = (() => { try { return parseInt(sessionStorage.getItem('edn_coach_ts') ?? '0'); } catch { return 0; } })();
+      const cacheAge = Date.now() - cacheTs;
+      if (!coachDataRef.current || cacheAge > 30 * 60 * 1000) {
+        runCoachAnalysis();
+      }
     } else if (activeTab === 'plano' && !hasRunPlan.current) {
       hasRunPlan.current = true;
-      // Só gera se não houver plano em nenhuma fonte
       if (!planRef.current) generateNutrition();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,7 +169,11 @@ export default function NutricaoPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCoachData(data);
-      toast.success('Analise do Nutricionista IA concluida!');
+      try {
+        sessionStorage.setItem('edn_coach_data', JSON.stringify(data));
+        sessionStorage.setItem('edn_coach_ts', String(Date.now()));
+      } catch {}
+      toast.success('Análise do Nutricionista IA concluída!');
     } catch (err: any) { toast.error(err.message); }
     finally { setAnalyzing(false); }
   }
@@ -516,11 +533,12 @@ export default function NutricaoPage() {
             </>
           )}
 
+          {/* Sem dados e não está analisando — mostra skeleton discreto */}
           {!analysis && !analyzing && (
-            <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
-              <Brain className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
-              <p className="text-sm text-zinc-400 mb-1">Nutricionista IA EDN</p>
-              <p className="text-xs text-zinc-600">Analise completa: macros, calorias, ciclagem de carbs, deteccao de plato e projecao de resultado</p>
+            <div className="space-y-2 opacity-40">
+              <div className="h-16 rounded-xl bg-zinc-800 animate-pulse" />
+              <div className="h-10 rounded-xl bg-zinc-800 animate-pulse" />
+              <div className="h-24 rounded-xl bg-zinc-800 animate-pulse" />
             </div>
           )}
         </TabsContent>
