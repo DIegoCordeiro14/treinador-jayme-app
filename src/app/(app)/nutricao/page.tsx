@@ -78,7 +78,7 @@ export default function NutricaoPage() {
   const supabase = createClient();
   const { metrics: bodyMetrics, loading: metricsLoading, refetch: refetchMetrics } = useLatestMetrics();
   const [plan, setPlan] = useState<NutritionPlan | null>(() => {
-    try { const s = typeof window !== 'undefined' ? sessionStorage.getItem('edn_nutrition_plan') : null; return s ? JSON.parse(s) : null; } catch { return null; }
+    try { const s = typeof window !== 'undefined' ? localStorage.getItem('edn_nutrition_plan') : null; return s ? JSON.parse(s) : null; } catch { return null; }
   });
   const [activeGoal, setActiveGoal] = useState('');
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export default function NutricaoPage() {
   const [generating, setGenerating] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [coachData, setCoachData] = useState<{ analysis: CoachAnalysis; smart_macros: SmartMacros; current_weight: number | null; target_weight: number | null; weight_trend: number | null; bio: any } | null>(() => {
-    try { const s = typeof window !== 'undefined' ? sessionStorage.getItem('edn_coach_data') : null; return s ? JSON.parse(s) : null; } catch { return null; }
+    try { const s = typeof window !== 'undefined' ? localStorage.getItem('edn_coach_data') : null; return s ? JSON.parse(s) : null; } catch { return null; }
   });
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [showMeals, setShowMeals] = useState(true);
@@ -105,13 +105,13 @@ export default function NutricaoPage() {
       supabase.from('profiles').select('weight_kg, height_cm, age, gender, weekly_frequency, goal').eq('id', user.id).single(),
     ]);
     if (profileData) setProfile(profileData as any);
-    // DB tem prioridade; se DB não tiver plano, manter o que já está no state (sessionStorage)
+    // DB tem prioridade; se DB não tiver plano, manter o que já está no state (localStorage)
     const dbPlan = (planData?.schedule_config as any)?.nutrition ?? null;
     if (dbPlan) {
       setPlan(dbPlan);
-      try { sessionStorage.setItem('edn_nutrition_plan', JSON.stringify(dbPlan)); } catch {}
+      try { localStorage.setItem('edn_nutrition_plan', JSON.stringify(dbPlan)); } catch {}
     }
-    // Se dbPlan=null, manter plan do state (já carregado do sessionStorage no useState)
+    // Se dbPlan=null, manter plan do state (já carregado do localStorage no useState)
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
     setWeightLogs((logs as WeightLog[]) ?? []);
@@ -137,7 +137,7 @@ export default function NutricaoPage() {
     if (activeTab === 'coach' && !hasRunCoach.current) {
       hasRunCoach.current = true;
       // Só re-analisa se não há cache válido (< 30 min)
-      const cacheTs = (() => { try { return parseInt(sessionStorage.getItem('edn_coach_ts') ?? '0'); } catch { return 0; } })();
+      const cacheTs = (() => { try { return parseInt(localStorage.getItem('edn_coach_ts') ?? '0'); } catch { return 0; } })();
       const cacheAge = Date.now() - cacheTs;
       if (!coachDataRef.current || cacheAge > 30 * 60 * 1000) {
         runCoachAnalysis();
@@ -156,7 +156,7 @@ export default function NutricaoPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setPlan(data.nutrition);
-      try { sessionStorage.setItem('edn_nutrition_plan', JSON.stringify(data.nutrition)); } catch {}
+      try { localStorage.setItem('edn_nutrition_plan', JSON.stringify(data.nutrition)); } catch {}
       toast.success('Plano nutricional atualizado!');
     } catch (err: any) { toast.error(err.message); }
     finally { setGenerating(false); }
@@ -170,8 +170,8 @@ export default function NutricaoPage() {
       if (!res.ok) throw new Error(data.error);
       setCoachData(data);
       try {
-        sessionStorage.setItem('edn_coach_data', JSON.stringify(data));
-        sessionStorage.setItem('edn_coach_ts', String(Date.now()));
+        localStorage.setItem('edn_coach_data', JSON.stringify(data));
+        localStorage.setItem('edn_coach_ts', String(Date.now()));
       } catch {}
       toast.success('Análise do Nutricionista IA concluída!');
     } catch (err: any) { toast.error(err.message); }
