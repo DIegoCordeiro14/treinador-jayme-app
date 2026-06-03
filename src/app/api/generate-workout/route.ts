@@ -209,7 +209,18 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
       return Response.json({ error: "AI não retornou JSON válido", raw: fullText }, { status: 422 });
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    // Haiku às vezes gera trailing commas — limpar antes de parsear
+    const cleanJson = jsonMatch[0]
+      .replace(/,\s*([\]\}])/g, '$1')   // remove trailing commas
+      .replace(/([\[,])\s*,/g, '$1');   // remove double commas
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      console.error("[generate-workout] JSON parse failed:", parseErr, "raw:", cleanJson.slice(0, 300));
+      return Response.json({ days: [], whyText, aiError: true, error: "JSON inválido do modelo" }, { status: 200 });
+    }
     if (!parsed?.days || !Array.isArray(parsed.days)) {
       return Response.json({ days: [], whyText, aiError: true, error: "Estrutura JSON inválida" }, { status: 200 });
     }
