@@ -28,6 +28,7 @@ export type AIWorkoutDay = {
 
 // ─── POST /api/generate-workout ───────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  let whyText = ''; // declared outside try so catch can always return it
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -160,7 +161,7 @@ export async function POST(req: NextRequest) {
     const levelRule = levelRulesMap[experienceLevel] ?? levelRulesMap['beginner'];
 
     // ─── V3.2: Build "Por que este treino?" rationale (pure logic, always works) ─
-    const whyText = buildWorkoutRationale({
+    whyText = buildWorkoutRationale({
       sex,
       mainGoal,
       aestheticGoal,
@@ -187,15 +188,21 @@ ${exerciseCatalog}
 JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tríceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
 ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
 
-    // ─── AI call ──────────────────────────────────────────────────────────────
+    // ─── AI call (with 20s timeout to prevent Vercel 503) ───────────────────────
     let fullText = "";
-    for await (const chunk of provider.stream({
-      messages: [{ role: "user", content: userPrompt }],
-      systemPrompt: EDN_SYSTEM_PROMPT,
-      maxTokens: 2000,
-    })) {
-      if (chunk.text) fullText += chunk.text;
-    }
+    const aiTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("AI_TIMEOUT")), 20000)
+    );
+    const aiStream = (async () => {
+      for await (const chunk of provider.stream({
+        messages: [{ role: "user", content: userPrompt }],
+        systemPrompt: EDN_SYSTEM_PROMPT,
+        maxTokens: 2000,
+      })) {
+        if (chunk.text) fullText += chunk.text;
+      }
+    })();
+    await Promise.race([aiStream, aiTimeout]);
 
     // ─── Parse JSON ───────────────────────────────────────────────────────────
     const jsonMatch = fullText.match(/\{[\s\S]*\}/);

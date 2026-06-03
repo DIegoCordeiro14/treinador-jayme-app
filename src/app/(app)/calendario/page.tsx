@@ -52,14 +52,22 @@ const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const TODAY_START = new Date(new Date().setHours(0, 0, 0, 0));
 
 function jsToEdn(jsDay: number) { return jsDay === 0 ? 7 : jsDay; }
+function isValidScheduleConfig(raw: unknown): raw is ScheduleConfig {
+  return (
+    !!raw &&
+    typeof raw === 'object' &&
+    Array.isArray((raw as ScheduleConfig).pattern) &&
+    typeof (raw as ScheduleConfig).start_date === 'string'
+  );
+}
 function isScheduledDay(date: Date, cfg: ScheduleConfig | null) {
   if (!cfg) return false;
   if (date < new Date(cfg.start_date + 'T00:00:00')) return false;
-  return cfg.pattern.includes(jsToEdn(getDay(date)));
+  return (cfg.pattern ?? []).includes(jsToEdn(getDay(date)));
 }
 function getWorkoutLabel(date: Date, cfg: ScheduleConfig | null) {
   if (!cfg) return '';
-  return cfg.day_assignments[String(jsToEdn(getDay(date)))] ?? '';
+  return (cfg.day_assignments ?? {})[String(jsToEdn(getDay(date)))] ?? '';
 }
 
 const MUSCLE_ABBREV: Record<string, string> = {
@@ -184,7 +192,7 @@ export default function CalendarioPage() {
     }
   }
 
-  const cfg = activePlan?.schedule_config ?? null;
+  const cfg: ScheduleConfig | null = isValidScheduleConfig(activePlan?.schedule_config) ? activePlan!.schedule_config as ScheduleConfig : null;
   const today = new Date();
   const daysElapsed = today <= monthEnd ? today.getDate() : monthEnd.getDate();
   const stats = {

@@ -311,8 +311,12 @@ export default function PlanDetailPage() {
           if (json.builder) setBuilderResult(json.builder);
         }
       } else {
-        // ── Fallback ─────────────────────────────────────────────────────────
-        if (json.whyText) setWhyText(json.whyText);
+        // ── Fallback (res.ok is false — json not available) ──────────────────
+        // Try to parse body for whyText if server sent partial JSON (e.g. 200 with aiError)
+        try {
+          const errJson = await res.json().catch(() => null);
+          if (errJson?.whyText) setWhyText(errJson.whyText);
+        } catch {}
         setAiError("IA indisponível — usando algoritmo EDN padrão");
         preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
       }
