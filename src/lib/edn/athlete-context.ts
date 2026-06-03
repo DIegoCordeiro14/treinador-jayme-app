@@ -134,16 +134,16 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
 
   // ── Parallel fetch of ALL data ──────────────────────────────────────────────
   const [
-    { data: profile },
-    { data: bio },
-    { data: weightLogs },
-    { data: sessions28 },
-    { data: activePlan },
-    { data: progressions14d },
-    { data: foodLogs14 },
-    { data: cardio14 },
-    { data: deloads },
-  ] = await Promise.all([
+    profileResult,
+    bioResult,
+    weightLogsResult,
+    sessions28Result,
+    activePlanResult,
+    progressions14dResult,
+    foodLogs14Result,
+    cardio14Result,
+    deloadsResult,
+  ] = await Promise.allSettled([
     supabase.from('profiles')
       .select('name, age, gender, goal, experience_level, weekly_frequency, target_weight_kg, calorie_target, aesthetic_goal, weak_point, main_goal')
       .eq('id', userId).single(),
@@ -183,6 +183,17 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
     supabase.from('deloads')
       .select('start_date, is_active').eq('user_id', userId).eq('is_active', true).maybeSingle(),
   ]);
+
+  // Extract settled results safely
+  const profile    = profileResult.status      === 'fulfilled' ? profileResult.value.data        : null;
+  const bio        = bioResult.status          === 'fulfilled' ? bioResult.value.data             : null;
+  const weightLogs = weightLogsResult.status   === 'fulfilled' ? weightLogsResult.value.data      : null;
+  const sessions28 = sessions28Result.status   === 'fulfilled' ? sessions28Result.value.data      : null;
+  const activePlan = activePlanResult.status   === 'fulfilled' ? activePlanResult.value.data      : null;
+  const progressions14d = progressions14dResult.status === 'fulfilled' ? progressions14dResult.value.data : null;
+  const foodLogs14 = foodLogs14Result.status   === 'fulfilled' ? foodLogs14Result.value.data      : null;
+  const cardio14   = cardio14Result.status     === 'fulfilled' ? cardio14Result.value.data        : null;
+  const deloads    = deloadsResult.status      === 'fulfilled' ? deloadsResult.value.data         : null;
 
   // ── Body Composition ─────────────────────────────────────────────────────────
   const wLogs = weightLogs ?? [];

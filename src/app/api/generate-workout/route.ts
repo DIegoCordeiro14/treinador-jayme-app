@@ -163,7 +163,11 @@ export async function POST(req: NextRequest) {
     const levelRule = levelRulesMap[experienceLevel] ?? levelRulesMap['beginner'];
 
     // ─── V5.0: Specialization Blueprint ──────────────────────────────────────────
-    const athleteCtxV5 = await getCachedAthleteContext(user.id).catch(() => null);
+    // 3s timeout — se demorar mais, prossegue sem o contexto V5
+    const athleteCtxV5 = await Promise.race([
+      getCachedAthleteContext(user.id),
+      new Promise<null>(r => setTimeout(() => r(null), 3000)),
+    ]).catch(() => null);
     const blueprintV5 = prescribeWorkoutBlueprint({
       gender: (athleteCtxV5?.goals.gender ?? sex ?? null) as any,
       primaryGoal: (effectiveObjective ?? mainGoal ?? 'hypertrophy') as any,
