@@ -275,8 +275,8 @@ export default function CardioPage() {
         <TabsList className="bg-zinc-900 border border-zinc-800 w-full">
           <TabsTrigger value="visao-geral" className="flex-1 text-xs">Visao Geral</TabsTrigger>
           <TabsTrigger value="evolucao" className="flex-1 text-xs">Evolucao</TabsTrigger>
-          <TabsTrigger value="historico" className="flex-1 text-xs">Historico</TabsTrigger>
-          <TabsTrigger value="projecao" className="flex-1 text-xs">Projecao</TabsTrigger>
+          <TabsTrigger value="historico" className="flex-1 text-xs">Histórico</TabsTrigger>
+          <TabsTrigger value="projeção" className="flex-1 text-xs">Projecao</TabsTrigger>
         </TabsList>
 
         {/* ═══════════════════════════════════════════════════════════
@@ -347,7 +347,7 @@ export default function CardioPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-zinc-100">Coach Jayme</p>
-                  <p className="text-[10px] text-zinc-500">Analise inteligente do seu condicionamento</p>
+                  <p className="text-[10px] text-zinc-500">Análise inteligente do seu condicionamento</p>
                 </div>
               </div>
               <button
@@ -548,7 +548,7 @@ export default function CardioPage() {
         {/* ═══════════════════════════════════════════════════════════
             TAB: PROJECAO
         ═══════════════════════════════════════════════════════════ */}
-        <TabsContent value="projecao" className="mt-4 space-y-4">
+        <TabsContent value="projeção" className="mt-4 space-y-4">
 
           {/* Race projector */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
@@ -598,17 +598,17 @@ export default function CardioPage() {
                 </div>
 
                 <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
-                  <p className="text-xs text-orange-300 font-semibold mb-1">Para completar {goalKm} km voce precisa:</p>
+                  <p className="text-xs text-orange-300 font-semibold mb-1">Para completar {goalKm} km você precisa:</p>
                   <p className="text-xs text-zinc-400">
                     {goalKm <= longestRun
-                      ? 'Voce ja tem base para esta distancia! Foque no pace.'
+                      ? 'Você ja tem base para esta distancia! Foque no pace.'
                       : `Aumentar seu longao atual de ${longestRun.toFixed(1)} km gradualmente (regra de 10%/semana).`}
                   </p>
                 </div>
               </div>
             ) : (
               <div className="text-center py-6">
-                <p className="text-sm text-zinc-500">Registre pelo menos 1 corrida com distancia para ver a projecao</p>
+                <p className="text-sm text-zinc-500">Registre pelo menos 1 corrida com distancia para ver a projeção</p>
               </div>
             )}
           </div>

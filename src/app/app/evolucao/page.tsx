@@ -308,7 +308,7 @@ export default function EvolucaoPage() {
           <TabsTrigger value="peso">Peso</TabsTrigger>
           <TabsTrigger value="volume">Volume</TabsTrigger>
           <TabsTrigger value="medidas">Medidas</TabsTrigger>
-          <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatorio</TabsTrigger>
+          <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatório</TabsTrigger>
         </TabsList>
 
         {/* ── Bioimpedância tab ────────────────────────────── */}
@@ -503,7 +503,7 @@ export default function EvolucaoPage() {
             )}
           </div>
         </TabsContent>
-        {/* Relatorio Semanal tab */}
+        {/* Relatório Semanal tab */}
         <TabsContent value="relatorio" className="mt-4 space-y-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <div className="flex items-center gap-3 mb-3">
@@ -511,8 +511,8 @@ export default function EvolucaoPage() {
                 <Sparkles className="h-5 w-5 text-blue-400" />
               </div>
               <div>
-                <p className="font-semibold text-zinc-100">Relatorio Semanal IA</p>
-                <p className="text-xs text-zinc-500">Analise tecnica dos ultimos 7 dias com sugestoes EDN</p>
+                <p className="font-semibold text-zinc-100">Relatório Semanal IA</p>
+                <p className="text-xs text-zinc-500">Análise técnica dos últimos 7 dias com sugestões EDN</p>
               </div>
             </div>
             <button
@@ -610,7 +610,7 @@ export default function EvolucaoPage() {
               <div className="rounded-xl border border-green-600/30 bg-green-600/10 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ArrowRight className="h-4 w-4 text-green-400 shrink-0" />
-                  <p className="text-xs font-semibold text-green-300 uppercase tracking-wide">Foco da Proxima Semana</p>
+                  <p className="text-xs font-semibold text-green-300 uppercase tracking-wide">Foco da Próxima Semana</p>
                 </div>
                 <p className="text-sm text-zinc-200 leading-relaxed">{report.next_week_focus}</p>
               </div>

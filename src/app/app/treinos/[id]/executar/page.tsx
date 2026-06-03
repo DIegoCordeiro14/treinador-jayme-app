@@ -249,7 +249,7 @@ export default function ExecutarPage() {
           <p className="text-sm font-bold text-yellow-300">Lembrete: o que e RIR?</p>
         </div>
         <p className="text-xs text-zinc-400 leading-relaxed">
-          <span className="font-semibold text-zinc-300">RIR = Repeticoes em Recamara</span> — o numero de reps que voce ainda conseguiria fazer, mas <em>nao fez</em>.
+          <span className="font-semibold text-zinc-300">RIR = Repeticoes em Recamara</span> — o numero de reps que você ainda conseguiria fazer, mas <em>nao fez</em>.
           Controlar o RIR e o que separa o treino inteligente (EDN) do treino ao acaso.
         </p>
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -505,7 +505,7 @@ export default function ExecutarPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-500/10">
                   <Bot className="h-3.5 w-3.5 text-green-400" />
                 </div>
-                <span className="text-[11px] font-bold text-green-400 uppercase tracking-widest">Analise do Jayme</span>
+                <span className="text-[11px] font-bold text-green-400 uppercase tracking-widest">Análise do Jayme</span>
               </div>
               {st.feedbackLoading ? (
                 <div className="flex items-center gap-2 text-zinc-500">

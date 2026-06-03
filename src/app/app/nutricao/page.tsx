@@ -124,7 +124,7 @@ export default function NutricaoPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCoachData(data);
-      toast.success('Analise do Nutricionista IA concluida!');
+      toast.success('Análise do Nutricionista IA concluída!');
     } catch (err: any) { toast.error(err.message); }
     finally { setAnalyzing(false); }
   }
@@ -367,7 +367,7 @@ export default function NutricaoPage() {
             <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
               <Brain className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
               <p className="text-sm text-zinc-400 mb-1">Nutricionista IA EDN</p>
-              <p className="text-xs text-zinc-600">Analise completa: macros, calorias, ciclagem de carbs, deteccao de plato e projecao de resultado</p>
+              <p className="text-xs text-zinc-600">Análise completa: macros, calorias, ciclagem de carbs, detecção de platô e projeção de resultado</p>
             </div>
           )}
         </TabsContent>
@@ -523,7 +523,7 @@ export default function NutricaoPage() {
           {weightLogs.length > 0 && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Historico de Peso</p>
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Histórico de Peso</p>
               </div>
               <div className="divide-y divide-zinc-800">
                 {weightLogs.slice(0, 7).map(l => (

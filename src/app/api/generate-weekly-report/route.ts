@@ -123,8 +123,8 @@ export async function POST(_req: NextRequest) {
     // ── Call Claude (Jayme) ──────────────────────────────────────────────────
     const client = new Anthropic();
 
-    const systemPrompt = `Voce e o Jayme De Lamadrid, especialista em fisiculturismo natural e criador da Escola dos Naturais (EDN).
-Analise os dados de treino da semana e gere um relatorio tecnico detalhado em JSON valido.
+    const systemPrompt = `Você e o Jayme De Lamadrid, especialista em fisiculturismo natural e criador da Escola dos Naturais (EDN).
+Análise os dados de treino da semana e gere um relatorio tecnico detalhado em JSON valido.
 Seja direto, tecnico e baseado nos principios EDN: progressao de carga, gestao de fadiga, RIR, mesociclo.
 Responda APENAS com JSON valido, sem markdown, sem texto extra.`;
 
@@ -145,7 +145,7 @@ Gere o relatorio no formato JSON exato:
   "sessions_count": ${totalSessions},
   "total_volume_kg": ${Math.round(totalVolume)},
   "total_cardio_km": ${Math.round(totalCardioKm * 10) / 10},
-  "summary": "resumo executivo em 2-3 frases tecnicas sobre a semana",
+  "summary": "resumo executivo em 2-3 frases técnicas sobre a semana",
   "volume_assessment": "avaliacao do volume: adequado/baixo/excessivo e por que",
   "muscle_groups_trained": ["lista", "dos", "grupos", "musculares"],
   "progression": {
@@ -156,12 +156,12 @@ Gere o relatorio no formato JSON exato:
     {
       "category": "Carga|Volume|Recuperacao|Tecnica|Nutricao|Cardio",
       "title": "titulo curto",
-      "description": "descricao tecnica detalhada com numeros especificos quando possivel",
+      "description": "descricao técnica detalhada com numeros especificos quando possivel",
       "priority": "alta|media|baixa"
     }
   ],
   "next_week_focus": "orientacao especifica para a proxima semana em 2-3 frases",
-  "edn_tip": "dica tecnica especifica da metodologia EDN relevante para este atleta"
+  "edn_tip": "dica técnica especifica da metodologia EDN relevante para este atleta"
 }`;
 
     const response = await client.messages.create({

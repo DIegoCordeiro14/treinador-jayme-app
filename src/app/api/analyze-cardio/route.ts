@@ -63,14 +63,14 @@ export async function POST(_req: NextRequest) {
     const res = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 800,
-      system: 'Voce e o Coach Jayme, treinador de corrida da Escola dos Naturais. Analise os dados e responda em JSON valido apenas.',
+      system: 'Você e o Coach EDN, treinador de corrida da Escola dos Naturais. Análise os dados e responda em JSON valido apenas.',
       messages: [{
         role: 'user',
         content: `Perfil: nivel=${profile?.experience_level}, objetivo=${profile?.goal}, idade=${profile?.age}, sexo=${profile?.gender}
 Total corridas: ${running.length} | Total km: ${totalKm.toFixed(1)} | Pace medio: ${avgPaceMin > 0 ? Math.floor(avgPaceMin) + ':' + String(Math.round((avgPaceMin % 1) * 60)).padStart(2, '0') + '/km' : 'N/A'}
-Sessoes ultimos 7 dias: ${last7.length} | Sessoes ultimos 30 dias: ${last30.length}
+Sessoes últimos 7 dias: ${last7.length} | Sessoes últimos 30 dias: ${last30.length}
 
-Historico recente:
+Histórico recente:
 ${sessionsSummary}
 
 Responda APENAS em JSON:

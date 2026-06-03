@@ -599,7 +599,7 @@ export default function ExecutarPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-500/10">
                   <Bot className="h-3.5 w-3.5 text-green-400" />
                 </div>
-                <span className="text-[11px] font-bold text-green-400 uppercase tracking-widest">Analise do Jayme</span>
+                <span className="text-[11px] font-bold text-green-400 uppercase tracking-widest">Análise do Coach EDN</span>
               </div>
               {st.feedbackLoading ? (
                 <div className="flex items-center gap-2 text-zinc-500">
