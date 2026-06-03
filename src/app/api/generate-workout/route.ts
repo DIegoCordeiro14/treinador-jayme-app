@@ -204,21 +204,29 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
     fullText = aiResult;
 
     // ─── Parse JSON ───────────────────────────────────────────────────────────
-    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return Response.json({ error: "AI não retornou JSON válido", raw: fullText }, { status: 422 });
+    // Extrai o primeiro objeto JSON balanceado (evita regex greedy capturar {} em texto após o JSON)
+    function extractBalancedJSON(text: string): string | null {
+      let depth = 0, start = -1;
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (text[i] === '}') { depth--; if (depth === 0 && start !== -1) return text.slice(start, i + 1); }
+      }
+      return null;
     }
-
-    // Haiku às vezes gera trailing commas — limpar antes de parsear
-    const cleanJson = jsonMatch[0]
-      .replace(/,\s*([\]\}])/g, '$1')   // remove trailing commas
-      .replace(/([\[,])\s*,/g, '$1');   // remove double commas
+    const rawJson = extractBalancedJSON(fullText);
+    if (!rawJson) {
+      return Response.json({ error: "AI não retornou JSON válido", raw: fullText.slice(0, 200) }, { status: 422 });
+    }
+    // Limpar trailing commas que o Haiku gera
+    const cleanJson = rawJson
+      .replace(/,\s*([\]\}])/g, '$1')
+      .replace(/([\[,])\s*,/g, '$1');
 
     let parsed: any;
     try {
       parsed = JSON.parse(cleanJson);
     } catch (parseErr) {
-      console.error("[generate-workout] JSON parse failed:", parseErr, "raw:", cleanJson.slice(0, 300));
+      console.error("[generate-workout] JSON parse failed:", (parseErr as Error).message, "\nraw (300):", cleanJson.slice(0, 300));
       return Response.json({ days: [], whyText, aiError: true, error: "JSON inválido do modelo" }, { status: 200 });
     }
     if (!parsed?.days || !Array.isArray(parsed.days)) {
