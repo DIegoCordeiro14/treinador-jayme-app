@@ -4,6 +4,10 @@
  * para gerar o estado atual do atleta (AthleteState).
  *
  * Consumido por: Dashboard, IA, Nutrição, Evolução, Gamificação.
+ *
+ * REGRA DE PONTUAÇÃO (Módulo 0): o atleta SÓ pontua após cumprir tarefas reais.
+ * Sem treino registrado, sem log de nutrição, sem cárdio → componente = 0.
+ * Nenhum ponto de "baseline" ou "neutro" é concedido de graça.
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -125,13 +129,15 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
       .order('log_date', { ascending: true }),
   ]);
 
-  // ── 1. Consistency score (30%) ───────────────────────────────────────────
+  // ── 1. Consistency score (30%) — só pontua treinando ─────────────────────
   const sessionsCount = sessions?.length ?? 0;
   const daysPerWeek   = plan?.days_per_week ?? 3;
   const plannedSessions = Math.round((daysPerWeek / 7) * 28);
-  const consistencyPct = plannedSessions > 0
-    ? Math.min(100, Math.round((sessionsCount / plannedSessions) * 100))
-    : 50;
+  const consistencyPct = sessionsCount === 0
+    ? 0
+    : plannedSessions > 0
+      ? Math.min(100, Math.round((sessionsCount / plannedSessions) * 100))
+      : 0;
 
   // Days since last workout
   const lastSession = sessions?.[0];
@@ -139,9 +145,13 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
     ? differenceInDays(now, parseISO(lastSession.started_at))
     : 999;
 
-  // ── 2. Progression score (25%) ───────────────────────────────────────────
+  // ── 2. Progression score (25%) — só pontua com treino/PR registrado ──────
   const hasPrLast4Weeks = (personalRecords?.length ?? 0) > 0;
-  const progressionScore = hasPrLast4Weeks ? 85 : Math.max(20, 85 - daysSinceLastWorkout * 3);
+  const progressionScore = hasPrLast4Weeks
+    ? 85
+    : sessionsCount === 0
+      ? 0
+      : Math.max(20, 85 - daysSinceLastWorkout * 3);
 
   // Avg RIR from last 7 days sessions
   const recentSessionIds = sessions
@@ -160,7 +170,7 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
     }
   }
 
-  // ── 3. Nutrition adherence (20%) ─────────────────────────────────────────
+  // ── 3. Nutrition adherence (20%) — só pontua com log de nutrição ─────────
   const foodLogList = foodLogs ?? [];
   const proteinDaysBelow = foodLogList.filter(
     l => l.protein_g !== null && l.target_protein_g !== null
@@ -170,22 +180,25 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
     l.logged_at?.split('T')[0]
   )).size;
   const nutritionScore = totalLoggedDays === 0
-    ? 40  // no data — neutral
+    ? 0  // sem registro = sem pontos (nada de baseline)
     : Math.max(20, Math.round(
         ((28 - proteinDaysBelow) / 28) * 100 * (totalLoggedDays / 28)
       ));
 
-  // ── 4. Cardio load (15%) ─────────────────────────────────────────────────
+  // ── 4. Cardio load (15%) — só pontua com cárdio registrado ───────────────
   const cardioKm = (cardioSessions ?? []).reduce((s, c) => s + (c.distance_km ?? 0), 0);
   const cardioGoalKm = 20;
   const cardioScore = Math.min(100, Math.round((cardioKm / cardioGoalKm) * 100));
 
-  // ── 5. Recovery score (10%) ──────────────────────────────────────────────
-  let recoveryScore = 80;
-  if (daysSinceLastWorkout === 0) recoveryScore = 60;  // trained today
-  else if (daysSinceLastWorkout === 1) recoveryScore = 90;
-  else if (daysSinceLastWorkout >= 4) recoveryScore = Math.max(40, 90 - (daysSinceLastWorkout - 1) * 8);
-  if (avgRir !== null && avgRir < 1) recoveryScore = Math.max(40, recoveryScore - 15);
+  // ── 5. Recovery score (10%) — só existe recuperação se houve treino ──────
+  let recoveryScore = 0;
+  if (lastSession) {
+    recoveryScore = 80;
+    if (daysSinceLastWorkout === 0) recoveryScore = 60;  // trained today
+    else if (daysSinceLastWorkout === 1) recoveryScore = 90;
+    else if (daysSinceLastWorkout >= 4) recoveryScore = Math.max(40, 90 - (daysSinceLastWorkout - 1) * 8);
+    if (avgRir !== null && avgRir < 1) recoveryScore = Math.max(40, recoveryScore - 15);
+  }
 
   // ── EDN Score composto ────────────────────────────────────────────────────
   const ednScore = Math.round(
@@ -211,17 +224,21 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
   // ── Alerts ────────────────────────────────────────────────────────────────
   const alerts: Alert[] = [];
   if (proteinDaysBelow >= 3) alerts.push({ type: 'warning', category: 'nutrition', message: `Proteína abaixo da meta em ${proteinDaysBelow} dos últimos 7 dias` });
-  if (daysSinceLastWorkout >= 4) alerts.push({ type: 'warning', category: 'training', message: `Há ${daysSinceLastWorkout} dias sem treinar` });
+  if (lastSession && daysSinceLastWorkout >= 4) alerts.push({ type: 'warning', category: 'training', message: `Há ${daysSinceLastWorkout} dias sem treinar` });
   if (plateauDetected) alerts.push({ type: 'info', category: 'training', message: 'Platô de peso detectado — considere refeed ou ajuste de déficit' });
   if (cardioKm > cardioGoalKm * 1.1) alerts.push({ type: 'warning', category: 'cardio', message: `Volume de cárdio ${Math.round(((cardioKm / cardioGoalKm) - 1) * 100)}% acima do limite seguro` });
 
   // ── Recommendations (max 3) ───────────────────────────────────────────────
   const recs: string[] = [];
-  if (daysSinceLastWorkout >= 2 && sessionsCount < plannedSessions)
+  if (sessionsCount === 0)
+    recs.push('Seu Score começa em 0 — registre seu primeiro treino para começar a pontuar');
+  if (lastSession && daysSinceLastWorkout >= 2 && sessionsCount < plannedSessions)
     recs.push('Você tem treino pendente — priorize hoje para manter a consistência');
+  if (totalLoggedDays === 0)
+    recs.push('Nenhum registro de nutrição — registre suas refeições para pontuar em Nutrição');
   if (proteinDaysBelow >= 2)
     recs.push('Proteína abaixo da meta — adicione uma fonte proteica em cada refeição');
-  if (cardioKm < cardioGoalKm * 0.5)
+  if (sessionsCount > 0 && cardioKm < cardioGoalKm * 0.5)
     recs.push(`Cárdio abaixo da meta semanal (${cardioKm.toFixed(1)}/${cardioGoalKm}km) — adicione uma saída de Zona 2`);
   if (plateauDetected && !recs.find(r => r.includes('platô')))
     recs.push('Platô de peso ativo — considere um refeed de 24h para resetar o metabolismo');
@@ -257,11 +274,15 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
 // ── Client-side lightweight version (sem acesso server) ───────────────────────
 // Usar quando se tem os dados já carregados na tela
 export function computeEdnScoreFromRaw(raw: AthleteState['raw'], daysPerWeek = 3): number {
-  const consistency = Math.min(100, Math.round((raw.sessions_last_28 / Math.max(1, raw.planned_sessions_last_28)) * 100));
-  const progression = raw.has_pr_last_4_weeks ? 85 : Math.max(20, 70 - raw.days_since_last_workout * 3);
-  const nutrition   = Math.max(20, Math.round(((28 - raw.protein_days_below_target) / 28) * 80));
+  // Módulo 0: sem nenhuma atividade registrada, o score é 0 — pontos só com tarefas cumpridas
+  if (raw.sessions_last_28 === 0 && !raw.has_pr_last_4_weeks && raw.cardio_km_this_week === 0) {
+    return 0;
+  }
+  const consistency = raw.sessions_last_28 === 0 ? 0 : Math.min(100, Math.round((raw.sessions_last_28 / Math.max(1, raw.planned_sessions_last_28)) * 100));
+  const progression = raw.has_pr_last_4_weeks ? 85 : raw.sessions_last_28 === 0 ? 0 : Math.max(20, 70 - raw.days_since_last_workout * 3);
+  const nutrition   = raw.protein_days_below_target === 0 && raw.sessions_last_28 === 0 ? 0 : Math.max(20, Math.round(((28 - raw.protein_days_below_target) / 28) * 80));
   const cardio      = Math.min(100, Math.round((raw.cardio_km_this_week / raw.cardio_goal_km) * 100));
-  const recovery    = raw.avg_rir !== null && raw.avg_rir < 1 ? 55 : raw.days_since_last_workout === 1 ? 90 : 75;
+  const recovery    = raw.sessions_last_28 === 0 ? 0 : raw.avg_rir !== null && raw.avg_rir < 1 ? 55 : raw.days_since_last_workout === 1 ? 90 : 75;
   return Math.round(consistency * 0.30 + progression * 0.25 + nutrition * 0.20 + cardio * 0.15 + recovery * 0.10);
 }
 
@@ -270,7 +291,7 @@ export function formatAthleteStateForAI(state: AthleteState): string {
   const lines = [
     `Score EDN: ${state.edn_score}/100 (Liga ${state.league.toUpperCase()})`,
     `Consistência: ${r.sessions_last_28}/${r.planned_sessions_last_28} sessões em 28 dias`,
-    `Último treino: há ${r.days_since_last_workout} dia(s)`,
+    r.days_since_last_workout >= 999 ? 'Último treino: nunca (novo usuário — score zerado até a primeira atividade)' : `Último treino: há ${r.days_since_last_workout} dia(s)`,
     r.avg_rir !== null ? `RIR médio recente: ${r.avg_rir.toFixed(1)}` : null,
     r.weight_trend_14d !== null ? `Tendência de peso 14d: ${r.weight_trend_14d > 0 ? '+' : ''}${r.weight_trend_14d.toFixed(1)}kg` : null,
     r.body_fat_current ? `Gordura corporal: ${r.body_fat_current}%` : null,
