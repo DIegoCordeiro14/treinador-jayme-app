@@ -25,6 +25,7 @@ import {
 // ────────────────────────────────────────────────────────────────────────────
 // Módulo 0 — Perfil Inteligente (Anamnese Esportiva)
 // 5 abas · indicador de completude · avaliação automática EDN
+// NADA vem pré-preenchido — o atleta informa tudo ativamente
 // ────────────────────────────────────────────────────────────────────────────
 
 type TabKey = 'basico' | 'objetivos' | 'experiencia' | 'rotina' | 'saude';
@@ -66,7 +67,6 @@ interface AnamneseForm {
   meals_per_day: string;
 }
 
-// Módulo 0: NADA vem pré-preenchido — o atleta informa tudo ativamente
 const EMPTY_FORM: AnamneseForm = {
   name: '', age: '', gender: '', weight_kg: '', height_cm: '',
   main_goal: '', aesthetic_goal: '', priority_muscle_1: '', priority_muscle_2: '',
@@ -669,4 +669,15 @@ export default function PerfilPage() {
               <p className="text-sm text-red-300 font-semibold">Tem certeza? Esta ação é irreversível.</p>
               <p className="text-xs text-zinc-500">Todos os seus dados (treinos, evolução, XP) serão excluídos permanentemente.</p>
               <div className="flex gap-2">
-                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hove
+                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:bg-zinc-800 transition-colors">Cancelar</button>
+                <button onClick={handleDeleteAccount} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60">
+                  <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
