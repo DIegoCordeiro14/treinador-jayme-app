@@ -301,11 +301,18 @@ export default function PlanDetailPage() {
           }).filter(Boolean) as AutoExercise[];
           return { dayId:day.id, dayName:day.name, focusLabel:aiDay?.focusLabel??`Treino ${day.name}`, muscleGroups:mgs, exercises:dayExercises };
         });
-        setAiError(null);
-        // V3: store builder reasoning
-        if (json.builder) setBuilderResult(json.builder);
+        if (json.whyText) setWhyText(json.whyText);
+        if (json.aiError) {
+          setAiError("IA indisponível — usando algoritmo EDN padrão");
+          preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
+        } else {
+          setAiError(null);
+          // V3: store builder reasoning
+          if (json.builder) setBuilderResult(json.builder);
+        }
       } else {
         // ── Fallback ─────────────────────────────────────────────────────────
+        if (json.whyText) setWhyText(json.whyText);
         setAiError("IA indisponível — usando algoritmo EDN padrão");
         preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
       }

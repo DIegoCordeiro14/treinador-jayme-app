@@ -159,6 +159,18 @@ export async function POST(req: NextRequest) {
     };
     const levelRule = levelRulesMap[experienceLevel] ?? levelRulesMap['beginner'];
 
+    // ─── V3.2: Build "Por que este treino?" rationale (pure logic, always works) ─
+    const whyText = buildWorkoutRationale({
+      sex,
+      mainGoal,
+      aestheticGoal,
+      experience: (experienceLevel ?? 'beginner') as ExperienceLevel,
+      bodyFatPct: effectiveBF ?? null,
+      muscleMassKg,
+      daysPerWeek,
+      effectiveObjective,
+    });
+
     // ─── Exercise catalog ──────────────────────────────────────────────────────
     const exerciseCatalog = (exercises as any[])
       .map((ex: any) => `${ex.id}|${ex.name}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
@@ -193,7 +205,7 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
 
     const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed?.days || !Array.isArray(parsed.days)) {
-      return Response.json({ error: "Estrutura JSON inválida", raw: fullText }, { status: 422 });
+      return Response.json({ days: [], whyText, aiError: true, error: "Estrutura JSON inválida" }, { status: 200 });
     }
 
     const validIds = new Set((exercises as any[]).map((ex: any) => ex.id));
@@ -201,21 +213,10 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
       day.exercises = (day.exercises ?? []).filter((ex: any) => validIds.has(ex.exerciseId));
     }
 
-    // ─── V3.2: Build "Por que este treino?" rationale ─────────────────────────
-    const whyText = buildWorkoutRationale({
-      sex,
-      mainGoal,
-      aestheticGoal,
-      experience: (experienceLevel ?? 'beginner') as ExperienceLevel,
-      bodyFatPct: effectiveBF ?? null,
-      muscleMassKg,
-      daysPerWeek,
-      effectiveObjective,
-    });
-
     return Response.json({ days: parsed.days, whyText, effectiveObjective });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);
-    return Response.json({ error: err?.message ?? "Erro interno" }, { status: 500 });
+    // AI falhou — retornar 200 com whyText para o client mostrar o card
+    return Response.json({ days: [], whyText, aiError: true, error: err?.message ?? "Erro interno" }, { status: 200 });
   }
 }

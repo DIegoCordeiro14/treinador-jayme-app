@@ -287,11 +287,18 @@ export default function PlanDetailPage() {
           }).filter(Boolean) as AutoExercise[];
           return { dayId:day.id, dayName:day.name, focusLabel:aiDay?.focusLabel??`Treino ${day.name}`, muscleGroups:mgs, exercises:dayExercises };
         });
-        setAiError(null);
         if (json.whyText) setWhyText(json.whyText);
+        if (json.aiError) {
+          // IA falhou mas retornou whyText — usar fallback EDN para os exercícios
+          setAiError("IA indisponível — usando algoritmo EDN padrão");
+          preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
+        } else {
+          setAiError(null);
+        }
       } else {
         // ── Fallback
-        setWhyText(null);
+        if (json.whyText) setWhyText(json.whyText);
+        else setWhyText(null);
         setAiError("IA indisponível — usando algoritmo EDN padrão");
         preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
       }
