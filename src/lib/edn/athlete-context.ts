@@ -1,7 +1,11 @@
 /**
- * EDN Athlete Context — V5.0
+ * EDN Athlete Context — V6.0
  * Única fonte de verdade. Nenhum agente consulta tabelas diretamente.
  * Todos os módulos consomem AthleteContext ou sua serialização.
+ *
+ * V6.0: Adicionados workoutPlans e exerciseLibrary para o Coach EDN
+ * ter acesso completo a planos, dias, exercícios e catálogo para
+ * sugestões de substituição e modificação de treinos.
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -21,7 +25,7 @@ export interface BodyComposition {
   bmi: number | null;
   proteinPct: number | null;
   lastMeasuredAt: string | null;
-  weightTrend14d: number | null; // kg, negative = losing
+  weightTrend14d: number | null;
   weightTrend7d: number | null;
 }
 
@@ -50,11 +54,11 @@ export interface NutritionState {
   targetCalories: number | null;
   avgProteinG: number | null;
   targetProteinG: number | null;
-  proteinGapG: number | null; // negative = below target
+  proteinGapG: number | null;
   carbsG: number | null;
   fatG: number | null;
   tdee: number | null;
-  deficit: number | null; // negative = deficit
+  deficit: number | null;
   weightChangePer14d: number | null;
   plateauCaloric: boolean;
 }
@@ -71,19 +75,19 @@ export interface CardioState {
 }
 
 export interface RecoveryState {
-  score: number; // 0-100
+  score: number;
   daysSinceLastWorkout: number;
   avgRir: number | null;
-  sleepSignal: 'ok' | 'low' | 'unknown'; // derived from RIR patterns
+  sleepSignal: 'ok' | 'low' | 'unknown';
   deloadRecommended: boolean;
 }
 
 export interface GoalState {
-  primary: string; // hypertrophy | weight_loss | definition | strength | recomposition
-  aesthetic: string | null; // peitoral | costas | glúteos, etc.
+  primary: string;
+  aesthetic: string | null;
   weakPoint: string | null;
   targetWeightKg: number | null;
-  experience: string; // beginner | intermediate | advanced
+  experience: string;
   daysPerWeek: number;
   gender: 'male' | 'female' | null;
 }
@@ -99,6 +103,53 @@ export interface ScoreState {
   league: string;
 }
 
+// ── V6.0: Workout Plans ────────────────────────────────────────────────────────
+
+export interface WorkoutExerciseInPlan {
+  exerciseId: string;
+  exerciseName: string;
+  muscleGroup: string;
+  equipment: string;
+  difficulty: string;
+  isCompound: boolean;
+  sets: number;
+  repsMin: number;
+  repsMax: number;
+  restSeconds: number;
+  notes: string;
+  orderIndex: number;
+}
+
+export interface WorkoutDayInPlan {
+  id: string;
+  name: string;
+  orderIndex: number;
+  exercises: WorkoutExerciseInPlan[];
+}
+
+export interface WorkoutPlanDetail {
+  id: string;
+  name: string;
+  goal: string;
+  daysPerWeek: number;
+  isActive: boolean;
+  days: WorkoutDayInPlan[];
+}
+
+// ── V6.0: Exercise Library ─────────────────────────────────────────────────────
+
+export interface ExerciseInLibrary {
+  id: string;
+  name: string;
+  muscleGroup: string;
+  equipment: string;
+  difficulty: string;
+  isCompound: boolean;
+  isMetabolic: boolean;
+}
+
+// ── Main Context ───────────────────────────────────────────────────────────────
+
 export interface AthleteContext {
   userId: string;
   profile: { name: string; age: number | null };
@@ -109,7 +160,19 @@ export interface AthleteContext {
   recovery: RecoveryState;
   goals: GoalState;
   scores: ScoreState;
+  // V6.0 additions
+  workoutPlans: WorkoutPlanDetail[];
+  exerciseLibrary: ExerciseInLibrary[];
   computedAt: string;
+}
+
+// ── Serialize options ──────────────────────────────────────────────────────────
+
+export interface SerializeOptions {
+  /** Include full workout plans (days + exercises). Default: false */
+  includeWorkoutPlans?: boolean;
+  /** Include exercise library for substitution suggestions. Default: false */
+  includeExerciseLibrary?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,7 +195,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const prevWeekStart = subDays(weekStart, 7);
 
-  // ── Parallel fetch of ALL data ──────────────────────────────────────────────
+  // ── Parallel fetch de TODOS os dados ──────────────────────────────────────
   const [
     profileResult,
     bioResult,
@@ -143,6 +206,8 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
     foodLogs14Result,
     cardio14Result,
     deloadsResult,
+    workoutPlansResult,
+    exerciseLibraryResult,
   ] = await Promise.allSettled([
     supabase.from('profiles')
       .select('name, age, gender, goal, experience_level, weekly_frequency, target_weight_kg, calorie_target, aesthetic_goal, weak_point, main_goal')
@@ -182,9 +247,32 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
 
     supabase.from('deloads')
       .select('start_date, is_active').eq('user_id', userId).eq('is_active', true).maybeSingle(),
+
+    // V6.0: Todos os planos do usuário com dias + exercícios + detalhes do exercício
+    supabase.from('workout_plans')
+      .select(`
+        id, name, goal, days_per_week, is_active,
+        workout_days(
+          id, name, order_index,
+          workout_exercises(
+            exercise_id, sets, reps_min, reps_max, rest_seconds, notes, order_index,
+            exercises(id, name, muscle_group, equipment, difficulty, is_compound)
+          )
+        )
+      `)
+      .eq('user_id', userId)
+      .order('is_active', { ascending: false })
+      .order('created_at', { ascending: false }),
+
+    // V6.0: Biblioteca completa de exercícios públicos
+    supabase.from('exercises')
+      .select('id, name, muscle_group, equipment, difficulty, is_compound, is_metabolic')
+      .eq('is_public', true)
+      .order('muscle_group')
+      .order('name'),
   ]);
 
-  // Extract settled results safely
+  // ── Extract settled results safely ─────────────────────────────────────────
   const profile    = profileResult.status      === 'fulfilled' ? profileResult.value.data        : null;
   const bio        = bioResult.status          === 'fulfilled' ? bioResult.value.data             : null;
   const weightLogs = weightLogsResult.status   === 'fulfilled' ? weightLogsResult.value.data      : null;
@@ -194,10 +282,55 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
   const foodLogs14 = foodLogs14Result.status   === 'fulfilled' ? foodLogs14Result.value.data      : null;
   const cardio14   = cardio14Result.status     === 'fulfilled' ? cardio14Result.value.data        : null;
   const deloads    = deloadsResult.status      === 'fulfilled' ? deloadsResult.value.data         : null;
+  const rawPlans   = workoutPlansResult.status === 'fulfilled' ? workoutPlansResult.value.data    : null;
+  const rawLibrary = exerciseLibraryResult.status === 'fulfilled' ? exerciseLibraryResult.value.data : null;
 
-  // ── Body Composition ─────────────────────────────────────────────────────────
+  // ── V6.0: Normalize workout plans ─────────────────────────────────────────
+  const workoutPlans: WorkoutPlanDetail[] = (rawPlans ?? []).map((plan: any) => ({
+    id: plan.id,
+    name: plan.name,
+    goal: plan.goal,
+    daysPerWeek: plan.days_per_week,
+    isActive: plan.is_active,
+    days: (plan.workout_days ?? [])
+      .sort((a: any, b: any) => a.order_index - b.order_index)
+      .map((day: any) => ({
+        id: day.id,
+        name: day.name,
+        orderIndex: day.order_index,
+        exercises: (day.workout_exercises ?? [])
+          .sort((a: any, b: any) => a.order_index - b.order_index)
+          .map((we: any) => ({
+            exerciseId: we.exercise_id,
+            exerciseName: we.exercises?.name ?? 'Desconhecido',
+            muscleGroup: we.exercises?.muscle_group ?? '',
+            equipment: we.exercises?.equipment ?? '',
+            difficulty: we.exercises?.difficulty ?? 'intermediate',
+            isCompound: we.exercises?.is_compound ?? false,
+            sets: we.sets,
+            repsMin: we.reps_min,
+            repsMax: we.reps_max,
+            restSeconds: we.rest_seconds,
+            notes: we.notes ?? '',
+            orderIndex: we.order_index,
+          })),
+      })),
+  }));
+
+  // ── V6.0: Normalize exercise library ──────────────────────────────────────
+  const exerciseLibrary: ExerciseInLibrary[] = (rawLibrary ?? []).map((ex: any) => ({
+    id: ex.id,
+    name: ex.name,
+    muscleGroup: ex.muscle_group,
+    equipment: ex.equipment,
+    difficulty: ex.difficulty,
+    isCompound: ex.is_compound,
+    isMetabolic: ex.is_metabolic,
+  }));
+
+  // ── Body Composition ──────────────────────────────────────────────────────
   const wLogs = weightLogs ?? [];
-  const wLogs7d = wLogs.filter(l => l.log_date >= format(d7, 'yyyy-MM-dd'));
+  const wLogs7d = wLogs.filter((l: any) => l.log_date >= format(d7, 'yyyy-MM-dd'));
   const currentWeight = wLogs[wLogs.length - 1]?.weight_kg ?? bio?.weight_kg ?? (profile as any)?.weight_kg ?? null;
   const weightTrend14d = wLogs.length >= 2
     ? parseFloat((wLogs[wLogs.length - 1].weight_kg - wLogs[0].weight_kg).toFixed(2))
@@ -207,12 +340,12 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
     : null;
   const tmb = bio?.basal_metabolic_rate_kcal ?? (currentWeight ? Math.round(currentWeight * ((profile as any)?.gender === 'female' ? 22 : 24)) : null);
 
-  // ── Training ─────────────────────────────────────────────────────────────────
+  // ── Training ──────────────────────────────────────────────────────────────
   const allSessions = sessions28 ?? [];
-  const thisWeekSessions = allSessions.filter(s => new Date(s.started_at) >= weekStart);
-  const prevWeekSessions = allSessions.filter(s => new Date(s.started_at) >= prevWeekStart && new Date(s.started_at) < weekStart);
-  const weekVol = thisWeekSessions.reduce((s, r) => s + (r.total_volume_kg ?? 0), 0);
-  const prevVol = prevWeekSessions.reduce((s, r) => s + (r.total_volume_kg ?? 0), 0);
+  const thisWeekSessions = allSessions.filter((s: any) => new Date(s.started_at) >= weekStart);
+  const prevWeekSessions = allSessions.filter((s: any) => new Date(s.started_at) >= prevWeekStart && new Date(s.started_at) < weekStart);
+  const weekVol = thisWeekSessions.reduce((s: number, r: any) => s + (r.total_volume_kg ?? 0), 0);
+  const prevVol = prevWeekSessions.reduce((s: number, r: any) => s + (r.total_volume_kg ?? 0), 0);
   const volDelta = prevVol > 0 ? parseFloat((((weekVol - prevVol) / prevVol) * 100).toFixed(1)) : null;
   const daysSinceLast = allSessions.length > 0
     ? differenceInDays(now, parseISO(allSessions[0].started_at))
@@ -223,7 +356,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
 
   // Streak
   let streak = 0;
-  const sessionDays = new Set(allSessions.map(s => s.started_at.slice(0, 10)));
+  const sessionDays = new Set(allSessions.map((s: any) => s.started_at.slice(0, 10)));
   for (let i = 0; i < 28; i++) {
     const d = format(subDays(now, i), 'yyyy-MM-dd');
     if (sessionDays.has(d)) streak++;
@@ -233,62 +366,61 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
   // RIR avg + plateau
   const p14 = progressions14d ?? [];
   const avgRir = p14.length > 0
-    ? parseFloat((p14.reduce((s, p) => s + (p.rir ?? 2), 0) / p14.length).toFixed(1))
+    ? parseFloat((p14.reduce((s: number, p: any) => s + (p.rir ?? 2), 0) / p14.length).toFixed(1))
     : null;
-  const topSets28d = allSessions.slice(0, 4).flatMap(() => []); // simplified
-  const hasPrLast4Weeks = p14.some(p => p.set_type === 'topset');
+  const hasPrLast4Weeks = p14.some((p: any) => p.set_type === 'topset');
   const plateauWeight = Math.abs(weightTrend14d ?? 0) < 0.3 && wLogs.length >= 3;
 
   // Top exercises
   const exMap = new Map<string, number>();
   for (const p of p14) {
-    if (p.set_type === 'topset') {
-      if (!exMap.has(p.exercise_id) || exMap.get(p.exercise_id)! < p.weight_kg) {
-        exMap.set(p.exercise_id, p.weight_kg);
+    if ((p as any).set_type === 'topset') {
+      if (!exMap.has((p as any).exercise_id) || exMap.get((p as any).exercise_id)! < (p as any).weight_kg) {
+        exMap.set((p as any).exercise_id, (p as any).weight_kg);
       }
     }
   }
   const topExercises = Array.from(exMap.entries()).slice(0, 3).map(([id, kg]) => ({ name: id, topSetKg: kg }));
 
-  // ── Nutrition ─────────────────────────────────────────────────────────────────
+  // ── Nutrition ─────────────────────────────────────────────────────────────
   const food = foodLogs14 ?? [];
-  const daysLogged = new Set(food.map(l => l.logged_at)).size;
+  const daysLogged = new Set(food.map((l: any) => l.logged_at)).size;
   const nutritionAdherence = Math.min(100, Math.round((daysLogged / 14) * 100));
-  const avgCal = food.length > 0 ? Math.round(food.reduce((s, l) => s + (l.calories_kcal ?? 0), 0) / Math.max(daysLogged, 1)) : null;
-  const avgProt = food.length > 0 ? Math.round(food.reduce((s, l) => s + (l.protein_g ?? 0), 0) / Math.max(daysLogged, 1)) : null;
+  const avgCal = food.length > 0 ? Math.round(food.reduce((s: number, l: any) => s + (l.calories_kcal ?? 0), 0) / Math.max(daysLogged, 1)) : null;
+  const avgProt = food.length > 0 ? Math.round(food.reduce((s: number, l: any) => s + (l.protein_g ?? 0), 0) / Math.max(daysLogged, 1)) : null;
   const targetProt = currentWeight ? Math.round(currentWeight * 2.0) : null;
-  const tdeeEst = tmb ? estimateTdee(tmb, allSessions.length / 4, (cardio14 ?? []).reduce((s, c) => s + (c.distance_km ?? 0), 0) / 2) : null;
+  const tdeeEst = tmb ? estimateTdee(tmb, allSessions.length / 4, (cardio14 ?? []).reduce((s: number, c: any) => s + (c.distance_km ?? 0), 0) / 2) : null;
   const primaryGoal = (profile as any)?.main_goal ?? (profile as any)?.goal ?? 'hypertrophy';
   const calorieAdj = primaryGoal === 'weight_loss' ? -500 : primaryGoal === 'definition' ? -250 : primaryGoal === 'hypertrophy' ? 300 : 0;
   const targetCal = (profile as any)?.calorie_target ?? (tdeeEst ? tdeeEst + calorieAdj : null);
 
-  // ── Cardio ────────────────────────────────────────────────────────────────────
+  // ── Cardio ────────────────────────────────────────────────────────────────
   const cardioSessions = cardio14 ?? [];
-  const cardio7d = cardioSessions.filter(s => new Date(s.created_at) >= d7);
-  const km7d = parseFloat(cardio7d.reduce((s, c) => s + (c.distance_km ?? 0), 0).toFixed(1));
-  const km14d = parseFloat(cardioSessions.reduce((s, c) => s + (c.distance_km ?? 0), 0).toFixed(1));
+  const cardio7d = cardioSessions.filter((s: any) => new Date(s.created_at) >= d7);
+  const km7d = parseFloat(cardio7d.reduce((s: number, c: any) => s + (c.distance_km ?? 0), 0).toFixed(1));
+  const km14d = parseFloat(cardioSessions.reduce((s: number, c: any) => s + (c.distance_km ?? 0), 0).toFixed(1));
   const cardioGoalKm = 20;
   const cardioAdherence = Math.min(100, Math.round((km7d / cardioGoalKm) * 100));
   const avgDurMin = cardioSessions.length > 0
-    ? Math.round(cardioSessions.reduce((s, c) => s + (c.duration_min ?? 30), 0) / cardioSessions.length)
+    ? Math.round(cardioSessions.reduce((s: number, c: any) => s + (c.duration_min ?? 30), 0) / cardioSessions.length)
     : null;
   const cardioTrend = cardioSessions.length === 0 ? 'none'
     : km7d > km14d / 2 + 2 ? 'increasing'
     : km7d < km14d / 2 - 2 ? 'decreasing'
     : 'stable';
 
-  // ── Recovery ──────────────────────────────────────────────────────────────────
+  // ── Recovery ──────────────────────────────────────────────────────────────
   let recoveryScore = 80;
   if (daysSinceLast === 0) recoveryScore = 60;
   else if (daysSinceLast === 1) recoveryScore = 90;
-  else if (daysSinceLast >= 100) recoveryScore = 85;  // novo usuário — totalmente descansado
+  else if (daysSinceLast >= 100) recoveryScore = 85;
   else if (daysSinceLast >= 4) recoveryScore = Math.max(40, 90 - (daysSinceLast - 1) * 8);
   if (avgRir !== null && avgRir < 1) recoveryScore = Math.max(40, recoveryScore - 15);
   const deloadRec = (!!deloads) || (allSessions.length > 12 && !hasPrLast4Weeks);
 
-  // ── Scores ───────────────────────────────────────────────────────────────────
+  // ── Scores ────────────────────────────────────────────────────────────────
   const consistencyScore = adherenceTrain;
-  const effectiveDays = daysSinceLast >= 100 ? 0 : daysSinceLast; // novo usuário = sem penalidade de dias
+  const effectiveDays = daysSinceLast >= 100 ? 0 : daysSinceLast;
   const progressionScore = hasPrLast4Weeks ? 85 : Math.max(20, 70 - effectiveDays * 3);
   const nutritionScore   = Math.max(20, nutritionAdherence);
   const cardioScore      = cardioAdherence;
@@ -342,8 +474,8 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
       avgProteinG: avgProt,
       targetProteinG: targetProt,
       proteinGapG: avgProt && targetProt ? avgProt - targetProt : null,
-      carbsG: food.length > 0 ? Math.round(food.reduce((s, l) => s + (l.carbs_g ?? 0), 0) / Math.max(daysLogged, 1)) : null,
-      fatG: food.length > 0 ? Math.round(food.reduce((s, l) => s + (l.fat_g ?? 0), 0) / Math.max(daysLogged, 1)) : null,
+      carbsG: food.length > 0 ? Math.round(food.reduce((s: number, l: any) => s + (l.carbs_g ?? 0), 0) / Math.max(daysLogged, 1)) : null,
+      fatG: food.length > 0 ? Math.round(food.reduce((s: number, l: any) => s + (l.fat_g ?? 0), 0) / Math.max(daysLogged, 1)) : null,
       tdee: tdeeEst,
       deficit: avgCal && tdeeEst ? avgCal - tdeeEst : null,
       weightChangePer14d: weightTrend14d,
@@ -385,14 +517,30 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
       progression: progressionScore,
       league,
     },
+    workoutPlans,
+    exerciseLibrary,
     computedAt: now.toISOString(),
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  serializeAthleteContext — compact string for all agents
+//  serializeAthleteContext — compact string para todos os agentes
 // ─────────────────────────────────────────────────────────────────────────────
-export function serializeAthleteContext(ctx: AthleteContext): string {
+
+const GOAL_LABELS: Record<string, string> = {
+  hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento',
+  definition: 'Definição', strength: 'Força', recomposition: 'Recomposição',
+  fat_loss: 'Emagrecimento', performance: 'Performance', health: 'Saúde',
+};
+
+const MUSCLE_LABELS: Record<string, string> = {
+  chest: 'Peito', back: 'Costas', shoulders: 'Ombros',
+  biceps: 'Bíceps', triceps: 'Tríceps', legs: 'Pernas',
+  glutes: 'Glúteos', abs: 'Abdômen', calves: 'Panturrilha',
+  forearms: 'Antebraço', full_body: 'Corpo Todo',
+};
+
+export function serializeAthleteContext(ctx: AthleteContext, options: SerializeOptions = {}): string {
   const b = ctx.bodyComposition;
   const t = ctx.training;
   const n = ctx.nutrition;
@@ -401,12 +549,7 @@ export function serializeAthleteContext(ctx: AthleteContext): string {
   const g = ctx.goals;
   const s = ctx.scores;
 
-  const goalMap: Record<string, string> = {
-    hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento',
-    definition: 'Definição', strength: 'Força', recomposition: 'Recomposição',
-  };
-
-  const lines = [
+  const lines: (string | null)[] = [
     `=== ATLETA: ${ctx.profile.name} | Score EDN: ${s.overall}/100 (${s.league.toUpperCase()}) ===`,
     ``,
     `[COMPOSIÇÃO CORPORAL]`,
@@ -423,7 +566,7 @@ export function serializeAthleteContext(ctx: AthleteContext): string {
     `Volume semana: ${t.weeklyVolumeKg}kg | semana anterior: ${t.prevWeekVolumeKg}kg${t.volumeDeltaPct !== null ? ` (${t.volumeDeltaPct > 0 ? '+' : ''}${t.volumeDeltaPct}%)` : ''}`,
     t.avgRir !== null ? `RIR médio: ${t.avgRir} ${t.avgRir < 1 ? '(MUITO PRÓXIMO DA FALHA)' : ''}` : null,
     t.plateauDetected ? `⚠️ PLATÔ DE PESO DETECTADO (14d sem variação significativa)` : null,
-    t.activePlanName ? `Plano ativo: ${t.activePlanName} (${goalMap[t.activePlanGoal ?? ''] ?? t.activePlanGoal ?? ''}, ${t.daysPerWeek}x/sem)` : null,
+    t.activePlanName ? `Plano ativo: ${t.activePlanName} (${GOAL_LABELS[t.activePlanGoal ?? ''] ?? t.activePlanGoal ?? ''}, ${t.daysPerWeek}x/sem)` : null,
     ``,
     `[NUTRIÇÃO]`,
     `Registro alimentar: ${n.daysLoggedLast14}/14 dias (${n.adherencePct}%)`,
@@ -439,7 +582,7 @@ export function serializeAthleteContext(ctx: AthleteContext): string {
     `Score: ${r.score}/100 | Deload recomendado: ${r.deloadRecommended ? 'SIM' : 'não'}`,
     ``,
     `[OBJETIVOS]`,
-    `Principal: ${goalMap[g.primary] ?? g.primary}`,
+    `Principal: ${GOAL_LABELS[g.primary] ?? g.primary}`,
     g.aesthetic ? `Estético: ${g.aesthetic}` : null,
     g.weakPoint ? `Ponto fraco prioritário: ${g.weakPoint}` : null,
     g.targetWeightKg ? `Meta de peso: ${g.targetWeightKg}kg` : null,
@@ -448,9 +591,58 @@ export function serializeAthleteContext(ctx: AthleteContext): string {
     `[SCORES EDN 360°]`,
     `Consistência: ${s.consistency} | Progressão: ${s.progression} | Nutrição: ${s.nutrition} | Cárdio: ${s.cardio} | Recuperação: ${s.recovery}`,
     `SCORE GERAL: ${s.overall}/100 — Liga ${s.league.toUpperCase()}`,
-  ].filter(Boolean) as string[];
+  ];
 
-  return lines.join('\n');
+  // ── V6.0: Planos de Treino completos ──────────────────────────────────────
+  if (options.includeWorkoutPlans && ctx.workoutPlans.length > 0) {
+    lines.push(``, `[PLANOS DE TREINO DO USUÁRIO — ${ctx.workoutPlans.length} plano(s)]`);
+    lines.push(`INSTRUÇÃO: Use os IDs de exercício abaixo para referenciar substituições e modificações.`);
+
+    for (const plan of ctx.workoutPlans) {
+      lines.push(``, `▸ Plano: "${plan.name}"${plan.isActive ? ' [ATIVO]' : ''} | ${plan.daysPerWeek}x/sem | ${GOAL_LABELS[plan.goal] ?? plan.goal} | ID: ${plan.id}`);
+
+      for (const day of plan.days) {
+        const exCount = day.exercises.length;
+        if (exCount === 0) {
+          lines.push(`  ${day.name}: (sem exercícios cadastrados)`);
+          continue;
+        }
+        lines.push(`  ${day.name}: ${exCount} exercício(s)`);
+        for (const ex of day.exercises) {
+          const muscle = MUSCLE_LABELS[ex.muscleGroup] ?? ex.muscleGroup;
+          const compound = ex.isCompound ? '★' : '○';
+          lines.push(
+            `    ${ex.orderIndex + 1}. [${ex.exerciseId}] ${ex.exerciseName} ` +
+            `[${muscle} · ${ex.equipment}${ex.isCompound ? ' · composto' : ''}] ${compound} ` +
+            `${ex.sets}×${ex.repsMin}-${ex.repsMax}rep ${ex.restSeconds}s descanso` +
+            (ex.notes ? ` | "${ex.notes}"` : '')
+          );
+        }
+      }
+    }
+  }
+
+  // ── V6.0: Biblioteca de exercícios para substituição ──────────────────────
+  if (options.includeExerciseLibrary && ctx.exerciseLibrary.length > 0) {
+    lines.push(``, `[BIBLIOTECA DE EXERCÍCIOS — ${ctx.exerciseLibrary.length} disponíveis para substituição]`);
+    lines.push(`Formato: [ID] Nome (equipment, dificuldade) ★=composto`);
+
+    const byMuscle = new Map<string, ExerciseInLibrary[]>();
+    for (const ex of ctx.exerciseLibrary) {
+      if (!byMuscle.has(ex.muscleGroup)) byMuscle.set(ex.muscleGroup, []);
+      byMuscle.get(ex.muscleGroup)!.push(ex);
+    }
+
+    for (const [muscle, exercises] of byMuscle) {
+      const label = MUSCLE_LABELS[muscle] ?? muscle;
+      const items = exercises.map(ex =>
+        `[${ex.id}] ${ex.name} (${ex.equipment}, ${ex.difficulty})${ex.isCompound ? '★' : ''}`
+      ).join(' | ');
+      lines.push(`${label.toUpperCase()}: ${items}`);
+    }
+  }
+
+  return (lines.filter(l => l !== null) as string[]).join('\n');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -468,4 +660,6 @@ export async function getCachedAthleteContext(userId: string, forceRefresh = fal
 
 export function invalidateAthleteContext(userId: string) {
   ctxCache.delete(userId);
+}
+ ctxCache.delete(userId);
 }
