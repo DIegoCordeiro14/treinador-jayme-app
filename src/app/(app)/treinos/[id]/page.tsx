@@ -22,7 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { MUSCLE_GROUP_LABELS, MUSCLE_GROUP_COLORS } from "@/types";
+import { MUSCLE_GROUP_LABELS, MUSCLE_GROUP_COLORS, GOAL_LABELS } from "@/types";
 import type { WorkoutPlan, Exercise, WorkoutExerciseWithExercise, MuscleGroup } from "@/types";
 import { cn } from "@/lib/utils";
 import { AutoProgressionBanner } from "@/components/workout/auto-progression-banner";
@@ -404,7 +404,7 @@ export default function PlanDetailPage() {
             {plan.description && <p className="text-sm text-zinc-400 mt-1">{plan.description}</p>}
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="secondary">{plan.days_per_week}x por semana</Badge>
-              <Badge variant="outline">{plan.goal}</Badge>
+              <Badge variant="outline">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</Badge>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -588,7 +588,7 @@ export default function PlanDetailPage() {
               <Sparkles className="h-5 w-5 text-blue-400" />Treino Coach EDN
             </DialogTitle>
             <DialogDescription>
-              Divisão {plan.days_per_week}x/semana · <span className="capitalize">{plan.goal}</span>
+              Divisão {plan.days_per_week}x/semana · <span>{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</span>
             </DialogDescription>
           </DialogHeader>
 
