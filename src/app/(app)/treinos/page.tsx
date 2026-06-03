@@ -43,6 +43,10 @@ const createPlanSchema = z.object({
   description: z.string().optional(),
   days_per_week: z.number().min(2).max(6),
   goal: z.enum(["hypertrophy", "weight_loss", "definition", "strength"]),
+  // V3 Motor
+  minutes_per_session: z.number().min(30).max(120).optional(),
+  sleep_hours: z.number().min(3).max(12).optional(),
+  focus_muscle: z.string().optional(),
 });
 
 type CreatePlanForm = z.infer<typeof createPlanSchema>;
@@ -128,6 +132,7 @@ export default function TreinosPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [bioSuggestion, setBioSuggestion] = useState<BioSuggestion | null>(null);
+  const [showV3, setShowV3] = useState(false);
 
   const {
     register,
@@ -203,7 +208,12 @@ export default function TreinosPage() {
         description: data.description ?? "",
         days_per_week: data.days_per_week,
         goal: data.goal,
-        is_active: plans.length === 0, // First plan becomes active
+        is_active: plans.length === 0,
+        schedule_config: {
+          minutes_per_session: data.minutes_per_session ?? 60,
+          sleep_hours: data.sleep_hours ?? null,
+          focus_muscle: data.focus_muscle ?? null,
+        },
       })
       .select()
       .single();
@@ -461,6 +471,69 @@ export default function TreinosPage() {
                 </Select>
               </div>
             </div>
+
+            {/* V3 Motor toggle */}
+            <button
+              type="button"
+              onClick={() => setShowV3(!showV3)}
+              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <span className="text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-semibold">V3</span>
+              {showV3 ? "Ocultar configurações avançadas" : "Configurações do Motor V3 (opcional)"}
+            </button>
+
+            {showV3 && (
+              <div className="rounded-xl border border-zinc-700 bg-zinc-800/60 p-4 space-y-4">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  O Motor V3 usa estes dados para personalizar split, volume, RIR e gerar o raciocínio do Jayme.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-zinc-400">Tempo por sessão (min)</label>
+                    <select
+                      className="w-full h-8 rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                      defaultValue="60"
+                      onChange={(e) => setValue("minutes_per_session", Number(e.target.value) as any)}
+                    >
+                      {[30, 45, 60, 75, 90].map(m => (
+                        <option key={m} value={m}>{m} min</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-zinc-400">Horas de sono</label>
+                    <select
+                      className="w-full h-8 rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                      defaultValue=""
+                      onChange={(e) => setValue("sleep_hours", e.target.value ? Number(e.target.value) as any : undefined)}
+                    >
+                      <option value="">Não informar</option>
+                      {[5, 6, 7, 8, 9, 10].map(h => (
+                        <option key={h} value={h}>{h}h</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-zinc-400">Especialização muscular (opcional)</label>
+                  <select
+                    className="w-full h-8 rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    defaultValue=""
+                    onChange={(e) => setValue("focus_muscle", e.target.value || undefined)}
+                  >
+                    <option value="">Nenhuma — treino equilibrado</option>
+                    <option value="chest">Peito</option>
+                    <option value="back">Costas</option>
+                    <option value="shoulders">Ombros</option>
+                    <option value="biceps">Bíceps</option>
+                    <option value="triceps">Tríceps</option>
+                    <option value="legs">Pernas</option>
+                    <option value="glutes">Glúteos</option>
+                    <option value="abs">Abdômen</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Button

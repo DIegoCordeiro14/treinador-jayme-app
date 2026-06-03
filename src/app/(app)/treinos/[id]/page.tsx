@@ -128,6 +128,12 @@ export default function PlanDetailPage() {
   const [autoPreview, setAutoPreview] = useState<DayPlan[]>([]);
   const [expandedDay, setExpandedDay] = useState<string|null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [builderResult, setBuilderResult] = useState<{
+    split_type: string; difficulty_score: number; difficulty_label: string;
+    reasoning: string; reasoning_points: string[]; jayme_quote: string;
+    adaptation_hint?: string; rir_target: number;
+    rep_range: { min: number; max: number }; focus_muscle?: string | null;
+  } | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [biometricNote, setBiometricNote] = useState("");
@@ -258,6 +264,9 @@ export default function PlanDetailPage() {
 
     try {
       // ── Try AI generation ──────────────────────────────────────────────────
+      // Read V3 config stored in schedule_config
+      const v3cfg = (plan as any).schedule_config ?? {};
+
       const res = await fetch("/api/generate-workout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -265,6 +274,10 @@ export default function PlanDetailPage() {
           goal: plan.goal, daysPerWeek: plan.days_per_week,
           experienceLevel, weightKg, heightCm, bodyFatPct,
           exercises, dayCount: sortedDays.length,
+          // V3 Motor fields
+          minutesPerSession: v3cfg.minutes_per_session ?? 60,
+          sleepHours:        v3cfg.sleep_hours ?? null,
+          focusMuscle:       v3cfg.focus_muscle ?? null,
         }),
       });
 
@@ -287,6 +300,8 @@ export default function PlanDetailPage() {
           return { dayId:day.id, dayName:day.name, focusLabel:aiDay?.focusLabel??`Treino ${day.name}`, muscleGroups:mgs, exercises:dayExercises };
         });
         setAiError(null);
+        // V3: store builder reasoning
+        if (json.builder) setBuilderResult(json.builder);
       } else {
         // ── Fallback ─────────────────────────────────────────────────────────
         setAiError("IA indisponível — usando algoritmo EDN padrão");
@@ -545,7 +560,7 @@ export default function PlanDetailPage() {
       </Dialog>
 
       {/* ── AI Auto-populate Preview Dialog ───────────────────────────────── */}
-      <Dialog open={showAutoDialog} onOpenChange={open=>!open&&setShowAutoDialog(false)}>
+      <Dialog open={showAutoDialog} onOpenChange={open=>{ if(!open){ setShowAutoDialog(false); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -555,6 +570,44 @@ export default function PlanDetailPage() {
               Divisão {plan.days_per_week}x/semana · <span className="capitalize">{plan.goal}</span>
             </DialogDescription>
           </DialogHeader>
+
+          {/* V3 Jayme Reasoning Card */}
+          {builderResult && (
+            <div className="rounded-xl border border-violet-500/30 bg-violet-600/5 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded">V3</span>
+                  <span className="text-xs font-semibold text-violet-300">{builderResult.split_type}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    builderResult.difficulty_score >= 81 ? "bg-red-900/30 text-red-400 border-red-500/30" :
+                    builderResult.difficulty_score >= 61 ? "bg-orange-900/30 text-orange-400 border-orange-500/30" :
+                    builderResult.difficulty_score >= 31 ? "bg-yellow-900/30 text-yellow-400 border-yellow-500/30" :
+                    "bg-green-900/30 text-green-400 border-green-500/30"
+                  }`}>{builderResult.difficulty_label} {builderResult.difficulty_score}/100</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-zinc-300 italic leading-relaxed">"{builderResult.jayme_quote}"</p>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">{builderResult.reasoning}</p>
+              {builderResult.reasoning_points.length > 0 && (
+                <ul className="space-y-1">
+                  {builderResult.reasoning_points.map((pt, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-zinc-400">
+                      <span className="text-violet-400 mt-0.5 shrink-0">›</span>
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {builderResult.adaptation_hint && (
+                <div className="flex items-start gap-2 rounded-lg bg-blue-600/10 border border-blue-500/20 p-2.5">
+                  <span className="text-blue-400 text-[11px] shrink-0">📈</span>
+                  <p className="text-[11px] text-blue-300">{builderResult.adaptation_hint}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {biometricNote && (
             <div className="flex items-start gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-xs text-blue-300">
