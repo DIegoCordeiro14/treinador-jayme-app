@@ -19,6 +19,7 @@ import {
   Flame,
   Utensils,
   X,
+  Rss,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
