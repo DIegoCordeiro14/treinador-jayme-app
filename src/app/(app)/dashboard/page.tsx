@@ -35,6 +35,7 @@ import {
   parseISO,
 } from "date-fns";
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS, GOAL_LABELS } from "@/types";
+import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelligence-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
 export default async function DashboardPage() {
@@ -218,39 +219,8 @@ export default async function DashboardPage() {
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
 
-      {/* Coach EDN proativo */}
-      <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20">
-            <Bot className="h-4 w-4 text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-zinc-100">Recomendação do dia</p>
-            <p className="text-[10px] text-zinc-500">Coach EDN · baseado no seu progresso</p>
-          </div>
-          <Link href="/app/ia" className="ml-auto text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-            Conversar <ChevronRight className="h-3 w-3" />
-          </Link>
-        </div>
-        {monthlySessions.length === 0 ? (
-          <p className="text-sm text-zinc-300 leading-relaxed">
-            Bem-vindo ao Coach EDN! 💪 Seu plano está pronto — comece pelo{" "}
-            <strong className="text-zinc-100">Treino A</strong> hoje. Foco na técnica antes da carga.
-          </p>
-        ) : streak >= 3 ? (
-          <p className="text-sm text-zinc-300 leading-relaxed">
-            🔥 <strong className="text-zinc-100">{streak} dias de sequência!</strong> Excelente consistência.{" "}
-            {weeklyVolume > 0 ? `Seu volume semanal está em ${Math.round(weeklyVolume)}kg — ` : ""}
-            Continue progredindo e considere um deload se sentir fadiga acumulada.
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-300 leading-relaxed">
-            {todayWorkoutDay
-              ? <>Execute o <strong className="text-zinc-100">{todayWorkoutDay.name}</strong> hoje com foco em progressão de carga. Registre RIR em todas as séries.</>
-              : <>Hoje é dia de descanso. Aproveite para recuperar e mantenha hidratação elevada.</>}
-          </p>
-        )}
-      </div>
+      {/* Coach EDN — V4.0 Intelligence Panel */}
+      <AthleteIntelligencePanel name={profile?.name ?? undefined} />
 
       {/* Deload banner — aparece quando streak > 3 semanas sem PR ou platô de peso detectado */}
       {streak >= 14 && weeklyVolume > 0 && (

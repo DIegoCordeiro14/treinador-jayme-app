@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { Scale, TrendingUp, BarChart2, Dumbbell, Plus, Activity, Droplets, Flame, Heart, Upload, Loader2, Sparkles, FileText, CheckCircle2, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useAthleteState } from '@/hooks/useAthleteState';
+import { TrendingDown, TrendingUp, Minus, AlertTriangle, Target } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -100,6 +102,119 @@ function NumInput({ label, field, placeholder, form, setForm, step = '0.1' }: {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+// ── Projeções Tab — V4.0 Module 7 + 3 ─────────────────────────────────────────
+function ProjecoesTab() {
+  const { state, loading } = useAthleteState();
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-zinc-800 animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (!state) {
+    return (
+      <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
+        <Target className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
+        <p className="text-sm text-zinc-400">Registre seu peso regularmente para ver projeções.</p>
+      </div>
+    );
+  }
+
+  const r = state.raw;
+  const trend7d = r.weight_trend_14d !== null ? r.weight_trend_14d / 2 : null;
+
+  // Simple client-side projections
+  const currentWeight = r.weight_trend_14d !== null ? null : null; // weight comes from dashboard
+  const weeklyDelta = trend7d;
+
+  const plateau = r.plateau_detected;
+  const severity = (r.plateau_detected && r.protein_days_below_target >= 3) ? 'moderate' : r.plateau_detected ? 'mild' : 'none';
+
+  const HORIZON = [30, 60, 90, 180];
+  const HORIZON_LABELS: Record<number, string> = { 30: '1 mês', 60: '2 meses', 90: '3 meses', 180: '6 meses' };
+
+  const TrendIcon = trend7d === null ? Minus
+    : trend7d < -0.1 ? TrendingDown
+    : trend7d > 0.1 ? TrendingUp
+    : Minus;
+  const trendColor = trend7d === null ? 'text-zinc-500'
+    : trend7d < -0.1 ? 'text-green-400'
+    : trend7d > 0.1 ? 'text-blue-400'
+    : 'text-zinc-400';
+
+  return (
+    <div className="space-y-4">
+      {/* Plateau alert */}
+      {plateau && (
+        <div className={`flex items-start gap-3 rounded-xl border p-4 ${
+          severity === 'moderate'
+            ? 'border-red-600/30 bg-red-600/5'
+            : 'border-amber-600/30 bg-amber-600/5'
+        }`}>
+          <AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${severity === 'moderate' ? 'text-red-400' : 'text-amber-400'}`} />
+          <div>
+            <p className={`text-sm font-semibold ${severity === 'moderate' ? 'text-red-300' : 'text-amber-300'}`}>
+              Platô {severity === 'moderate' ? 'moderado' : 'leve'} detectado
+            </p>
+            <p className="text-xs text-zinc-400 mt-1">
+              {severity === 'moderate'
+                ? 'Peso estagnado + proteína baixa. Aumente proteína para 1.8-2g/kg e revise o déficit calórico.'
+                : 'Peso estável há 14+ dias. Considere reduzir 100kcal ou adicionar 1 sessão de Zona 2.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Score breakdown */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: 'Score EDN', value: `${state.edn_score}/100`, color: state.edn_score >= 75 ? 'text-green-400' : state.edn_score >= 50 ? 'text-yellow-400' : 'text-red-400' },
+          { label: 'Consistência', value: `${Math.round((r.sessions_last_28 / Math.max(1, r.planned_sessions_last_28)) * 100)}%`, color: 'text-blue-400' },
+          { label: 'Sessões/28d', value: `${r.sessions_last_28} / ${r.planned_sessions_last_28}`, color: 'text-zinc-300' },
+          { label: 'Sem PR há', value: r.has_pr_last_4_weeks ? '< 4 sem.' : '4+ sem.', color: r.has_pr_last_4_weeks ? 'text-green-400' : 'text-amber-400' },
+        ].map(stat => (
+          <div key={stat.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wide">{stat.label}</p>
+            <p className={`text-lg font-bold mt-0.5 ${stat.color}`}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Trend */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendIcon className={`h-4 w-4 ${trendColor}`} />
+          <p className="text-sm font-semibold text-zinc-100">Tendência de peso (14 dias)</p>
+        </div>
+        <p className="text-zinc-400 text-sm">
+          {trend7d === null
+            ? 'Dados insuficientes. Registre o peso regularmente para ativar as projeções.'
+            : Math.abs(trend7d) < 0.1
+            ? 'Peso estável — sem variação significativa nos últimos 14 dias.'
+            : trend7d < 0
+            ? `Perda de ~${Math.abs(trend7d * 2).toFixed(1)}kg/semana. ${Math.abs(trend7d * 2) > 0.7 ? 'Ritmo acelerado — verifique proteína.' : 'Ritmo sustentável.'}`
+            : `Ganho de ~${(trend7d * 2).toFixed(2)}kg/semana.`}
+        </p>
+      </div>
+
+      {/* Recomendações */}
+      {state.recommendations.length > 0 && (
+        <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4 space-y-2">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wide">Recomendações do Coach EDN</p>
+          {state.recommendations.map((rec, i) => (
+            <p key={i} className="text-sm text-zinc-300 flex items-start gap-2">
+              <span className="text-blue-400 shrink-0 mt-0.5">→</span>{rec}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EvolucaoPage() {
   const supabase = createClient();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -230,8 +345,25 @@ export default function EvolucaoPage() {
     };
     const { error } = await supabase.from('bioimpedance_data').insert(payload);
     if (error) { toast.error('Erro ao salvar bioimpedância: ' + error.message); return; }
-    toast.success('Bioimpedância registrada!');
+    toast.success('Bioimpedância registrada! Recalculando macros nutricionais…');
     setShowBioDialog(false);
+    // Disparar recálculo automático de nutrição em background
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (u) {
+      const activePlan = await supabase
+        .from('workout_plans')
+        .select('id')
+        .eq('user_id', u.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (activePlan.data?.id) {
+        fetch('/api/generate-nutrition', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: activePlan.data.id, auto_trigger: true }),
+        }).catch(() => {}); // silencioso — não bloqueia a UI
+      }
+    }
     setBioForm({ source: 'Zepp Life', body_score: '', body_type: '', weight_kg: '', bmi: '', body_fat_pct: '', water_pct: '', basal_metabolic_rate_kcal: '', visceral_fat_level: '', bone_mass_kg: '', protein_pct: '', skeletal_muscle_mass_kg: '', lean_mass_kg: '', fat_mass_kg: '' });
     load();
   }
@@ -266,6 +398,13 @@ export default function EvolucaoPage() {
     musculo: b.skeletal_muscle_mass_kg,
     peso: b.weight_kg,
   }));
+
+  // Calcular meta de gordura corporal baseada no objetivo
+  const latestBioForGoal = bioList[0];
+  // Meta de gordura: redução de 4pp (meta conservadora para qualquer objetivo)
+  const gorduraMeta = latestBioForGoal?.body_fat_pct
+    ? Math.max(latestBioForGoal.body_fat_pct - 4, 8)
+    : null;
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
@@ -309,6 +448,7 @@ export default function EvolucaoPage() {
           <TabsTrigger value="volume">Volume</TabsTrigger>
           <TabsTrigger value="medidas">Medidas</TabsTrigger>
           <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+          <TabsTrigger value="projecoes" className="gap-1.5"><Target className="h-3.5 w-3.5" />Projeções</TabsTrigger>
         </TabsList>
 
         {/* ── Bioimpedância tab ────────────────────────────── */}
@@ -332,15 +472,15 @@ export default function EvolucaoPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-blue-400', badge: latestBio.bmi !== null ? statusBadge(latestBio.bmi, { ok: 24.9, warn: 29.9 }, ['Normal', 'Sobrepeso', 'Obeso']) : null },
-                    { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-yellow-400', badge: null },
+                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-blue-400', badge: null },
+                    { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-yellow-400', badge: latestBio.bmi !== null ? (() => { const b = latestBio.bmi!; return b < 25 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Meta atingida</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400">Meta: &lt; 25</span>; })() : null },
                     { label: 'Gordura Corporal', value: latestBio.body_fat_pct ? `${latestBio.body_fat_pct}%` : null, icon: <TrendingUp className="h-3.5 w-3.5" />, color: 'text-orange-400', badge: statusBadge(latestBio.body_fat_pct, { ok: 20, warn: 25 }, ['Normal', 'Alta', 'Muito alta']) },
                     { label: 'Músculo', value: latestBio.skeletal_muscle_mass_kg ? `${latestBio.skeletal_muscle_mass_kg} kg` : null, icon: <Dumbbell className="h-3.5 w-3.5" />, color: 'text-green-400', badge: null },
                     { label: 'Água Corporal', value: latestBio.water_pct ? `${latestBio.water_pct}%` : null, icon: <Droplets className="h-3.5 w-3.5" />, color: 'text-cyan-400', badge: statusBadge(latestBio.water_pct, { ok: 50, warn: 45 }, ['Normal', 'Baixa', 'Muito baixa'], true) },
                     { label: 'Metabolismo Basal', value: latestBio.basal_metabolic_rate_kcal ? `${latestBio.basal_metabolic_rate_kcal} kcal` : null, icon: <Flame className="h-3.5 w-3.5" />, color: 'text-red-400', badge: null },
                     { label: 'Gordura Visceral', value: latestBio.visceral_fat_level ? `Nível ${latestBio.visceral_fat_level}` : null, icon: <Heart className="h-3.5 w-3.5" />, color: 'text-pink-400', badge: statusBadge(latestBio.visceral_fat_level, { ok: 9, warn: 14 }, ['Normal', 'Alta', 'Muito alta']) },
                     { label: 'Massa Óssea', value: latestBio.bone_mass_kg ? `${latestBio.bone_mass_kg} kg` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-zinc-400', badge: null },
-                    { label: 'Proteína', value: latestBio.protein_pct ? `${latestBio.protein_pct}%` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-purple-400', badge: null },
+                    { label: 'Proteína corporal', value: latestBio.protein_pct ? `${latestBio.protein_pct}%` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-purple-400', badge: latestBio.protein_pct !== null ? (latestBio.protein_pct < 18 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400">Aumentar proteína</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Normal</span>) : null },
                   ].filter((item) => item.value !== null).map((item) => (
                     <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
                       <div className={cn('flex items-center gap-1.5 mb-1', item.color)}>
@@ -401,6 +541,9 @@ export default function EvolucaoPage() {
                         <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
                         <Line type="monotone" dataKey="gordura" name="Gordura%" stroke="#f97316" strokeWidth={2} dot={{ r: 3, fill: '#f97316' }} connectNulls />
                         <Line type="monotone" dataKey="musculo" name="Músculo kg" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} connectNulls />
+                        {gorduraMeta !== null && (
+                          <ReferenceLine y={gorduraMeta} stroke="#f97316" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: `Meta ${gorduraMeta?.toFixed(1)}%`, fill: '#f97316', fontSize: 10, position: 'insideTopRight' }} />
+                        )}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -503,7 +646,7 @@ export default function EvolucaoPage() {
             )}
           </div>
         </TabsContent>
-        {/* Relatório Semanal tab */}
+        {/* Relatorio Semanal tab */}
         <TabsContent value="relatorio" className="mt-4 space-y-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <div className="flex items-center gap-3 mb-3">
@@ -511,8 +654,8 @@ export default function EvolucaoPage() {
                 <Sparkles className="h-5 w-5 text-blue-400" />
               </div>
               <div>
-                <p className="font-semibold text-zinc-100">Relatório Semanal IA</p>
-                <p className="text-xs text-zinc-500">Análise técnica dos últimos 7 dias com sugestões EDN</p>
+                <p className="font-semibold text-zinc-100">Relatorio Semanal IA</p>
+                <p className="text-xs text-zinc-500">Analise tecnica dos ultimos 7 dias com sugestoes EDN</p>
               </div>
             </div>
             <button
@@ -610,7 +753,7 @@ export default function EvolucaoPage() {
               <div className="rounded-xl border border-green-600/30 bg-green-600/10 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ArrowRight className="h-4 w-4 text-green-400 shrink-0" />
-                  <p className="text-xs font-semibold text-green-300 uppercase tracking-wide">Foco da Próxima Semana</p>
+                  <p className="text-xs font-semibold text-green-300 uppercase tracking-wide">Foco da Proxima Semana</p>
                 </div>
                 <p className="text-sm text-zinc-200 leading-relaxed">{report.next_week_focus}</p>
               </div>
@@ -632,6 +775,10 @@ export default function EvolucaoPage() {
               <p className="text-xs text-zinc-600">O Coach EDN vai analisar todos os seus treinos, cardio e biometria da semana</p>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="projecoes" className="mt-4 space-y-4">
+          <ProjecoesTab />
         </TabsContent>
 
       </Tabs>

@@ -9,6 +9,7 @@ import { MarkdownText } from '@/components/ai/markdown-text';
 import { useLatestMetrics } from '@/hooks/useLatestMetrics';
 import { toast } from 'sonner';
 import type { AIMessage } from '@/lib/ai-coach';
+import { detectAgent, AGENT_CONFIGS, type AgentType } from '@/lib/ai-coach/agents';
 
 const BASE_PROMPTS = [
   { icon: '💪', label: 'Analisar meu treino', prompt: 'Analise meu treino recente e diga o que melhorar segundo a EDN.' },
@@ -52,6 +53,7 @@ export default function IAPage() {
     try { if (conversationId) localStorage.setItem('edn_ia_conv_id', conversationId); } catch {}
   }, [conversationId]);
 
+  const [activeAgent, setActiveAgent] = useState<AgentType>('geral');
   const [conversations, setConversations] = useState<{ id: string; created_at: string; messages: AIMessage[] }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,7 +90,7 @@ export default function IAPage() {
       const response = await fetch('/api/ai-coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, conversationId }),
+        body: JSON.stringify({ messages: newMessages, conversationId, agentHint: detectAgent(content) }),
       });
 
       if (!response.ok) throw new Error('Falha ao conectar com o treinador');
@@ -243,8 +245,10 @@ export default function IAPage() {
               <Bot className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <p className="font-semibold text-zinc-100 text-sm">Coach EDN</p>
-              <p className="text-xs text-zinc-500">Coach IA — Metodologia EDN</p>
+              <p className="font-semibold text-zinc-100 text-sm">
+                {AGENT_CONFIGS[activeAgent].emoji} {AGENT_CONFIGS[activeAgent].label}
+              </p>
+              <p className="text-xs text-zinc-500">{AGENT_CONFIGS[activeAgent].description}</p>
             </div>
           </div>
           <Button size="sm" variant="ghost" onClick={newConversation} className="gap-1.5 text-xs">

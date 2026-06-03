@@ -9,6 +9,10 @@ import {
   Clock,
   Dumbbell,
   ChevronRight,
+  Bot,
+  CheckCircle2,
+  Circle,
+  TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -31,6 +35,7 @@ import {
   parseISO,
 } from "date-fns";
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS, GOAL_LABELS } from "@/types";
+import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelligence-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
 export default async function DashboardPage() {
@@ -103,13 +108,34 @@ export default async function DashboardPage() {
   }
 
   // Latest weight
-  const { data: latestMeasurement } = await supabase
-    .from("body_measurements")
-    .select("weight_kg")
-    .eq("user_id", user.id)
-    .order("date", { ascending: false })
-    .limit(1)
-    .single();
+  // Buscar peso mais recente: prioriza bioimpedance_data, depois body_measurements
+  const [{ data: latestBioWeight }, { data: latestMeasurement }] = await Promise.all([
+    supabase
+      .from("bioimpedance_data")
+      .select("weight_kg, measured_at")
+      .eq("user_id", user.id)
+      .order("measured_at", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("body_measurements")
+      .select("weight_kg, date")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(1)
+      .single(),
+  ]);
+  // Usar o registro mais recente entre as duas fontes
+  const latestWeightKg = (() => {
+    const bioW = latestBioWeight?.weight_kg ?? null;
+    const measW = latestMeasurement?.weight_kg ?? null;
+    if (bioW && measW) {
+      const bioDate = new Date(latestBioWeight!.measured_at);
+      const measDate = new Date(latestMeasurement!.date);
+      return bioDate >= measDate ? bioW : measW;
+    }
+    return bioW ?? measW;
+  })();
 
   // Today's workout day (based on day of week or sequential)
   const todayDayOfWeek = today.getDay();
@@ -177,11 +203,7 @@ export default async function DashboardPage() {
         />
         <StatsCard
           label="Peso Atual"
-          value={
-            latestMeasurement?.weight_kg
-              ? formatWeight(latestMeasurement.weight_kg)
-              : "—"
-          }
+          value={latestWeightKg ? formatWeight(latestWeightKg) : "—"}
           icon={<Scale className="h-4 w-4" />}
           color="purple"
         />
@@ -196,6 +218,40 @@ export default async function DashboardPage() {
         />
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
+
+      {/* Coach EDN — V4.0 Intelligence Panel */}
+      <AthleteIntelligencePanel name={profile?.name ?? undefined} />
+
+      {/* Deload banner — aparece quando streak > 3 semanas sem PR ou platô de peso detectado */}
+      {streak >= 14 && weeklyVolume > 0 && (
+        <DeloadBanner reason={`${streak} dias de treino contínuo. Se não houver PRs recentes, uma semana de deload vai maximizar suas próximas 4 semanas.`} />
+      )}
+
+      {/* Onboarding checklist — só aparece sem sessões */}
+      {monthlySessions.length === 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-semibold text-zinc-200 mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-blue-400" /> Primeiros passos
+          </p>
+          <div className="space-y-2">
+            {[
+              { label: "Perfil configurado", done: !!profile?.name, href: "/app/perfil" },
+              { label: "Peso registrado", done: !!latestWeightKg, href: "/app/evolucao" },
+              { label: "Plano de treino criado", done: !!typedPlan, href: "/app/treinos" },
+              { label: "Primeiro treino concluído", done: monthlySessions.length > 0, href: todayWorkoutDay ? `/app/treinos/${typedPlan?.id}/executar?day=${todayWorkoutDay.id}` : "/app/treinos" },
+            ].map(step => (
+              <Link key={step.label} href={step.href} className="flex items-center gap-3 py-1.5 group">
+                {step.done
+                  ? <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                  : <Circle className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 shrink-0 transition-colors" />}
+                <span className={step.done ? "text-sm text-zinc-400 line-through" : "text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors"}>
+                  {step.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Active Plan */}
       {typedPlan && (

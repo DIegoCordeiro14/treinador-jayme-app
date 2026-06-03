@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from '@/lib/ai-coach';
+import { detectAgent, AGENT_CONFIGS } from '@/lib/ai-coach/agents';
 import { makeCacheKey, getCached, setCached } from '@/lib/ai-coach/cache';
 import type { AIMessage } from '@/lib/ai-coach';
 
@@ -71,10 +72,16 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages, conversationId } = await req.json() as {
+    const { messages, conversationId, agentHint } = await req.json() as {
       messages: AIMessage[];
       conversationId?: string;
+      agentHint?: string; // optional explicit agent override
     };
+
+    // ── Multi-agent routing ───────────────────────────────────────────────────
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+    const detectedAgent = agentHint ?? (lastUserMessage ? detectAgent(lastUserMessage.content) : 'geral');
+    const agentConfig = AGENT_CONFIGS[detectedAgent as keyof typeof AGENT_CONFIGS] ?? AGENT_CONFIGS.geral;
 
     if (!messages || !Array.isArray(messages)) {
       return Response.json({ error: 'Invalid messages' }, { status: 400 });
@@ -99,7 +106,7 @@ export async function POST(req: NextRequest) {
     ]);
     // Usar bioimpedância ou fallback com dados de medição manual
     const bioData = bio ?? (meas ? { weight_kg: meas.weight_kg, body_fat_pct: meas.body_fat_pct, measured_at: meas.date, source: 'medição manual' } : null);
-    const systemPrompt = buildSystemPrompt(bioData as any);
+    const systemPrompt = buildSystemPrompt(bioData as any) + agentConfig.systemPromptSuffix;
     const provider = getDefaultProvider();
 
     // Cache de respostas (TTL 1h) — evita chamadas redundantes para perguntas idênticas
@@ -148,6 +155,7 @@ export async function POST(req: NextRequest) {
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'conversation_id', id: savedId })}\n\n`));
                 }
               } catch (_err) { /* Non-fatal */ }
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ agent: detectedAgent, agentLabel: agentConfig.label })}\n\n`));
               controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
               controller.close();
             }

@@ -6,6 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useAthleteState } from '@/hooks/useAthleteState';
+import { TrendingDown, TrendingUp, Minus, AlertTriangle, Target } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -100,6 +102,119 @@ function NumInput({ label, field, placeholder, form, setForm, step = '0.1' }: {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+// ── Projeções Tab — V4.0 Module 7 + 3 ─────────────────────────────────────────
+function ProjecoesTab() {
+  const { state, loading } = useAthleteState();
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-zinc-800 animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (!state) {
+    return (
+      <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
+        <Target className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
+        <p className="text-sm text-zinc-400">Registre seu peso regularmente para ver projeções.</p>
+      </div>
+    );
+  }
+
+  const r = state.raw;
+  const trend7d = r.weight_trend_14d !== null ? r.weight_trend_14d / 2 : null;
+
+  // Simple client-side projections
+  const currentWeight = r.weight_trend_14d !== null ? null : null; // weight comes from dashboard
+  const weeklyDelta = trend7d;
+
+  const plateau = r.plateau_detected;
+  const severity = (r.plateau_detected && r.protein_days_below_target >= 3) ? 'moderate' : r.plateau_detected ? 'mild' : 'none';
+
+  const HORIZON = [30, 60, 90, 180];
+  const HORIZON_LABELS: Record<number, string> = { 30: '1 mês', 60: '2 meses', 90: '3 meses', 180: '6 meses' };
+
+  const TrendIcon = trend7d === null ? Minus
+    : trend7d < -0.1 ? TrendingDown
+    : trend7d > 0.1 ? TrendingUp
+    : Minus;
+  const trendColor = trend7d === null ? 'text-zinc-500'
+    : trend7d < -0.1 ? 'text-green-400'
+    : trend7d > 0.1 ? 'text-blue-400'
+    : 'text-zinc-400';
+
+  return (
+    <div className="space-y-4">
+      {/* Plateau alert */}
+      {plateau && (
+        <div className={`flex items-start gap-3 rounded-xl border p-4 ${
+          severity === 'moderate'
+            ? 'border-red-600/30 bg-red-600/5'
+            : 'border-amber-600/30 bg-amber-600/5'
+        }`}>
+          <AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${severity === 'moderate' ? 'text-red-400' : 'text-amber-400'}`} />
+          <div>
+            <p className={`text-sm font-semibold ${severity === 'moderate' ? 'text-red-300' : 'text-amber-300'}`}>
+              Platô {severity === 'moderate' ? 'moderado' : 'leve'} detectado
+            </p>
+            <p className="text-xs text-zinc-400 mt-1">
+              {severity === 'moderate'
+                ? 'Peso estagnado + proteína baixa. Aumente proteína para 1.8-2g/kg e revise o déficit calórico.'
+                : 'Peso estável há 14+ dias. Considere reduzir 100kcal ou adicionar 1 sessão de Zona 2.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Score breakdown */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: 'Score EDN', value: `${state.edn_score}/100`, color: state.edn_score >= 75 ? 'text-green-400' : state.edn_score >= 50 ? 'text-yellow-400' : 'text-red-400' },
+          { label: 'Consistência', value: `${Math.round((r.sessions_last_28 / Math.max(1, r.planned_sessions_last_28)) * 100)}%`, color: 'text-blue-400' },
+          { label: 'Sessões/28d', value: `${r.sessions_last_28} / ${r.planned_sessions_last_28}`, color: 'text-zinc-300' },
+          { label: 'Sem PR há', value: r.has_pr_last_4_weeks ? '< 4 sem.' : '4+ sem.', color: r.has_pr_last_4_weeks ? 'text-green-400' : 'text-amber-400' },
+        ].map(stat => (
+          <div key={stat.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wide">{stat.label}</p>
+            <p className={`text-lg font-bold mt-0.5 ${stat.color}`}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Trend */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendIcon className={`h-4 w-4 ${trendColor}`} />
+          <p className="text-sm font-semibold text-zinc-100">Tendência de peso (14 dias)</p>
+        </div>
+        <p className="text-zinc-400 text-sm">
+          {trend7d === null
+            ? 'Dados insuficientes. Registre o peso regularmente para ativar as projeções.'
+            : Math.abs(trend7d) < 0.1
+            ? 'Peso estável — sem variação significativa nos últimos 14 dias.'
+            : trend7d < 0
+            ? `Perda de ~${Math.abs(trend7d * 2).toFixed(1)}kg/semana. ${Math.abs(trend7d * 2) > 0.7 ? 'Ritmo acelerado — verifique proteína.' : 'Ritmo sustentável.'}`
+            : `Ganho de ~${(trend7d * 2).toFixed(2)}kg/semana.`}
+        </p>
+      </div>
+
+      {/* Recomendações */}
+      {state.recommendations.length > 0 && (
+        <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4 space-y-2">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wide">Recomendações do Coach EDN</p>
+          {state.recommendations.map((rec, i) => (
+            <p key={i} className="text-sm text-zinc-300 flex items-start gap-2">
+              <span className="text-blue-400 shrink-0 mt-0.5">→</span>{rec}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EvolucaoPage() {
   const supabase = createClient();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -332,7 +447,8 @@ export default function EvolucaoPage() {
           <TabsTrigger value="peso">Peso</TabsTrigger>
           <TabsTrigger value="volume">Volume</TabsTrigger>
           <TabsTrigger value="medidas">Medidas</TabsTrigger>
-          <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatorio</TabsTrigger>
+          <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+          <TabsTrigger value="projecoes" className="gap-1.5"><Target className="h-3.5 w-3.5" />Projeções</TabsTrigger>
         </TabsList>
 
         {/* ── Bioimpedância tab ────────────────────────────── */}
@@ -659,6 +775,10 @@ export default function EvolucaoPage() {
               <p className="text-xs text-zinc-600">O Coach EDN vai analisar todos os seus treinos, cardio e biometria da semana</p>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="projecoes" className="mt-4 space-y-4">
+          <ProjecoesTab />
         </TabsContent>
 
       </Tabs>

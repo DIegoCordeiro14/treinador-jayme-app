@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { MUSCLE_GROUP_LABELS, MUSCLE_GROUP_COLORS } from "@/types";
 import type { WorkoutPlan, Exercise, WorkoutExerciseWithExercise, MuscleGroup } from "@/types";
 import { cn } from "@/lib/utils";
+import { AutoProgressionBanner } from "@/components/workout/auto-progression-banner";
 
 // ─── Split Templates (fallback) ───────────────────────────────────────────────
 const SPLIT_TEMPLATES: Record<number, MuscleGroup[][]> = {
@@ -371,6 +372,9 @@ export default function PlanDetailPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
+      {/* ── Auto Progression Banner — Coach EDN V4 */}
+      {plan?.id && <AutoProgressionBanner planId={plan.id} />}
+
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div>
         <Link href="/app/treinos" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors mb-3">
