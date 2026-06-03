@@ -215,7 +215,8 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
     }
     const rawJson = extractBalancedJSON(fullText);
     if (!rawJson) {
-      return Response.json({ error: "AI não retornou JSON válido", raw: fullText.slice(0, 200) }, { status: 422 });
+      console.error("[generate-workout] sem JSON na resposta. fullText:", JSON.stringify(fullText.slice(0, 500)));
+      return Response.json({ days: [], whyText, aiError: true, error: "AI não retornou JSON" }, { status: 200 });
     }
     // Limpar trailing commas que o Haiku gera
     const cleanJson = rawJson
