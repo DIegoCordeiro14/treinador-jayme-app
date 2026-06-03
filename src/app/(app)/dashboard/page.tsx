@@ -35,6 +35,7 @@ import {
   parseISO,
 } from "date-fns";
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS, GOAL_LABELS } from "@/types";
+import { DailyBriefingPanel } from "@/components/dashboard/daily-briefing-panel";
 import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelligence-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
@@ -219,7 +220,9 @@ export default async function DashboardPage() {
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
 
-      {/* Coach EDN — V4.0 Intelligence Panel */}
+      {/* V5.0 — Coach EDN Daily Briefing */}
+      <DailyBriefingPanel />
+      {/* V5.0 — EDN Score 360° */}
       <AthleteIntelligencePanel name={profile?.name ?? undefined} />
 
       {/* Deload banner — aparece quando streak > 3 semanas sem PR ou platô de peso detectado */}

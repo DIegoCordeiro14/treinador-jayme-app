@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
+import { prescribeWorkoutBlueprint, blueprintToPromptSnippet } from "@/lib/edn/specialization";
+import { getCachedAthleteContext } from "@/lib/edn/athlete-context";
 import {
   getEffectiveObjective,
   getSexMuscleOrder,
@@ -160,6 +162,20 @@ export async function POST(req: NextRequest) {
     };
     const levelRule = levelRulesMap[experienceLevel] ?? levelRulesMap['beginner'];
 
+    // ─── V5.0: Specialization Blueprint ──────────────────────────────────────────
+    const athleteCtxV5 = await getCachedAthleteContext(user.id).catch(() => null);
+    const blueprintV5 = prescribeWorkoutBlueprint({
+      gender: (athleteCtxV5?.goals.gender ?? sex ?? null) as any,
+      primaryGoal: (effectiveObjective ?? mainGoal ?? 'hypertrophy') as any,
+      aestheticGoal: aestheticGoal ?? null,
+      weakPoint: (athleteCtxV5?.goals.weakPoint ?? null) as any,
+      bodyFatPct: effectiveBF ?? null,
+      experience: (experienceLevel ?? 'intermediate') as any,
+      daysPerWeek: daysPerWeek ?? dayCount ?? 3,
+      bmi: effectiveBmi ?? null,
+    });
+    const blueprintSnippetV5 = blueprintToPromptSnippet(blueprintV5);
+
     // ─── V3.2: Build "Por que este treino?" rationale (pure logic, always works) ─
     whyText = buildWorkoutRationale({
       sex,
@@ -186,7 +202,9 @@ Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s;
 IDs disponíveis (id|nome, [ADV]=avançado):
 ${exerciseCatalog}
 JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tríceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
-${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
+${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.
+
+${blueprintSnippetV5}`;
 
     // ─── AI call: complete() é mais estável que stream() para geração de JSON ────
     // stream() pode travar em cold starts no Vercel; complete() é um POST simples
@@ -246,7 +264,7 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
       day.exercises = (day.exercises ?? []).filter((ex: any) => validIds.has(ex.exerciseId));
     }
 
-    return Response.json({ days: parsed.days, whyText, effectiveObjective });
+    return Response.json({ days: parsed.days, whyText: blueprintV5.whyThisPrescription || whyText, effectiveObjective });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);
     // AI falhou — retornar 200 com whyText para o client mostrar o card

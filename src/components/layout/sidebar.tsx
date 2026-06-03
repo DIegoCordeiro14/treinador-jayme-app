@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Radio, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Dumbbell,
@@ -50,6 +50,7 @@ const NAV_GROUPS = [
     label: "Comunidade",
     items: [
       { href: "/app/ranking", label: "Ranking", icon: Medal },
+      { href: "/app/feed", label: "Feed EDN", icon: Radio },
       { href: "/app/equipes", label: "Equipes", icon: Users },
       { href: "/app/desafios", label: "Desafios", icon: Swords },
       { href: "/app/conquistas", label: "Conquistas", icon: Trophy },

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAthleteState } from '@/hooks/useAthleteState';
+import { ProjectionCompare } from '@/components/evolucao/projection-compare';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -210,6 +211,21 @@ function ProjecoesTab() {
           ))}
         </div>
       )}
+
+      {/* V5.0 — Projection Compare with Action Buttons */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Projeção comparativa</p>
+        <ProjectionCompare
+          currentWeightKg={r.weight_trend_14d !== null ? null : null}
+          currentBfPct={r.body_fat_current}
+          currentMuscleKg={r.muscle_current}
+          weeklyWeightDeltaKg={r.weight_trend_14d !== null ? r.weight_trend_14d / 2 : null}
+          bodyFatPct={r.body_fat_current}
+          plateauDetected={r.plateau_detected}
+          deloadRecommended={!r.has_pr_last_4_weeks && r.sessions_last_28 > 8}
+          cardioKmWeekly={r.cardio_km_this_week}
+        />
+      </div>
     </div>
   );
 }
