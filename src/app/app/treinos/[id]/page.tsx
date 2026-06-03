@@ -337,7 +337,7 @@ export default function PlanDetailPage() {
           if (error) throw error;
         }
       }
-      toast.success("Treino montado pelo Treinador Jayme!");
+      toast.success("Treino montado pelo Coach EDN!");
       setShowAutoDialog(false); loadPlan();
     } catch (err) {
       toast.error("Erro ao salvar treino");
@@ -560,7 +560,7 @@ export default function PlanDetailPage() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-blue-400" />Treino Treinador Jayme
+              <Sparkles className="h-5 w-5 text-blue-400" />Treino Coach EDN
             </DialogTitle>
             <DialogDescription>
               Divisão {plan.days_per_week}x/semana · <span className="capitalize">{plan.goal}</span>

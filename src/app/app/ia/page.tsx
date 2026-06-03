@@ -102,7 +102,7 @@ export default function IAPage() {
       // After stream, reload conversations to get new ID
       await loadConversations();
     } catch (err) {
-      toast.error('Erro ao conectar com o Treinador Jayme IA');
+      toast.error('Erro ao conectar com o Coach EDN');
       setMessages((prev) => prev.slice(0, -1)); // remove empty assistant message
     } finally {
       setIsLoading(false);
@@ -209,7 +209,7 @@ export default function IAPage() {
               <Bot className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <p className="font-semibold text-zinc-100 text-sm">Treinador Jayme</p>
+              <p className="font-semibold text-zinc-100 text-sm">Coach EDN</p>
               <p className="text-xs text-zinc-500">Coach IA — Metodologia EDN</p>
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function IAPage() {
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 border border-blue-600/20 mb-4">
                 <Brain className="h-8 w-8 text-blue-400" />
               </div>
-              <h3 className="font-semibold text-zinc-100 mb-2">Olá! Sou o Treinador Jayme</h3>
+              <h3 className="font-semibold text-zinc-100 mb-2">Olá! Sou o Coach EDN</h3>
               <p className="text-sm text-zinc-400 max-w-sm mb-6">
                 Coach especialista em treinamento natural baseado na metodologia EDN.
                 Pergunte sobre treino, progressão, deload, nutrição ou qualquer dúvida sobre como treinar de verdade.

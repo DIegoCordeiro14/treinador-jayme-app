@@ -74,7 +74,7 @@ export function ChatInput({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Pergunte ao Treinador Jayme... (Enter para enviar)"
+            placeholder="Pergunte ao Coach EDN... (Enter para enviar)"
             className="w-full resize-none bg-transparent px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none min-h-[44px] max-h-40"
             rows={1}
             disabled={isLoading}
@@ -99,7 +99,7 @@ export function ChatInput({
       </div>
 
       <p className="text-[10px] text-zinc-600 mt-2 text-center">
-        Treinador Jayme usa IA — sempre consulte um profissional para questões de saúde
+        Coach EDN usa IA — sempre consulte um profissional para questões de saúde
       </p>
     </div>
   );

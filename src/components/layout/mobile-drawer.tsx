@@ -43,7 +43,7 @@ const NAV_GROUPS = [
   {
     label: "IA & Coach",
     items: [
-      { href: "/app/ia", label: "IA Treinador Jayme", icon: Bot },
+      { href: "/app/ia", label: "Coach EDN", icon: Bot },
     ],
   },
   {

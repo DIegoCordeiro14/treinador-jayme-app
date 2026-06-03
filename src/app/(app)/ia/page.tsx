@@ -38,10 +38,20 @@ export default function IAPage() {
   })();
 
   const supabase = createClient();
-  const [messages, setMessages] = useState<AIMessage[]>([]);
+  // Persistência: restaurar conversa atual do localStorage ao voltar para a página
+  const [messages, setMessages] = useState<AIMessage[]>(() => {
+    try { const s = typeof window !== 'undefined' ? localStorage.getItem('edn_ia_messages') : null; return s ? JSON.parse(s) : []; } catch { return []; }
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    try { return typeof window !== 'undefined' ? localStorage.getItem('edn_ia_conv_id') : null; } catch { return null; }
+  });
+  // Persistir conversationId
+  useEffect(() => {
+    try { if (conversationId) localStorage.setItem('edn_ia_conv_id', conversationId); } catch {}
+  }, [conversationId]);
+
   const [conversations, setConversations] = useState<{ id: string; created_at: string; messages: AIMessage[] }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -52,6 +62,8 @@ export default function IAPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Persistir mensagens no localStorage para sobreviver navegação
+    try { localStorage.setItem('edn_ia_messages', JSON.stringify(messages)); } catch {}
   }, [messages]);
 
   async function loadConversations() {
@@ -123,7 +135,7 @@ export default function IAPage() {
       // Reload lista lateral de conversas
       await loadConversations();
     } catch (err) {
-      toast.error('Erro ao conectar com o Treinador Jayme IA');
+      toast.error('Erro ao conectar com o Coach EDN');
       setMessages((prev) => prev.slice(0, -1)); // remove empty assistant message
     } finally {
       setIsLoading(false);
@@ -145,6 +157,7 @@ export default function IAPage() {
   function newConversation() {
     setConversationId(null);
     setMessages([]);
+    try { localStorage.removeItem('edn_ia_messages'); localStorage.removeItem('edn_ia_conv_id'); } catch {}
   }
 
   async function deleteConversation(id: string, e: React.MouseEvent) {
@@ -230,7 +243,7 @@ export default function IAPage() {
               <Bot className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <p className="font-semibold text-zinc-100 text-sm">Treinador Jayme</p>
+              <p className="font-semibold text-zinc-100 text-sm">Coach EDN</p>
               <p className="text-xs text-zinc-500">Coach IA — Metodologia EDN</p>
             </div>
           </div>
@@ -247,9 +260,9 @@ export default function IAPage() {
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 border border-blue-600/20 mb-4">
                 <Brain className="h-8 w-8 text-blue-400" />
               </div>
-              <h3 className="font-semibold text-zinc-100 mb-2">Olá! Sou o Treinador Jayme</h3>
+              <h3 className="font-semibold text-zinc-100 mb-2">Olá! Sou o Coach EDN</h3>
               <p className="text-sm text-zinc-400 max-w-sm mb-6">
-                Coach especialista em treinamento natural baseado na metodologia EDN.
+                Coach especialista em treinamento natural — Escola dos Naturais (EDN).
                 Pergunte sobre treino, progressão, deload, nutrição ou qualquer dúvida sobre como treinar de verdade.
               </p>
               <blockquote className="text-sm text-zinc-500 italic border-l-2 border-blue-600/40 pl-3 text-left max-w-xs">
@@ -296,7 +309,7 @@ export default function IAPage() {
               )}
               <div
                 className={cn(
-                  'max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed',
+                  'max-w-[90%] sm:max-w-[80%] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed',
                   msg.role === 'user'
                     ? 'bg-blue-600 text-white rounded-br-sm'
                     : 'bg-zinc-800 text-zinc-100 rounded-bl-sm border border-zinc-700'

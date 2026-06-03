@@ -139,7 +139,8 @@ export default function NutricaoPage() {
       // Só re-analisa se não há cache válido (< 30 min)
       const cacheTs = (() => { try { return parseInt(localStorage.getItem('edn_coach_ts') ?? '0'); } catch { return 0; } })();
       const cacheAge = Date.now() - cacheTs;
-      if (!coachDataRef.current || cacheAge > 30 * 60 * 1000) {
+      // Só re-analisa se não há dados — nunca re-analisa automaticamente por timer
+      if (!coachDataRef.current) {
         runCoachAnalysis();
       }
     } else if (activeTab === 'plano' && !hasRunPlan.current) {

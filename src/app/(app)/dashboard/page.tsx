@@ -226,7 +226,7 @@ export default async function DashboardPage() {
           </div>
           <div>
             <p className="text-sm font-semibold text-zinc-100">Recomendação do dia</p>
-            <p className="text-[10px] text-zinc-500">Treinador Jayme · baseado no seu progresso</p>
+            <p className="text-[10px] text-zinc-500">Coach EDN · baseado no seu progresso</p>
           </div>
           <Link href="/app/ia" className="ml-auto text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
             Conversar <ChevronRight className="h-3 w-3" />
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
         </div>
         {monthlySessions.length === 0 ? (
           <p className="text-sm text-zinc-300 leading-relaxed">
-            Bem-vindo ao Treinador Jayme! 💪 Seu plano está pronto — comece pelo{" "}
+            Bem-vindo ao Coach EDN! 💪 Seu plano está pronto — comece pelo{" "}
             <strong className="text-zinc-100">Treino A</strong> hoje. Foco na técnica antes da carga.
           </p>
         ) : streak >= 3 ? (
