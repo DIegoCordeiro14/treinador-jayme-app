@@ -101,7 +101,12 @@ export default function NutricaoPage() {
       supabase.from('profiles').select('weight_kg, height_cm, age, gender, weekly_frequency, goal').eq('id', user.id).single(),
     ]);
     if (profileData) setProfile(profileData as any);
-    setPlan((planData?.schedule_config as any)?.nutrition ?? null);
+    // Preferir plano do DB; fallback = sessionStorage (persiste enquanto a aba estiver aberta)
+    const dbPlan = (planData?.schedule_config as any)?.nutrition ?? null;
+    const cachedPlan = dbPlan ?? (() => {
+      try { const s = sessionStorage.getItem('edn_nutrition_plan'); return s ? JSON.parse(s) : null; } catch { return null; }
+    })();
+    setPlan(cachedPlan);
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
     setWeightLogs((logs as WeightLog[]) ?? []);
@@ -110,9 +115,14 @@ export default function NutricaoPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-trigger: gera o conteúdo automaticamente ao abrir a aba pela 1ª vez
+  // Auto-trigger: Coach IA sempre roda (dados em tempo real); Plano só se não houver nenhum
   const hasRunCoach = useRef(false);
   const hasRunPlan  = useRef(false);
+  const planRef = useRef<NutritionPlan | null>(null);
+
+  // Mantém planRef sincronizado com o state sem adicionar "plan" como dep do useEffect
+  useEffect(() => { planRef.current = plan; }, [plan]);
+
   useEffect(() => {
     if (loading) return;
     if (activeTab === 'coach' && !hasRunCoach.current) {
@@ -120,7 +130,8 @@ export default function NutricaoPage() {
       runCoachAnalysis();
     } else if (activeTab === 'plano' && !hasRunPlan.current) {
       hasRunPlan.current = true;
-      generateNutrition();
+      // Só gera se não houver plano em nenhuma fonte
+      if (!planRef.current) generateNutrition();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, loading]);
@@ -132,6 +143,7 @@ export default function NutricaoPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setPlan(data.nutrition);
+      try { sessionStorage.setItem('edn_nutrition_plan', JSON.stringify(data.nutrition)); } catch {}
       toast.success('Plano nutricional atualizado!');
     } catch (err: any) { toast.error(err.message); }
     finally { setGenerating(false); }
@@ -297,6 +309,48 @@ export default function NutricaoPage() {
           </div>
         )}
       </div>
+
+
+      {/* ── Refeições: sempre visíveis acima das tabs ─────────────────────── */}
+      {(plan?.meals && plan.meals.length > 0) && (
+        <div className="space-y-2">
+          <button
+            className="w-full flex items-center justify-between text-xs font-semibold text-zinc-400 uppercase tracking-wide px-1"
+            onClick={() => setShowMeals(v => !v)}
+          >
+            <span>Distribuição de Refeições ({plan.meals!.length}x/dia)</span>
+            {showMeals ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {showMeals && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+              {plan.meals!.map((meal, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 text-[11px] font-bold">{i + 1}</span>
+                      <span className="text-sm font-semibold text-zinc-200">{meal.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                      <Clock className="h-3 w-3" /><span>{meal.time}</span>
+                      <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-medium">{meal.calories_pct}%</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-zinc-400 ml-7 mb-0.5">{meal.focus}</p>
+                  {meal.example && <p className="text-xs text-zinc-600 ml-7 italic">{meal.example}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Spinner enquanto gera automaticamente (sem plano ainda) */}
+      {!plan && generating && (
+        <div className="flex items-center justify-center gap-3 py-4 text-zinc-400 rounded-xl border border-zinc-800 bg-zinc-900">
+          <RefreshCw className="h-4 w-4 animate-spin text-blue-400" />
+          <span className="text-sm">Gerando plano nutricional...</span>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-zinc-900 border border-zinc-800 w-full">
@@ -475,51 +529,15 @@ export default function NutricaoPage() {
             TAB PLANO
         ═══════════════════════════════════════════════════════ */}
         <TabsContent value="plano" className="mt-4 space-y-4">
-          {/* Loading state — geração automática */}
-          {generating && (
-            <div className="flex items-center justify-center gap-3 py-6 text-zinc-400">
-              <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
-              <span className="text-sm">Gerando plano nutricional personalizado...</span>
-            </div>
-          )}
-
-          {/* Regenerar — só aparece quando já há plano */}
-          {plan && !generating && (
+          {/* Regenerar plano */}
+          {plan && (
             <Button onClick={generateNutrition} disabled={generating} className="w-full gap-2" variant="outline" size="sm">
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerar plano
+              {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {generating ? 'Atualizando...' : 'Regenerar plano'}
             </Button>
           )}
 
-          {plan?.meals && plan.meals.length > 0 && (
-            <div className="space-y-3">
-              <button className="w-full flex items-center justify-between text-sm font-semibold text-zinc-400 uppercase tracking-wide"
-                onClick={() => setShowMeals(v => !v)}>
-                <span>Distribuicao de Refeicoes ({plan.meals!.length}x/dia)</span>
-                {showMeals ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-              {showMeals && (
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
-                  {plan.meals!.map((meal, i) => (
-                    <div key={i} className="p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 text-[11px] font-bold">{i + 1}</span>
-                          <span className="text-sm font-semibold text-zinc-200">{meal.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-zinc-500">
-                          <Clock className="h-3 w-3" /><span>{meal.time}</span>
-                          <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-medium">{meal.calories_pct}%</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-zinc-400 ml-7 mb-0.5">{meal.focus}</p>
-                      {meal.example && <p className="text-xs text-zinc-600 ml-7 italic">{meal.example}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Refeições movidas para acima das tabs */}
 
           {plan && (
             <>
@@ -587,11 +605,11 @@ export default function NutricaoPage() {
             </>
           )}
 
+          {/* Plano ainda não gerado — mensagem dentro da aba */}
           {!plan && !generating && (
-            <div className="rounded-xl border border-dashed border-zinc-700 p-10 text-center">
-              <Sparkles className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
-              <p className="text-sm text-zinc-400 mb-1">Nenhum plano nutricional gerado</p>
-              <p className="text-xs text-zinc-600">A IA cria um plano personalizado com base no seu perfil e biometria</p>
+            <div className="text-center py-8 text-zinc-500">
+              <p className="text-sm">Plano sendo preparado...</p>
+              <p className="text-xs mt-1 text-zinc-600">Se não carregar, clique em Regenerar acima</p>
             </div>
           )}
         </TabsContent>
