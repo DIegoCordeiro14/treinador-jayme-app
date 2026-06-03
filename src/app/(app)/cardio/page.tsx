@@ -1,9 +1,7 @@
 'use client';
-import dynamic from 'next/dynamic';
-const GPSMap = dynamic(() => import('@/components/cardio/gps-map').then(m => ({ default: m.GPSMap })), { ssr: false });
-
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+const GPSMap = dynamic(() => import('@/components/cardio/gps-map').then(m => ({ default: m.GPSMap })), { ssr: false });
 import {
   Flame, Plus, X, Clock, Zap, BarChart2, Loader2, MapPin,
   Activity, TrendingUp, Target, Award, AlertTriangle, ChevronRight,

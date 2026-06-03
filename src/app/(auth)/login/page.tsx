@@ -78,6 +78,7 @@ export default function LoginPage() {
   }
 
   return (
+    <>
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
       <div className="flex flex-col items-center mb-8">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 mb-3">
@@ -187,5 +188,6 @@ export default function LoginPage() {
             </div>
           </div>
         )}
+    </>
   );
 }
