@@ -206,7 +206,7 @@ function ProjecoesTab() {
           <p className="text-xs font-semibold text-blue-300 uppercase tracking-wide">Recomendações do Coach EDN</p>
           {state.recommendations.map((rec, i) => (
             <p key={i} className="text-sm text-zinc-300 flex items-start gap-2">
-              <span className="text-blue-400 shrink-0 mt-0.5">→</span>{rec}
+              <span className="text-blue-400 shrink-0 mt-0.5">→</span><span dangerouslySetInnerHTML={{ __html: rec.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
             </p>
           ))}
         </div>

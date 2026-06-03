@@ -101,7 +101,7 @@ function ProactiveBriefing({ name }: { name?: string }) {
   };
   const [weakLabel, weakScore] = Object.entries(subScores).sort((a, b) => a[1] - b[1])[0];
   if (weakScore < 60 && !highlights.some(h => h.includes(weakLabel))) {
-    highlights.push(`📊 Fator que mais limita seu Score ${score}/100: **${weakLabel}** (${weakScore}/100).`);
+    highlights.push(`📊 Fator que mais limita seu Score ${score}/100: ${weakLabel} (${weakScore}/100).`);
   }
 
   return (
@@ -123,7 +123,7 @@ function ProactiveBriefing({ name }: { name?: string }) {
 
       <div className="space-y-1.5">
         {highlights.slice(0, 3).map((h, i) => (
-          <p key={i} className="text-sm text-zinc-300 leading-relaxed">{h}</p>
+          <p key={i} className="text-sm text-zinc-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: h.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
         ))}
       </div>
 

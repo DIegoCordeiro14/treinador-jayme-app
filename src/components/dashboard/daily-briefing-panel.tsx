@@ -92,21 +92,21 @@ export function DailyBriefingPanel() {
       {briefing.alert && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2.5">
           <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-300 leading-relaxed">{briefing.alert}</p>
+          <p className="text-xs text-amber-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: briefing.alert!.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>') }} />
         </div>
       )}
 
       {/* Highlights */}
       <div className="space-y-1.5">
         {briefing.highlights.map((h, i) => (
-          <p key={i} className="text-sm text-zinc-300 leading-relaxed">{h}</p>
+          <p key={i} className="text-sm text-zinc-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: h.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
         ))}
       </div>
 
       {/* Today's action */}
       <div className="rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-3 py-2.5 flex items-start gap-2">
         <Zap className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-zinc-200 leading-relaxed">{briefing.todayAction}</p>
+        <p className="text-sm text-zinc-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: briefing.todayAction.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
       </div>
 
       {/* Footer */}
