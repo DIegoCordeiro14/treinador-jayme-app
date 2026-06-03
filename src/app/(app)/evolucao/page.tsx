@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Scale, TrendingUp, BarChart2, Dumbbell, Plus, Activity, Droplets, Flame, Heart, Upload, Loader2, Sparkles, FileText, CheckCircle2, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
+import { Scale, TrendingUp, TrendingDown, Minus, AlertTriangle, Target, BarChart2, Dumbbell, Plus, Activity, Droplets, Flame, Heart, Upload, Loader2, Sparkles, FileText, CheckCircle2, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAthleteState } from '@/hooks/useAthleteState';
-import { TrendingDown, TrendingUp, Minus, AlertTriangle, Target } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
