@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { AIMessage } from '@/lib/ai-coach';
+import { MarkdownText } from '@/components/ai/markdown-text';
 
 const QUICK_PROMPTS = [
   { icon: '💪', label: 'Analisar meu treino', prompt: 'Analise meu histórico de treino recente e diga o que posso melhorar segundo a metodologia EDN.' },
@@ -271,7 +272,9 @@ export default function IAPage() {
                 )}
               >
                 {msg.content ? (
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  msg.role === 'assistant'
+                    ? <MarkdownText content={msg.content} />
+                    : <span className="whitespace-pre-wrap">{msg.content}</span>
                 ) : (
                   <div className="flex gap-1 items-center py-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
