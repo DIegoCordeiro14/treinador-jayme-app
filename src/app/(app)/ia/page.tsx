@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X } from 'lucide-react';
+import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -54,6 +54,7 @@ export default function IAPage() {
   }, [conversationId]);
 
   const [activeAgent, setActiveAgent] = useState<AgentType>('geral');
+  const [showHistory, setShowHistory] = useState(false);
   const [conversations, setConversations] = useState<{ id: string; created_at: string; messages: AIMessage[] }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -251,10 +252,15 @@ export default function IAPage() {
               <p className="text-xs text-zinc-500">{AGENT_CONFIGS[activeAgent].description}</p>
             </div>
           </div>
-          <Button size="sm" variant="ghost" onClick={newConversation} className="gap-1.5 text-xs">
-            <Plus className="h-3.5 w-3.5" />
-            Nova
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => setShowHistory(true)} className="lg:hidden h-8 w-8 p-0">
+              <History className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={newConversation} className="gap-1.5 text-xs">
+              <Plus className="h-3.5 w-3.5" />
+              Nova
+            </Button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -367,6 +373,59 @@ export default function IAPage() {
           </div>
         </div>
       </div>
+      {/* Mobile History Drawer */}
+      {showHistory && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowHistory(false)} />
+          <div className="relative ml-auto w-72 max-w-[85vw] h-full bg-zinc-900 border-l border-zinc-800 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+              <span className="text-sm font-semibold text-zinc-300">Histórico</span>
+              <button onClick={() => setShowHistory(false)} className="h-7 w-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {conversations.length === 0 && (
+                <p className="text-xs text-zinc-600 text-center py-6">Nenhuma conversa ainda</p>
+              )}
+              {conversations.map((conv) => {
+                const firstUserMsg = conv.messages.find((m) => m.role === 'user');
+                return (
+                  <div key={conv.id} className="group relative">
+                    <button
+                      onClick={() => { loadConversation(conv); setShowHistory(false); }}
+                      className={cn('w-full text-left px-3 py-2.5 pr-8 rounded-lg text-xs transition-colors',
+                        conversationId === conv.id
+                          ? 'bg-blue-600/20 text-blue-300 border border-blue-600/30'
+                          : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                      )}
+                    >
+                      <p className="truncate font-medium">
+                        {firstUserMsg?.content.slice(0, 45) ?? 'Conversa'}{firstUserMsg && firstUserMsg.content.length > 45 ? '…' : ''}
+                      </p>
+                      <p className="text-zinc-600 mt-0.5">{new Date(conv.created_at).toLocaleDateString('pt-BR')}</p>
+                    </button>
+                    <button
+                      onClick={(e) => { deleteConversation(conv.id, e); }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 hover:bg-red-400/10"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {conversations.length > 0 && (
+              <div className="p-2 border-t border-zinc-800">
+                <button onClick={() => { clearAllHistory(); setShowHistory(false); }}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" />Limpar histórico
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
