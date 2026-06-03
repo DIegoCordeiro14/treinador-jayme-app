@@ -31,7 +31,15 @@ export async function POST(req: NextRequest) {
 
     // ── Get full AthleteContext (single source of truth) ─────────────────────
     const ctx = await getCachedAthleteContext(user.id);
-    const athleteContextStr = serializeAthleteContext(ctx);
+
+    // ── V6.0: Serialize with workout context only for agents that need it ─────
+    // includeWorkoutContext agents (treinador, geral) get full plans + library
+    // Other agents (nutricionista, analista, performance) skip to save tokens
+    const includeWorkoutContext = agentConfig.includeWorkoutContext === true;
+    const athleteContextStr = serializeAthleteContext(ctx, {
+      includeWorkoutPlans: includeWorkoutContext,
+      includeExerciseLibrary: includeWorkoutContext,
+    });
 
     // ── Build system prompt: agent-specific + athlete context ─────────────────
     const systemPrompt = `${agentConfig.systemPrompt}
@@ -41,7 +49,8 @@ ${athleteContextStr}
 INSTRUÇÕES CRÍTICAS:
 - Os dados acima são a realidade atual do atleta. Nunca peça informações que já estão aqui.
 - Se detectar problemas (platô, proteína baixa, fadiga, deload pendente), mencione-os.
-- Use os números reais do atleta em todas as recomendações.`;
+- Use os números reais do atleta em todas as recomendações.
+- Ao sugerir substituições de exercício, SEMPRE referencie o nome e ID do exercício da biblioteca.`;
 
     const trimmedMessages = messages.length > 8 ? messages.slice(-8) : messages;
     const lastUserMsg = trimmedMessages.filter(m => m.role === 'user').slice(-1)[0]?.content ?? '';
