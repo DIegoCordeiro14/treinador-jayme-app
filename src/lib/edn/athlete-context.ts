@@ -661,5 +661,3 @@ export async function getCachedAthleteContext(userId: string, forceRefresh = fal
 export function invalidateAthleteContext(userId: string) {
   ctxCache.delete(userId);
 }
- ctxCache.delete(userId);
-}
