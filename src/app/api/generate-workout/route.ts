@@ -191,10 +191,12 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
     // ─── AI call: complete() é mais estável que stream() para geração de JSON ────
     // stream() pode travar em cold starts no Vercel; complete() é um POST simples
     let fullText = "";
+    // System prompt focado em geração JSON — não usar EDN_SYSTEM_PROMPT (persona de coach gera texto extra)
+    const JSON_GENERATION_PROMPT = "Você é um gerador de planos de treino. Responda APENAS com JSON válido. Sem markdown. Sem \`\`\`json. Sem texto antes ou depois. Sua resposta começa com { e termina com }. Estrutura obrigatória: {\"days\":[{\"dayIndex\":0,\"focusLabel\":\"...\",\"exercises\":[{\"exerciseId\":\"...\",\"sets\":3,\"repsMin\":10,\"repsMax\":15,\"restSeconds\":75,\"notes\":\"...\"}]}]}";
     const aiResult = await Promise.race([
       provider.complete({
         messages: [{ role: "user", content: userPrompt }],
-        systemPrompt: EDN_SYSTEM_PROMPT,
+        systemPrompt: JSON_GENERATION_PROMPT,
         maxTokens: 1800,  // 4 dias × 6-7 ex × UUID(36ch)+campos = ~1400-1600 tokens
       }),
       new Promise<never>((_, reject) =>
@@ -213,7 +215,12 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
       }
       return null;
     }
-    const rawJson = extractBalancedJSON(fullText);
+    // Strip markdown code blocks que o Haiku gera mesmo com instrução "sem markdown"
+    const strippedText = fullText
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+    const rawJson = extractBalancedJSON(strippedText);
     if (!rawJson) {
       console.error("[generate-workout] sem JSON na resposta. fullText:", JSON.stringify(fullText.slice(0, 500)));
       return Response.json({ days: [], whyText, aiError: true, error: "AI não retornou JSON" }, { status: 200 });
