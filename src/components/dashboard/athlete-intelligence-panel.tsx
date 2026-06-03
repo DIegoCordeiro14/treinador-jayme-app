@@ -65,8 +65,11 @@ function ProactiveBriefing({ name }: { name?: string }) {
   // Dynamic highlights
   const highlights: string[] = [];
 
+  const neverTrained = r.days_since_last_workout >= 100;
   if (r.days_since_last_workout === 0) {
     highlights.push('✅ Treino registrado hoje — foco em recuperação e hidratação.');
+  } else if (neverTrained) {
+    highlights.push('💪 Nenhum treino registrado ainda — seu plano está pronto. Comece hoje!');
   } else if (r.days_since_last_workout >= 3) {
     highlights.push(`⚠️ ${r.days_since_last_workout} dias sem treinar — hora de retomar.`);
   } else {

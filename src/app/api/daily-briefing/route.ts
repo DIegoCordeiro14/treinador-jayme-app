@@ -49,7 +49,9 @@ export async function GET(_req: NextRequest) {
   const s = ctx.scores;
 
   const highlights: string[] = [];
+  const neverTrained = t.daysSinceLastWorkout >= 100;
   if (t.daysSinceLastWorkout === 0) highlights.push('✅ Treino concluído hoje. Foco em recuperação e hidratação.');
+  else if (neverTrained) highlights.push('💪 Nenhum treino registrado ainda — seu plano está pronto. Comece hoje!');
   else if (t.daysSinceLastWorkout >= 3) highlights.push(`⚠️ ${t.daysSinceLastWorkout} dias sem treinar — retome hoje.`);
   else highlights.push(`🔥 Último treino há ${t.daysSinceLastWorkout} dia(s). Sequência mantida.`);
 
@@ -70,11 +72,15 @@ export async function GET(_req: NextRequest) {
   if (s.overall >= 80) highlights.push(`⭐ Score EDN ${s.overall}/100 — excelente semana.`);
   else if (s.overall < 50) highlights.push(`📉 Score EDN ${s.overall}/100 — foco em consistência esta semana.`);
 
-  const todayAction = t.daysSinceLastWorkout >= 1
-    ? `Execute ${ctx.training.activePlanName ? 'o próximo dia de ' + ctx.training.activePlanName : 'seu treino'} hoje com foco em progressão de carga. Registre o RIR de cada série.`
-    : 'Recuperação ativa: caminhada leve, hidratação elevada, proteína em dia.';
+  const todayAction = neverTrained
+    ? `Acesse Treinos, crie ou configure seu plano e execute seu primeiro treino hoje. Seu Coach EDN já tem tudo pronto.`
+    : t.daysSinceLastWorkout === 0
+    ? 'Recuperação ativa: caminhada leve, hidratação elevada, proteína em dia.'
+    : `Execute ${ctx.training.activePlanName ? 'o próximo dia de ' + ctx.training.activePlanName : 'seu treino'} hoje com foco em progressão de carga. Registre o RIR de cada série.`;
 
-  const alert = t.plateauDetected
+  const alert = neverTrained
+    ? null  // new user — no alerts, just encouragement
+    : t.plateauDetected
     ? 'Platô de peso detectado. Recomendação: reduzir 100-150kcal ou adicionar 1 sessão Zona 2.'
     : r.deloadRecommended
     ? 'Deload recomendado esta semana. Reduza volume 50%, mantenha as cargas.'
