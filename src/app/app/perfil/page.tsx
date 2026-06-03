@@ -12,15 +12,15 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { getInitials } from '@/lib/utils';
 import { xpProgress } from '@/lib/edn/progression';
-import type { Profile, GoalType, ExperienceLevel, GenderType } from '@/types';
-import { GOAL_LABELS, EXPERIENCE_LABELS } from '@/types';
+import type { Profile, GoalType, ExperienceLevel, GenderType, MainGoal, AestheticGoal } from '@/types';
+import { GOAL_LABELS, EXPERIENCE_LABELS, MAIN_GOAL_LABELS, AESTHETIC_GOAL_LABELS_MALE, AESTHETIC_GOAL_LABELS_FEMALE } from '@/types';
 
 export default function PerfilPage() {
   const supabase = createClient();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [xp, setXp] = useState({ xp_total: 0, level: 1 });
-  const [form, setForm] = useState({ name: '', age: '', gender: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3', meals_per_day: '3' });
+  const [form, setForm] = useState({ name: '', age: '', gender: '', weight_kg: '', height_cm: '', body_fat_pct: '', goal: 'hypertrophy', experience_level: 'beginner', weekly_frequency: '3', meals_per_day: '3', main_goal: 'hypertrophy', aesthetic_goal: '' });
   const [saving, setSaving] = useState(false);
   const [email, setEmail] = useState('');
 
@@ -48,6 +48,8 @@ export default function PerfilPage() {
           experience_level: prof.experience_level ?? 'beginner',
           weekly_frequency: prof.weekly_frequency?.toString() ?? '3',
           meals_per_day: (prof as any).meals_per_day?.toString() ?? '3',
+          main_goal: (prof as any).main_goal ?? prof.goal ?? 'hypertrophy',
+          aesthetic_goal: (prof as any).aesthetic_goal ?? '',
         });
       }
       if (xpData) setXp(xpData);
@@ -166,17 +168,36 @@ export default function PerfilPage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Objetivo</Label>
-            <Select value={form.goal} onValueChange={set('goal')}>
+            <Label>Objetivo Principal</Label>
+            <Select value={form.main_goal} onValueChange={set('main_goal')}>
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                <SelectValue />
+                <SelectValue placeholder="Selecionar…" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
-                {Object.entries(GOAL_LABELS).map(([k, v]) => (
+                {Object.entries(MAIN_GOAL_LABELS).map(([k, v]) => (
                   <SelectItem key={k} value={k} className="text-zinc-100">{v}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Objetivo Estético</Label>
+            <Select value={form.aesthetic_goal} onValueChange={set('aesthetic_goal')}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                <SelectValue placeholder="Selecionar…" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                {form.gender === 'female'
+                  ? Object.entries(AESTHETIC_GOAL_LABELS_FEMALE).map(([k, v]) => (
+                      <SelectItem key={k} value={k} className="text-zinc-100">{v}</SelectItem>
+                    ))
+                  : Object.entries(AESTHETIC_GOAL_LABELS_MALE).map(([k, v]) => (
+                      <SelectItem key={k} value={k} className="text-zinc-100">{v}</SelectItem>
+                    ))
+                }
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-zinc-500">Prioriza os grupos musculares do objetivo estético no plano de treino.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Nível de Experiência</Label>
