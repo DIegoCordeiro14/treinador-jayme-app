@@ -1,4 +1,5 @@
 "use client";
+import { ExercisePreferenceToggle } from "@/components/workout/exercise-preference-toggle";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -438,7 +439,10 @@ export default function PlanDetailPage() {
                           <div className="flex items-center gap-3 p-4">
                             <span className="text-xs font-bold text-zinc-600 w-5 text-center shrink-0">{idx+1}</span>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-zinc-100 text-sm">{we.exercise.name}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-zinc-100 text-sm flex-1">{we.exercise.name}</p>
+                              <ExercisePreferenceToggle exerciseId={we.exercise.id} exerciseName={we.exercise.name} />
+                            </div>
                               <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold border mt-1",
                                 MUSCLE_GROUP_COLORS[we.exercise.muscle_group])}>
                                 {MUSCLE_GROUP_LABELS[we.exercise.muscle_group]}

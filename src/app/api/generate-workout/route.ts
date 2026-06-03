@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from '@/lib/ai-coach';
 import { buildWorkout, formatBuilderOutputForAI, type BuilderInput, type MuscleGroup } from '@/lib/edn/workout-builder';
+import { selectExercises, formatSelectionForAI, type Limitation } from '@/lib/edn/exercise-selector';
 import { subDays } from 'date-fns';
 
 export const runtime  = 'nodejs';
@@ -51,6 +52,18 @@ export async function POST(req: NextRequest) {
       ? Math.floor((now.getTime() - new Date(lastSession.started_at).getTime()) / 86400000)
       : 999;
 
+    // ── Fetch preferences + limitations ──────────────────────────────────────
+    const [{ data: preferences }, { data: profileFull }] = await Promise.all([
+      supabase.from('exercise_preferences').select('exercise_id, preference').eq('user_id', user.id),
+      supabase.from('profiles').select('limitations, available_equipment, mesocycle_number').eq('id', user.id).maybeSingle(),
+    ]);
+
+    const likedIds    = (preferences ?? []).filter((p: any) => p.preference === 'liked').map((p: any) => p.exercise_id);
+    const dislikedIds = (preferences ?? []).filter((p: any) => p.preference === 'disliked').map((p: any) => p.exercise_id);
+    const limitations  = ((profileFull as any)?.limitations ?? []) as Limitation[];
+    const availableEquip = ((profileFull as any)?.available_equipment ?? []) as string[];
+    const mesocycleNum   = ((profileFull as any)?.mesocycle_number ?? 1) as number;
+
     // ── Run deterministic builder engine ──────────────────────────────────────
     const builderInput: BuilderInput = {
       sex:                 body.sex,
@@ -77,6 +90,23 @@ export async function POST(req: NextRequest) {
     const builderOutput = buildWorkout(builderInput);
     const structuredContext = formatBuilderOutputForAI(builderOutput, builderInput);
 
+    // ── Exercise Selection V3.1 ────────────────────────────────────────────────
+    const firstSession = builderOutput.sessions[0];
+    const selectionResult = selectExercises(exercises as any[], {
+      objective:            (goal ?? 'hypertrophy') as any,
+      experience:           (experienceLevel ?? 'beginner') as any,
+      limitations,
+      liked_ids:            likedIds,
+      disliked_ids:         dislikedIds,
+      focus_muscle:         focusMuscle as MuscleGroup | null,
+      available_equipment:  availableEquip.length > 0 ? availableEquip : undefined,
+      mesocycle_number:     mesocycleNum,
+      previous_exercise_ids: body.previousExerciseIds ?? [],
+      exercises_per_session: builderOutput.exercises_per_session,
+      muscle_groups_in_session: firstSession?.muscle_groups ?? [],
+    });
+    const selectionContext = formatSelectionForAI(selectionResult);
+
     // ── Bioimpedance extra rules ───────────────────────────────────────────────
     const bioRules: string[] = [];
     if (bioData?.visceral_fat_level && bioData.visceral_fat_level >= 10)
@@ -92,10 +122,12 @@ export async function POST(req: NextRequest) {
       .map((ex: any) => `${ex.id}|${ex.name}|${ex.muscle_group}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
       .join('\n');
 
-    // ── AI prompt (usando estrutura do engine como âncora) ────────────────────
+    // ── AI prompt (usando estrutura + seleção pré-filtrada) ───────────────────
     const userPrompt = `${structuredContext}${bioRulesStr}
 
-Catálogo (id|nome|grupo[ADV=avançado]):
+${selectionContext}
+
+Catálogo completo disponível para fallback (id|nome|grupo[ADV=avançado]):
 ${catalog}
 
 Instrução: Selecione exercícios do catálogo respeitando EXATAMENTE a estrutura acima.
@@ -138,6 +170,8 @@ ${dayCount} dias (dayIndex 0–${dayCount - 1}). APENAS JSON.`;
       days: parsed.days,
       builder: {
         split_type:        builderOutput.split_type,
+        selection_explanation: selectionResult.explanation,
+        selection_bullets:     selectionResult.reasoning_bullets,
         difficulty_score:  builderOutput.difficulty_score,
         difficulty_label:  builderOutput.difficulty_label,
         reasoning:         builderOutput.reasoning,

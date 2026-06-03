@@ -28,6 +28,8 @@ export default function PerfilPage() {
   const [notifTraining, setNotifTraining] = useState(true);
   const [notifChallenge, setNotifChallenge] = useState(true);
   const [notifLevel, setNotifLevel] = useState(true);
+  const [limitations, setLimitations] = useState<string[]>([]);
+  const [availableEquipment, setAvailableEquipment] = useState<string[]>(['barbell','dumbbell','machine','cable','bodyweight']);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -58,6 +60,8 @@ export default function PerfilPage() {
         });
         // Carregar preferências persistidas
         setShowInRanking((prof as any).show_in_ranking ?? true);
+        setLimitations((prof as any).limitations ?? []);
+        setAvailableEquipment((prof as any).available_equipment ?? ['barbell','dumbbell','machine','cable','bodyweight']);
         setNotifTraining((prof as any).notif_training ?? true);
         setNotifChallenge((prof as any).notif_challenge ?? true);
         setNotifLevel((prof as any).notif_level ?? true);
@@ -84,6 +88,8 @@ export default function PerfilPage() {
       weekly_frequency: parseInt(form.weekly_frequency),
       meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : 3,
       show_in_ranking: showInRanking,
+      limitations: limitations,
+      available_equipment: availableEquipment,
       notif_training: notifTraining,
       notif_challenge: notifChallenge,
       notif_level: notifLevel,
@@ -242,6 +248,62 @@ export default function PerfilPage() {
           <Save className="h-4 w-4" />
           {saving ? 'Salvando…' : 'Salvar Perfil'}
         </Button>
+      </div>
+
+      {/* Limitações Físicas */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-zinc-100 flex items-center gap-2">⚠️ Limitações Físicas</h2>
+          <p className="text-xs text-zinc-500 mt-1">O Motor EDN V3.1 evitará exercícios de risco para estas regiões e fará substituições automáticas.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { id: 'knee',             label: 'Dor no joelho' },
+            { id: 'lower_back',       label: 'Dor lombar' },
+            { id: 'shoulder',         label: 'Dor no ombro' },
+            { id: 'wrist',            label: 'Dor no punho' },
+            { id: 'hip',              label: 'Dor no quadril' },
+            { id: 'reduced_mobility', label: 'Mobilidade reduzida' },
+          ] as { id: string; label: string }[]).map(({ id, label }) => {
+            const active = limitations.includes(id);
+            return (
+              <button key={id} type="button"
+                onClick={() => setLimitations(prev => active ? prev.filter(l => l !== id) : [...prev, id])}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${active ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'}`}>
+                <span>{active ? '✓' : '○'}</span>{label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Equipamentos Disponíveis */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-zinc-100">🏋️ Equipamentos Disponíveis</h2>
+          <p className="text-xs text-zinc-500 mt-1">O Motor V3.1 priorizará exercícios com o que você tem acesso.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {([
+            { id: 'barbell',       label: 'Barra' },
+            { id: 'dumbbell',      label: 'Halter' },
+            { id: 'machine',       label: 'Máquinas' },
+            { id: 'cable',         label: 'Cabo/Polia' },
+            { id: 'bodyweight',    label: 'Peso Corporal' },
+            { id: 'smith_machine', label: 'Smith' },
+            { id: 'kettlebell',    label: 'Kettlebell' },
+            { id: 'bands',         label: 'Elásticos' },
+          ] as { id: string; label: string }[]).map(({ id, label }) => {
+            const active = availableEquipment.includes(id);
+            return (
+              <button key={id} type="button"
+                onClick={() => setAvailableEquipment(prev => active ? prev.filter(e => e !== id) : [...prev, id])}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${active ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-zinc-700 bg-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Privacidade */}
