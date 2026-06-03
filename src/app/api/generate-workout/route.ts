@@ -192,8 +192,31 @@ export async function POST(req: NextRequest) {
       effectiveObjective,
     });
 
-    // ─── Exercise catalog ──────────────────────────────────────────────────────
-    const exerciseCatalog = (exercises as any[])
+    // ─── Exercise catalog (limitado a 45 — prompt compacto para evitar timeout) ──
+    const PRIORITY_MUSCLES: Record<string, number> = {
+      chest: 1, back: 1, legs: 1, shoulders: 2, glutes: 1,
+      biceps: 3, triceps: 3, abs: 3, calves: 4, forearms: 5,
+    };
+    const goalMuscles: Record<string, string[]> = {
+      weight_loss:   ['back','chest','legs','shoulders','abs','glutes'],
+      hypertrophy:   ['back','chest','legs','shoulders','biceps','triceps'],
+      definition:    ['back','chest','legs','shoulders','abs'],
+      strength:      ['back','chest','legs','shoulders'],
+      recomposition: ['back','chest','legs','glutes','shoulders','abs'],
+    };
+    const targetGoal = effectiveObjective ?? mainGoal ?? 'hypertrophy';
+    const priorityGroups = new Set(goalMuscles[targetGoal] ?? []);
+
+    const sortedExercises = [...(exercises as any[])].sort((a, b) => {
+      const pa = priorityGroups.has(a.muscle_group) ? 0 : 1;
+      const pb = priorityGroups.has(b.muscle_group) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      const ma = PRIORITY_MUSCLES[a.muscle_group] ?? 3;
+      const mb = PRIORITY_MUSCLES[b.muscle_group] ?? 3;
+      return ma - mb;
+    }).slice(0, 45);  // max 45 exercícios — mantém prompt < 2500 tokens de input
+
+    const exerciseCatalog = sortedExercises
       .map((ex: any) => `${ex.id}|${ex.name}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
       .join('\n');
 
@@ -206,9 +229,7 @@ Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s;
 IDs disponíveis (id|nome, [ADV]=avançado):
 ${exerciseCatalog}
 JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tríceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
-${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.
-
-${blueprintSnippetV5}`;
+${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
 
     // ─── AI call: complete() é mais estável que stream() para geração de JSON ────
     // stream() pode travar em cold starts no Vercel; complete() é um POST simples
