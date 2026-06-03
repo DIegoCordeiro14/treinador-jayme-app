@@ -27,7 +27,7 @@ export async function POST(_req: NextRequest) {
     if (!sessions || sessions.length === 0) {
       return Response.json({
         analysis: {
-          summary: 'Nenhuma sessao de cardio registrada ainda. Comece a correr para receber analises personalizadas do Coach Jayme!',
+          summary: 'Nenhuma sessao de cardio registrada ainda. Comece a correr para receber analises personalizadas do Coach EDN!',
           insights: [],
           recommendation: 'Registre sua primeira corrida para comecar a acompanhar sua evolucao.',
           fatigue_level: 'normal',

@@ -84,7 +84,7 @@ export default function LoginPage() {
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 mb-3">
           <Zap className="h-6 w-6 text-white" />
         </div>
-        <h1 className="text-xl font-bold text-zinc-100">Treinador Jayme</h1>
+        <h1 className="text-xl font-bold text-zinc-100">Coach EDN</h1>
         <p className="text-sm text-zinc-500 mt-1">Entre na sua conta</p>
       </div>
 

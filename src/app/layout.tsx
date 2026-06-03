@@ -13,19 +13,19 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Treinador Jayme",
-    template: "%s | Treinador Jayme",
+    default: "Coach EDN",
+    template: "%s | Coach EDN",
   },
   description:
     "Plataforma de treinamento natural baseada na metodologia da Escola dos Naturais (EDN). Progressao inteligente, IA coach e tracking completo.",
   keywords: ["fisiculturismo natural", "treino", "musculacao", "EDN", "Escola dos Naturais", "Jayme De Lamadrid"],
-  authors: [{ name: "Treinador Jayme" }],
-  creator: "Treinador Jayme",
+  authors: [{ name: "Coach EDN" }],
+  creator: "Coach EDN",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Treinador Jayme",
+    title: "Coach EDN",
     startupImage: [
       { url: "/icons/icon-512.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
       { url: "/icons/icon-512.png", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" },
@@ -43,10 +43,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    title: "Treinador Jayme",
+    title: "Coach EDN",
     description:
       "Plataforma de treinamento natural baseada na metodologia EDN. Progressao inteligente, IA coach e tracking completo.",
-    siteName: "Treinador Jayme",
+    siteName: "Coach EDN",
   },
 };
 

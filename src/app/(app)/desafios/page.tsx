@@ -244,7 +244,7 @@ export default function DesafiosPage() {
         <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 p-10 text-center">
           <Star className="h-10 w-10 text-zinc-600 mx-auto mb-3" />
           <p className="font-semibold text-zinc-300">Nenhum desafio pessoal</p>
-          <p className="text-sm text-zinc-500 mt-1">Clique em "Gerar Desafios" para o Jayme criar metas para o seu nivel</p>
+          <p className="text-sm text-zinc-500 mt-1">Clique em "Gerar Desafios" para o Coach EDN criar metas para o seu nivel</p>
         </div>
       )}
 

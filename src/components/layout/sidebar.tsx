@@ -88,7 +88,7 @@ export function Sidebar({ profile }: SidebarProps) {
         </div>
         <div>
           <p className="text-sm font-bold text-zinc-100 leading-none">Treinador</p>
-          <p className="text-xs text-blue-400 font-semibold mt-0.5">Jayme EDN</p>
+          <p className="text-xs text-blue-400 font-semibold mt-0.5">Coach EDN</p>
         </div>
       </div>
 

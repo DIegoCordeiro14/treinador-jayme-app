@@ -538,7 +538,7 @@ export default function ExecutarPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600/15">
                   <Bot className="h-3.5 w-3.5 text-blue-400" />
                 </div>
-                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-widest">Jayme diz</span>
+                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-widest">Coach EDN diz</span>
               </div>
               {st.tipLoading ? (
                 <div className="flex items-center gap-2 text-zinc-500">

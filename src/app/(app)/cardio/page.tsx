@@ -354,7 +354,7 @@ export default function CardioPage() {
             ))}
           </div>
 
-          {/* Coach Jayme IA */}
+          {/* Coach EDN IA */}
           <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -362,7 +362,7 @@ export default function CardioPage() {
                   <Sparkles className="h-5 w-5 text-orange-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-zinc-100">Coach Jayme</p>
+                  <p className="text-sm font-semibold text-zinc-100">Coach EDN</p>
                   <p className="text-[10px] text-zinc-500">Analise inteligente do seu condicionamento</p>
                 </div>
               </div>

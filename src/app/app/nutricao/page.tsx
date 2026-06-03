@@ -440,7 +440,7 @@ export default function NutricaoPage() {
               {/* Key tips */}
               {plan.key_tips?.length > 0 && (
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Dicas do Jayme</p>
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Dicas do Coach EDN</p>
                   {plan.key_tips.map((tip, i) => (
                     <div key={i} className="flex gap-3">
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 text-[11px] font-bold">{i + 1}</div>

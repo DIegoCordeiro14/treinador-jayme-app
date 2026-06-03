@@ -218,7 +218,7 @@ export default async function DashboardPage() {
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
 
-      {/* Coach Jayme proativo */}
+      {/* Coach EDN proativo */}
       <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20">

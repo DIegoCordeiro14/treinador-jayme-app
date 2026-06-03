@@ -2,7 +2,7 @@
  * useLatestMetrics — Body Metrics Source of Truth
  *
  * Fonte única de dados corporais consumida por:
- *   Dashboard · Nutrição · IA Treinador Jayme · Cárdio · Perfil
+ *   Dashboard · Nutrição · IA Coach EDN · Cárdio · Perfil
  *
  * A edição ocorre APENAS em Evolução → Bioimpedância.
  * Todos os demais módulos apenas leem deste hook.

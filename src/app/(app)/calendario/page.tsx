@@ -379,7 +379,7 @@ export default function CalendarioPage() {
           <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
             <Sparkles className="h-4 w-4 text-blue-400" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-zinc-100">Plano gerado pelo Jayme</p>
+              <p className="text-sm font-semibold text-zinc-100">Plano gerado pelo Coach EDN</p>
               {cfg.reasoning && <p className="text-xs text-zinc-500 mt-0.5">{cfg.reasoning}</p>}
             </div>
           </div>
@@ -507,7 +507,7 @@ export default function CalendarioPage() {
             <div className="rounded-xl border border-zinc-800 bg-zinc-800/50 p-3 space-y-1">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-                <p className="text-xs font-medium text-zinc-300">O Jayme vai gerar</p>
+                <p className="text-xs font-medium text-zinc-300">O Coach EDN vai gerar</p>
               </div>
               <ul className="text-[11px] text-zinc-500 space-y-0.5 pl-5 list-disc">
                 <li>Distribuição dos treinos respeitando tempo de recuperação</li>

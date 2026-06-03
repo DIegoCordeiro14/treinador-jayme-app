@@ -405,7 +405,7 @@ export default function PlanDetailPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button onClick={handleAutoPopulate} loading={isGenerating} className="gap-2" variant="outline">
-              <Sparkles className="h-4 w-4 text-blue-400" />Montar com IA Jayme
+              <Sparkles className="h-4 w-4 text-blue-400" />Montar com Coach EDN
             </Button>
             <Button onClick={()=>setShowDeleteDialog(true)} variant="outline" size="icon" className="text-zinc-500 hover:text-red-400 hover:border-red-500/30">
               <Trash2 className="h-4 w-4" />
@@ -440,7 +440,7 @@ export default function PlanDetailPage() {
                     <Dumbbell className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
                     <p className="text-sm text-zinc-400 mb-3">Nenhum exercício neste treino ainda</p>
                     <Button variant="outline" size="sm" className="gap-2" onClick={handleAutoPopulate} loading={isGenerating}>
-                      <Sparkles className="h-3.5 w-3.5 text-blue-400" />Montar com IA Jayme
+                      <Sparkles className="h-3.5 w-3.5 text-blue-400" />Montar com Coach EDN
                     </Button>
                   </div>
                 ) : (
@@ -588,7 +588,7 @@ export default function PlanDetailPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* V3 Jayme Reasoning Card */}
+          {/* V3 Coach EDN Reasoning Card */}
           {builderResult && (
             <div className="rounded-xl border border-violet-500/30 bg-violet-600/5 p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">

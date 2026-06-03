@@ -12,7 +12,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shadow-glow-blue-sm">
               <Zap className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold text-zinc-100">Treinador Jayme</span>
+            <span className="font-bold text-zinc-100">Coach EDN</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login">
@@ -115,7 +115,7 @@ export default function LandingPage() {
                   <Bot className="h-6 w-6 text-blue-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-zinc-100 mb-3">
-                  Coach de IA — Jayme
+                  Coach EDN
                 </h3>
                 <p className="text-sm text-zinc-400 leading-relaxed">
                   Converse com um coach de IA treinado na metodologia EDN. Monte treinos,
@@ -237,10 +237,10 @@ export default function LandingPage() {
             <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600">
               <Zap className="h-3 w-3 text-white" />
             </div>
-            <span className="text-sm font-semibold text-zinc-400">Treinador Jayme</span>
+            <span className="text-sm font-semibold text-zinc-400">Coach EDN</span>
           </div>
           <p className="text-xs text-zinc-600">
-            © {new Date().getFullYear()} Treinador Jayme. Metodologia Escola dos Naturais (EDN).
+            © {new Date().getFullYear()} Coach EDN. Metodologia Escola dos Naturais (EDN).
           </p>
           <div className="flex items-center gap-4 text-xs text-zinc-600">
             <Link href="/login" className="hover:text-zinc-400 transition-colors">

@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `Você é o Treinador Jayme De Lamadrid, criador da Escola dos Naturais (EDN). Você está ao lado do aluno DURANTE o treino.
+const SYSTEM_PROMPT = `Você é o Coach EDN De Lamadrid, criador da Escola dos Naturais (EDN). Você está ao lado do aluno DURANTE o treino.
 
 PRINCÍPIOS QUE GUIAM TUDO:
 - "Se o seu treino melhora, o seu físico melhora."

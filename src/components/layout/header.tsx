@@ -31,7 +31,7 @@ export function Header({ profile, title, onOpenDrawer }: HeaderProps) {
             <Zap className="h-3.5 w-3.5 text-white" />
           </div>
           <span className="text-sm font-bold text-zinc-100">
-            {title ?? "Treinador Jayme"}
+            {title ?? "Coach EDN"}
           </span>
         </Link>
 

@@ -485,7 +485,7 @@ export default function TreinosPage() {
             {showV3 && (
               <div className="rounded-xl border border-zinc-700 bg-zinc-800/60 p-4 space-y-4">
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  O Motor V3 usa estes dados para personalizar split, volume, RIR e gerar o raciocínio do Jayme.
+                  O Motor V3 usa estes dados para personalizar split, volume, RIR e gerar o raciocínio do Coach EDN.
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">

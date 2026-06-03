@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const PRIMARY_ITEMS = [
   { href: "/app/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
-  { href: "/app/ia", label: "Jayme IA", icon: Bot },
+  { href: "/app/ia", label: "Coach EDN", icon: Bot },
   { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
   { href: "/app/perfil", label: "Perfil", icon: User },
 ];

@@ -645,7 +645,7 @@ export default function EvolucaoPage() {
               <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-purple-400 shrink-0" />
-                  <p className="text-xs font-semibold text-purple-400 uppercase tracking-wide">Dica EDN do Jayme</p>
+                  <p className="text-xs font-semibold text-purple-400 uppercase tracking-wide">Dica do Coach EDN</p>
                 </div>
                 <p className="text-sm text-zinc-300 leading-relaxed italic">"{report.edn_tip}"</p>
               </div>
@@ -656,7 +656,7 @@ export default function EvolucaoPage() {
             <div className="rounded-xl border border-dashed border-zinc-700 p-10 text-center">
               <FileText className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
               <p className="text-sm text-zinc-400 mb-1">Nenhum relatorio gerado</p>
-              <p className="text-xs text-zinc-600">O Jayme vai analisar todos os seus treinos, cardio e biometria da semana</p>
+              <p className="text-xs text-zinc-600">O Coach EDN vai analisar todos os seus treinos, cardio e biometria da semana</p>
             </div>
           )}
         </TabsContent>
