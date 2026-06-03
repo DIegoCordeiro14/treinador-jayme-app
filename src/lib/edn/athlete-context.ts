@@ -281,13 +281,15 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
   let recoveryScore = 80;
   if (daysSinceLast === 0) recoveryScore = 60;
   else if (daysSinceLast === 1) recoveryScore = 90;
+  else if (daysSinceLast >= 100) recoveryScore = 85;  // novo usuário — totalmente descansado
   else if (daysSinceLast >= 4) recoveryScore = Math.max(40, 90 - (daysSinceLast - 1) * 8);
   if (avgRir !== null && avgRir < 1) recoveryScore = Math.max(40, recoveryScore - 15);
   const deloadRec = (!!deloads) || (allSessions.length > 12 && !hasPrLast4Weeks);
 
   // ── Scores ───────────────────────────────────────────────────────────────────
   const consistencyScore = adherenceTrain;
-  const progressionScore = hasPrLast4Weeks ? 85 : Math.max(20, 70 - daysSinceLast * 3);
+  const effectiveDays = daysSinceLast >= 100 ? 0 : daysSinceLast; // novo usuário = sem penalidade de dias
+  const progressionScore = hasPrLast4Weeks ? 85 : Math.max(20, 70 - effectiveDays * 3);
   const nutritionScore   = Math.max(20, nutritionAdherence);
   const cardioScore      = cardioAdherence;
   const overallScore     = Math.round(
@@ -417,7 +419,7 @@ export function serializeAthleteContext(ctx: AthleteContext): string {
     ``,
     `[TREINO]`,
     `Sessões 28d: ${t.sessionsLast28}/${t.plannedSessionsLast28} (${t.adherencePct}% aderência)`,
-    `Último treino: há ${t.daysSinceLastWorkout === 0 ? 'hoje' : t.daysSinceLastWorkout + ' dia(s)'}`,
+    `Último treino: ${t.daysSinceLastWorkout === 0 ? 'hoje' : t.daysSinceLastWorkout >= 100 ? 'nunca (primeiro treino — novo usuário)' : 'há ' + t.daysSinceLastWorkout + ' dia(s)'}`,
     `Volume semana: ${t.weeklyVolumeKg}kg | semana anterior: ${t.prevWeekVolumeKg}kg${t.volumeDeltaPct !== null ? ` (${t.volumeDeltaPct > 0 ? '+' : ''}${t.volumeDeltaPct}%)` : ''}`,
     t.avgRir !== null ? `RIR médio: ${t.avgRir} ${t.avgRir < 1 ? '(MUITO PRÓXIMO DA FALHA)' : ''}` : null,
     t.plateauDetected ? `⚠️ PLATÔ DE PESO DETECTADO (14d sem variação significativa)` : null,

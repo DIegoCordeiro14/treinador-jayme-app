@@ -25,8 +25,8 @@ interface BriefingResponse {
 // Cache por userId + date (TTL: até meia-noite)
 const cache = new Map<string, { data: BriefingResponse; exp: number }>();
 
-function cacheKey(userId: string): string {
-  return `${userId}:${new Date().toISOString().slice(0, 10)}`;
+function cacheKey(userId: string, neverTrained = false): string {
+  return `${userId}:${new Date().toISOString().slice(0, 10)}:${neverTrained ? 'new' : 'active'}`;
 }
 
 export async function GET(_req: NextRequest) {
@@ -105,7 +105,7 @@ export async function GET(_req: NextRequest) {
 Gere um briefing diário COMPACTO em JSON. Use os dados reais acima. Responda APENAS com JSON válido:
 {"greeting":"Bom dia/tarde/noite [nome]","highlights":["frase1","frase2","frase3"],"todayAction":"ação específica para hoje","alert":"aviso urgente ou null"}
 
-Regras: greeting personalizado com hora, highlights com dados numéricos reais, todayAction com treino ou recuperação específico, alert apenas se platô/deload/urgência real.`;
+Regras: greeting personalizado com hora, highlights com dados numéricos reais, todayAction com treino ou recuperação específico, alert apenas se platô/deload/urgência real. Se o usuário nunca treinou (primeiro treino), seja encorajador — NÃO mencione "999 dias" ou consistência zero. Foco em boas-vindas e próximos passos.`;
 
     let raw = '';
     for await (const chunk of provider.stream({ messages: [{ role: 'user', content: prompt }], systemPrompt: 'Você gera briefings de atletas. Responda SOMENTE JSON válido, sem markdown.', maxTokens: 400 })) {
