@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
-import { prescribeWorkoutBlueprint, blueprintToPromptSnippet } from "@/lib/edn/specialization";
-import { getCachedAthleteContext } from "@/lib/edn/athlete-context";
 import {
   getEffectiveObjective,
   getSexMuscleOrder,
@@ -28,9 +26,23 @@ export type AIWorkoutDay = {
   }>;
 };
 
+// ─── Módulo 0 — label helpers ────────────────────────────────────────────────
+const MUSCLE_PT: Record<string, string> = {
+  chest: 'Peito', back: 'Costas', shoulders: 'Ombros', biceps: 'Bíceps',
+  triceps: 'Tríceps', legs: 'Pernas', glutes: 'Glúteos', abs: 'Abdômen',
+  calves: 'Panturrilha', forearms: 'Antebraço', full_body: 'Corpo Todo',
+};
+const SLEEP_PT: Record<string, string> = { lt_5h: '<5h', '5_6h': '5-6h', '7_8h': '7-8h', gt_8h: '>8h' };
+const STRESS_PT: Record<string, string> = { low: 'baixo', medium: 'médio', high: 'alto' };
+const WORK_PT: Record<string, string> = { sedentary: 'sedentário', moderate: 'moderadamente ativo', active: 'muito ativo' };
+const CARDIO_PT: Record<string, string> = { none: 'nenhum', '1_2x': '1-2x/sem', '3_4x': '3-4x/sem', '5x_plus': '5x+/sem' };
+const LOCATION_PT: Record<string, string> = { full_gym: 'academia completa', basic_gym: 'academia básica', condo: 'condomínio', home: 'casa', bodyweight: 'apenas peso corporal' };
+const YEARS_PT: Record<string, string> = { lt_6m: '<6 meses', '6m_2y': '6m-2anos', '2y_5y': '2-5anos', gt_5y: '>5anos' };
+const LIMITATION_PT: Record<string, string> = { shoulder: 'ombro', knee: 'joelho', lower_back: 'lombar', hip: 'quadril', elbow: 'cotovelo', wrist: 'punho' };
+
 // ─── POST /api/generate-workout ───────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  let whyText = ''; // declared outside try so catch can always return it
+  let whyText = "";
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -50,11 +62,21 @@ export async function POST(req: NextRequest) {
 
     const provider = getDefaultProvider();
 
-    // ─── Fetch profile (sex, main_goal, aesthetic_goal) ───────────────────────
+    // ─── Módulo 0: Fetch FULL anamnese profile + bioimpedance ─────────────────
     const [{ data: profileData }, { data: bioData }] = await Promise.all([
       supabase
         .from('profiles')
-        .select('gender, main_goal, aesthetic_goal, limitations, available_equipment')
+        .select(`gender, age, weight_kg, height_cm, main_goal, aesthetic_goal,
+          priority_muscle_1, priority_muscle_2,
+          experience_level, training_years, has_periodization_exp, knows_rir,
+          has_used_top_set, has_used_back_off, has_used_deload,
+          weekly_frequency, session_duration_min, preferred_time,
+          training_location, available_equipment,
+          sleep_hours, sleep_quality, stress_level, work_type,
+          cardio_frequency, cardio_types,
+          limitations, limitation_description,
+          favorite_exercises, disliked_exercises, forbidden_exercises,
+          edn_phase, progression_potential, recommended_complexity, profile_completion_pct`)
         .eq('id', user.id)
         .maybeSingle(),
       supabase
@@ -66,21 +88,34 @@ export async function POST(req: NextRequest) {
         .maybeSingle(),
     ]);
 
+    // ─── Módulo 0: Gate — anamnese mínima de 80% ──────────────────────────────
+    const completionPct = profileData?.profile_completion_pct ?? 0;
+    if (completionPct < 80) {
+      return Response.json({
+        error: "profile_incomplete",
+        message: `Perfil ${completionPct}% completo. O Coach EDN precisa de pelo menos 80% da anamnese preenchida para prescrever um treino personalizado. Complete seu perfil.`,
+        completionPct,
+      }, { status: 412 });
+    }
+
     // ─── Resolve sex ──────────────────────────────────────────────────────────
     const gender = profileData?.gender ?? null;
     const sex: SexType | null = gender === 'male' || gender === 'female' ? gender : null;
     const mainGoal  = profileData?.main_goal ?? goal ?? 'hypertrophy';
     const aestheticGoal = profileData?.aesthetic_goal ?? null;
+    const effectiveExperience = profileData?.experience_level ?? experienceLevel ?? 'beginner';
 
     // ─── Biometrics (bioimpedance > manual) ───────────────────────────────────
-    const effectiveWeight  = bioData?.weight_kg  ?? weightKg;
+    const effectiveWeight  = bioData?.weight_kg  ?? profileData?.weight_kg ?? weightKg;
+    const effectiveHeight  = profileData?.height_cm ?? heightCm;
     const effectiveBF      = bioData?.body_fat_pct ?? bodyFatPct;
-    const effectiveBmi     = bioData?.bmi ?? (weightKg && heightCm ? parseFloat((weightKg / Math.pow(heightCm / 100, 2)).toFixed(1)) : null);
+    const effectiveBmi     = bioData?.bmi ?? (effectiveWeight && effectiveHeight ? parseFloat((effectiveWeight / Math.pow(effectiveHeight / 100, 2)).toFixed(1)) : null);
     const muscleMassKg     = bioData?.skeletal_muscle_mass_kg ?? null;
 
     const biometricCtx = [
+      profileData?.age ? `idade=${profileData.age}` : null,
       effectiveWeight ? `peso=${effectiveWeight}kg`  : null,
-      heightCm        ? `altura=${heightCm}cm`        : null,
+      effectiveHeight ? `altura=${effectiveHeight}cm` : null,
       effectiveBmi    ? `IMC=${effectiveBmi}`          : null,
       effectiveBF     ? `BF=${effectiveBF}%`           : null,
     ].filter(Boolean).join(' ') || 'n/a';
@@ -128,6 +163,80 @@ export async function POST(req: NextRequest) {
       ? `\nBF override: usuário declarou ${mainGoal} mas BF=${effectiveBF}% exige recomposição — priorize multiarticulares metabólicos + menor descanso (45-60s).`
       : '';
 
+    // ─── Módulo 0 BLOCO 3: Prioridades musculares ─────────────────────────────
+    const priorities = [profileData?.priority_muscle_1, profileData?.priority_muscle_2].filter(Boolean) as string[];
+    const prioritiesStr = priorities.length > 0
+      ? `\nPRIORIDADES MUSCULARES do atleta: ${priorities.map((m, i) => `${i + 1}º ${MUSCLE_PT[m] ?? m}`).join(', ')} — estes grupos recebem MAIOR frequência (2x/sem se possível), MAIOR volume (+30%) e prioridade na progressão. Posicione-os no início das sessões.`
+      : '';
+
+    // ─── Módulo 0 BLOCO 4: Experiência real ───────────────────────────────────
+    const expParts: string[] = [];
+    if (profileData?.training_years) expParts.push(`tempo_treino=${YEARS_PT[profileData.training_years] ?? profileData.training_years}`);
+    if (profileData?.has_periodization_exp != null) expParts.push(`periodização=${profileData.has_periodization_exp ? 'sim' : 'não'}`);
+    if (profileData?.knows_rir != null) expParts.push(`conhece_RIR=${profileData.knows_rir ? 'sim' : 'não'}`);
+    if (profileData?.has_used_top_set) expParts.push('já_usou_top_set');
+    if (profileData?.has_used_back_off) expParts.push('já_usou_back_off');
+    if (profileData?.has_used_deload) expParts.push('já_usou_deload');
+    const knowsRir = profileData?.knows_rir ?? false;
+    const expStr = expParts.length > 0
+      ? `\nExperiência real: ${expParts.join(' ')}.${!knowsRir ? ' Atleta NÃO conhece RIR — escreva notes em linguagem simples ("pare 2-3 reps antes da falha") em vez de "RIR 2-3".' : ''}`
+      : '';
+
+    // ─── Módulo 0 BLOCO 5: Disponibilidade (tempo de sessão) ──────────────────
+    const sessionMin = profileData?.session_duration_min ?? null;
+    let maxExPerDay: number | null = null;
+    if (sessionMin) {
+      maxExPerDay = sessionMin <= 30 ? 4 : sessionMin <= 45 ? 5 : sessionMin <= 60 ? 6 : sessionMin <= 75 ? 7 : 8;
+    }
+    const availabilityStr = sessionMin
+      ? `\nDisponibilidade: ${sessionMin}min/sessão${profileData?.preferred_time ? ` (${profileData.preferred_time === 'morning' ? 'manhã' : profileData.preferred_time === 'afternoon' ? 'tarde' : 'noite'})` : ''} — MÁXIMO ${maxExPerDay} exercícios/dia para caber no tempo. ${sessionMin <= 45 ? 'Priorize compostos e considere bi-sets nos isolados.' : ''}`
+      : '';
+
+    // ─── Módulo 0 BLOCO 6: Estrutura disponível ───────────────────────────────
+    const equipment = (profileData?.available_equipment as string[] | null) ?? [];
+    const structureStr = profileData?.training_location || equipment.length > 0
+      ? `\nEstrutura: local=${LOCATION_PT[profileData?.training_location ?? ''] ?? 'n/a'}${equipment.length > 0 ? ` equipamentos=[${equipment.join(',')}]` : ''} — use APENAS exercícios compatíveis com os equipamentos disponíveis.`
+      : '';
+
+    // ─── Módulo 0 BLOCO 7: Recovery profile ───────────────────────────────────
+    const recoveryParts: string[] = [];
+    if (profileData?.sleep_hours) recoveryParts.push(`sono=${SLEEP_PT[profileData.sleep_hours] ?? profileData.sleep_hours}`);
+    if (profileData?.sleep_quality) recoveryParts.push(`qualidade_sono=${profileData.sleep_quality}`);
+    if (profileData?.stress_level) recoveryParts.push(`estresse=${STRESS_PT[profileData.stress_level] ?? profileData.stress_level}`);
+    if (profileData?.work_type) recoveryParts.push(`trabalho=${WORK_PT[profileData.work_type] ?? profileData.work_type}`);
+    const poorRecovery = profileData?.sleep_hours === 'lt_5h' || profileData?.stress_level === 'high' || profileData?.sleep_quality === 'poor';
+    const recoveryStr = recoveryParts.length > 0
+      ? `\nRecovery profile: ${recoveryParts.join(' ')}.${poorRecovery ? ' RECUPERAÇÃO COMPROMETIDA — reduza volume total em ~20%, evite falha concêntrica, aumente descanso entre séries e distribua grupos grandes em dias não consecutivos.' : ''}`
+      : '';
+
+    // ─── Módulo 0 BLOCO 8: Cardio atual ──────────────────────────────────────
+    const cardioTypes = (profileData?.cardio_types as string[] | null) ?? [];
+    const cardioStr = profileData?.cardio_frequency
+      ? `\nCardio atual: ${CARDIO_PT[profileData.cardio_frequency] ?? profileData.cardio_frequency}${cardioTypes.length > 0 ? ` (${cardioTypes.join(',')})` : ''} — considere a fadiga sistêmica do cardio ao distribuir volume de pernas.`
+      : '';
+
+    // ─── Módulo 0 BLOCO 9: Limitações ────────────────────────────────────────
+    const limitations = (profileData?.limitations as string[] | null) ?? [];
+    const limitationStr = limitations.length > 0 || profileData?.limitation_description
+      ? `\nLIMITAÇÕES FÍSICAS: ${limitations.map((l) => LIMITATION_PT[l] ?? l).join(', ') || 'ver descrição'}${profileData?.limitation_description ? ` — "${profileData.limitation_description}"` : ''}. EVITE exercícios que sobrecarreguem essas articulações; prefira máquinas/variações seguras e anote alternativas nas notes.`
+      : '';
+
+    // ─── Módulo 0 BLOCO 10: Preferências (proibidos filtrados do catálogo) ────
+    const forbiddenIds = new Set(((profileData?.forbidden_exercises as string[] | null) ?? []));
+    const dislikedIds = new Set(((profileData?.disliked_exercises as string[] | null) ?? []));
+    const favoriteIds = new Set(((profileData?.favorite_exercises as string[] | null) ?? []));
+    const allowedExercises = (exercises as any[]).filter((ex: any) => !forbiddenIds.has(ex.id));
+    const favoriteNames = allowedExercises.filter((ex: any) => favoriteIds.has(ex.id)).map((ex: any) => ex.name);
+    const dislikedNames = allowedExercises.filter((ex: any) => dislikedIds.has(ex.id)).map((ex: any) => ex.name);
+    const preferencesStr = (favoriteNames.length > 0 || dislikedNames.length > 0)
+      ? `\nPreferências: ${favoriteNames.length > 0 ? `FAVORITOS (incluir quando coerente): ${favoriteNames.slice(0, 8).join(', ')}. ` : ''}${dislikedNames.length > 0 ? `NÃO GOSTA (usar somente se não houver alternativa): ${dislikedNames.slice(0, 8).join(', ')}.` : ''}`
+      : '';
+
+    // ─── Módulo 0 BLOCO 11: Avaliação automática EDN ──────────────────────────
+    const ednEvalStr = profileData?.edn_phase
+      ? `\nAvaliação EDN: fase=${profileData.edn_phase} potencial_progressão=${profileData.progression_potential ?? 'n/a'}/100 complexidade_recomendada=${profileData.recommended_complexity ?? 'n/a'} — alinhe a estrutura do plano a esta fase.`
+      : '';
+
     // ─── EDN bioimpedance-specific rules ──────────────────────────────────────
     const bioRules: string[] = [];
     if (bioData?.visceral_fat_level && bioData.visceral_fat_level >= 10)
@@ -160,136 +269,69 @@ export async function POST(req: NextRequest) {
       intermediate: 'Intermediário: [ADV]opcionais; 4séries; RIR 2-3; 5-6ex/dia; notes="RIR atual"',
       advanced:     'Avançado(atleta natural profissional): todos[ADV] prioritários; compostos=TopSet+2BackOffs(−10%carga)=5-6séries totais; isolados=4-5séries; RIR 0-2; 6-8ex/dia; descanso compostos=120-180s; descanso isolados=60-90s; notes="Top Set RIR[n] + 2 Back-offs −10%"',
     };
-    const levelRule = levelRulesMap[experienceLevel] ?? levelRulesMap['beginner'];
-
-    // ─── V5.0: Specialization Blueprint ──────────────────────────────────────────
-    // 3s timeout — se demorar mais, prossegue sem o contexto V5
-    const athleteCtxV5 = await Promise.race([
-      getCachedAthleteContext(user.id),
-      new Promise<null>(r => setTimeout(() => r(null), 3000)),
-    ]).catch(() => null);
-    const blueprintV5 = prescribeWorkoutBlueprint({
-      gender: (athleteCtxV5?.goals.gender ?? sex ?? null) as any,
-      primaryGoal: (effectiveObjective ?? mainGoal ?? 'hypertrophy') as any,
-      aestheticGoal: aestheticGoal ?? null,
-      weakPoint: (athleteCtxV5?.goals.weakPoint ?? null) as any,
-      bodyFatPct: effectiveBF ?? null,
-      experience: (experienceLevel ?? 'intermediate') as any,
-      daysPerWeek: daysPerWeek ?? dayCount ?? 3,
-      bmi: effectiveBmi ?? null,
-    });
-    const blueprintSnippetV5 = blueprintToPromptSnippet(blueprintV5);
+    // Módulo 0: recommended_complexity da avaliação EDN sobrepõe o nível declarado
+    const complexityToLevel: Record<string, string> = { basic: 'beginner', intermediate: 'intermediate', advanced: 'advanced' };
+    const effectiveLevelKey = profileData?.recommended_complexity
+      ? complexityToLevel[profileData.recommended_complexity] ?? effectiveExperience
+      : effectiveExperience;
+    const levelRule = levelRulesMap[effectiveLevelKey] ?? levelRulesMap['beginner'];
 
     // ─── V3.2: Build "Por que este treino?" rationale (pure logic, always works) ─
     whyText = buildWorkoutRationale({
       sex,
       mainGoal,
       aestheticGoal,
-      experience: (experienceLevel ?? 'beginner') as ExperienceLevel,
+      experience: (effectiveLevelKey ?? 'beginner') as ExperienceLevel,
       bodyFatPct: effectiveBF ?? null,
       muscleMassKg,
       daysPerWeek,
       effectiveObjective,
     });
 
-    // ─── Exercise catalog (limitado a 45 — prompt compacto para evitar timeout) ──
-    const PRIORITY_MUSCLES: Record<string, number> = {
-      chest: 1, back: 1, legs: 1, shoulders: 2, glutes: 1,
-      biceps: 3, triceps: 3, abs: 3, calves: 4, forearms: 5,
-    };
-    const goalMuscles: Record<string, string[]> = {
-      weight_loss:   ['back','chest','legs','shoulders','abs','glutes'],
-      hypertrophy:   ['back','chest','legs','shoulders','biceps','triceps'],
-      definition:    ['back','chest','legs','shoulders','abs'],
-      strength:      ['back','chest','legs','shoulders'],
-      recomposition: ['back','chest','legs','glutes','shoulders','abs'],
-    };
-    const targetGoal = effectiveObjective ?? mainGoal ?? 'hypertrophy';
-    const priorityGroups = new Set(goalMuscles[targetGoal] ?? []);
-
-    const sortedExercises = [...(exercises as any[])].sort((a, b) => {
-      const pa = priorityGroups.has(a.muscle_group) ? 0 : 1;
-      const pb = priorityGroups.has(b.muscle_group) ? 0 : 1;
-      if (pa !== pb) return pa - pb;
-      const ma = PRIORITY_MUSCLES[a.muscle_group] ?? 3;
-      const mb = PRIORITY_MUSCLES[b.muscle_group] ?? 3;
-      return ma - mb;
-    }).slice(0, 45);  // max 45 exercícios — mantém prompt < 2500 tokens de input
-
-    const exerciseCatalog = sortedExercises
+    // ─── Exercise catalog (já sem os PROIBIDOS — nunca sugeridos) ──────────────
+    const exerciseCatalog = allowedExercises
       .map((ex: any) => `${ex.id}|${ex.name}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
       .join('\n');
 
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[experienceLevel] ?? experienceLevel}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
 
-Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; 4-7ex/dia.${bioRulesStr}
+Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 
 IDs disponíveis (id|nome, [ADV]=avançado):
 ${exerciseCatalog}
 JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tríceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
 ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
 
-    // ─── AI call: complete() é mais estável que stream() para geração de JSON ────
-    // stream() pode travar em cold starts no Vercel; complete() é um POST simples
+    // ─── AI call ──────────────────────────────────────────────────────────────
     let fullText = "";
-    // System prompt focado em geração JSON — não usar EDN_SYSTEM_PROMPT (persona de coach gera texto extra)
-    const JSON_GENERATION_PROMPT = "Você é um gerador de planos de treino. Responda APENAS com JSON válido. Sem markdown. Sem \`\`\`json. Sem texto antes ou depois. Sua resposta começa com { e termina com }. Estrutura obrigatória: {\"days\":[{\"dayIndex\":0,\"focusLabel\":\"...\",\"exercises\":[{\"exerciseId\":\"...\",\"sets\":3,\"repsMin\":10,\"repsMax\":15,\"restSeconds\":75,\"notes\":\"...\"}]}]}";
-    const aiResult = await Promise.race([
-      provider.complete({
-        messages: [{ role: "user", content: userPrompt }],
-        systemPrompt: JSON_GENERATION_PROMPT,
-        maxTokens: 1800,  // 4 dias × 6-7 ex × UUID(36ch)+campos = ~1400-1600 tokens
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI_TIMEOUT")), 25000)
-      ),
-    ]);
-    fullText = aiResult;
+    for await (const chunk of provider.stream({
+      messages: [{ role: "user", content: userPrompt }],
+      systemPrompt: EDN_SYSTEM_PROMPT,
+      maxTokens: 2000,
+    })) {
+      if (chunk.text) fullText += chunk.text;
+    }
 
     // ─── Parse JSON ───────────────────────────────────────────────────────────
-    // Extrai o primeiro objeto JSON balanceado (evita regex greedy capturar {} em texto após o JSON)
-    function extractBalancedJSON(text: string): string | null {
-      let depth = 0, start = -1;
-      for (let i = 0; i < text.length; i++) {
-        if (text[i] === '{') { if (depth === 0) start = i; depth++; }
-        else if (text[i] === '}') { depth--; if (depth === 0 && start !== -1) return text.slice(start, i + 1); }
-      }
-      return null;
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return Response.json({ error: "AI não retornou JSON válido", raw: fullText }, { status: 422 });
     }
-    // Strip markdown code blocks que o Haiku gera mesmo com instrução "sem markdown"
-    const strippedText = fullText
-      .replace(/```json\s*/gi, '')
-      .replace(/```\s*/g, '')
-      .trim();
-    const rawJson = extractBalancedJSON(strippedText);
-    if (!rawJson) {
-      console.error("[generate-workout] sem JSON na resposta. fullText:", JSON.stringify(fullText.slice(0, 500)));
-      return Response.json({ days: [], whyText, aiError: true, error: "AI não retornou JSON" }, { status: 200 });
-    }
-    // Limpar trailing commas que o Haiku gera
-    const cleanJson = rawJson
-      .replace(/,\s*([\]\}])/g, '$1')
-      .replace(/([\[,])\s*,/g, '$1');
 
-    let parsed: any;
-    try {
-      parsed = JSON.parse(cleanJson);
-    } catch (parseErr) {
-      console.error("[generate-workout] JSON parse failed:", (parseErr as Error).message, "\nraw (300):", cleanJson.slice(0, 300));
-      return Response.json({ days: [], whyText, aiError: true, error: "JSON inválido do modelo" }, { status: 200 });
-    }
+    const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed?.days || !Array.isArray(parsed.days)) {
       return Response.json({ days: [], whyText, aiError: true, error: "Estrutura JSON inválida" }, { status: 200 });
     }
 
-    const validIds = new Set((exercises as any[]).map((ex: any) => ex.id));
+    // Validar IDs + garantir que PROIBIDOS jamais entrem no plano
+    const validIds = new Set(allowedExercises.map((ex: any) => ex.id));
     for (const day of parsed.days) {
-      day.exercises = (day.exercises ?? []).filter((ex: any) => validIds.has(ex.exerciseId));
+      day.exercises = (day.exercises ?? []).filter((ex: any) => validIds.has(ex.exerciseId) && !forbiddenIds.has(ex.exerciseId));
     }
 
-    return Response.json({ days: parsed.days, whyText: blueprintV5.whyThisPrescription || whyText, effectiveObjective });
+    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);
     // AI falhou — retornar 200 com whyText para o client mostrar o card
