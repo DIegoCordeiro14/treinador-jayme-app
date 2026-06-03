@@ -351,3 +351,183 @@ export function formatSelectionForAI(result: SelectionResult): string {
   ];
   return lines.join('\n');
 }
+
+// ── V3.2 — Sex-Based Priority Extension ──────────────────────────────────────
+
+export type SexType = 'male' | 'female';
+
+/** Muscle groups ordered by priority per sex + aesthetic goal */
+const SEX_MUSCLE_PRIORITY: Record<SexType, Record<string, string[]>> = {
+  male: {
+    // hypertrophy male: V-shape (chest, back, shoulders dominant)
+    default:         ['chest','back','shoulders','biceps','triceps','legs','glutes','abs','calves','forearms'],
+    v_shape:         ['chest','back','shoulders','biceps','triceps','legs','glutes','abs','calves','forearms'],
+    chest:           ['chest','triceps','shoulders','back','legs','biceps','abs','calves','forearms','glutes'],
+    back:            ['back','biceps','legs','chest','shoulders','abs','triceps','glutes','calves','forearms'],
+    shoulders:       ['shoulders','chest','triceps','back','biceps','abs','legs','glutes','calves','forearms'],
+    arms:            ['biceps','triceps','forearms','chest','shoulders','back','abs','legs','glutes','calves'],
+    definition_m:    ['back','chest','abs','legs','shoulders','glutes','biceps','triceps','calves','forearms'],
+    performance_m:   ['legs','back','chest','glutes','shoulders','abs','biceps','triceps','calves','forearms'],
+    // fat_loss male: multiarticular + high metabolic
+    fat_loss:        ['legs','back','chest','glutes','full_body','abs','shoulders','biceps','triceps','calves'],
+  },
+  female: {
+    // hypertrophy female: glute-dominant
+    default:         ['glutes','legs','abs','shoulders','back','chest','biceps','triceps','calves','forearms'],
+    glutes:          ['glutes','legs','abs','back','shoulders','chest','biceps','triceps','calves','forearms'],
+    legs:            ['legs','glutes','abs','back','shoulders','chest','biceps','triceps','calves','forearms'],
+    hamstrings:      ['glutes','legs','abs','back','shoulders','chest','biceps','triceps','calves','forearms'],
+    defined_waist:   ['abs','glutes','back','legs','shoulders','chest','biceps','triceps','calves','forearms'],
+    definition_f:    ['glutes','abs','legs','back','shoulders','chest','biceps','triceps','calves','forearms'],
+    performance_f:   ['legs','glutes','back','abs','chest','shoulders','biceps','triceps','calves','forearms'],
+    fat_loss:        ['glutes','legs','full_body','abs','back','chest','shoulders','biceps','triceps','calves'],
+  },
+};
+
+/** Exercises that are highest priority for female glute/posterior focus */
+const FEMALE_PRIORITY_EXERCISES = [
+  'hip thrust', 'agachamento búlgaro', 'terra romeno', 'stiff', 'leg press',
+  'step up', 'abdutora', 'coice', 'agachamento sumo', 'cadeira abdutora',
+  'extensão de quadril', 'glúteo', 'afundo', 'elevação pélvica',
+];
+
+/** Exercises that are highest priority for male upper-body focus */
+const MALE_PRIORITY_EXERCISES = [
+  'supino', 'remada', 'barra fixa', 'desenvolvimento', 'crucifixo',
+  'pulley', 'voador', 'paralela', 'rosca', 'tríceps', 'extensão',
+  'chest press', 'lat pull', 'seated row',
+];
+
+/**
+ * Returns sex-based muscle group priority order.
+ * aesthetic_goal refines the ordering within the sex.
+ */
+export function getSexMuscleOrder(sex: SexType, aestheticGoal?: string): string[] {
+  const sexMap = SEX_MUSCLE_PRIORITY[sex];
+  if (aestheticGoal && sexMap[aestheticGoal]) return sexMap[aestheticGoal];
+  return sexMap.default;
+}
+
+/**
+ * V3.2 BF Override: automatically adjusts effective goal based on body fat %.
+ * Returns the effective objective to use for exercise selection.
+ */
+export function getEffectiveObjective(
+  mainGoal: string,
+  sex: SexType | null,
+  bodyFatPct: number | null,
+): Objective {
+  if (bodyFatPct !== null && sex) {
+    if (sex === 'male'   && bodyFatPct > 25) return 'recomp';
+    if (sex === 'female' && bodyFatPct > 35) return 'recomp';
+    if (sex === 'male'   && bodyFatPct > 30) return 'weight_loss';
+    if (sex === 'female' && bodyFatPct > 40) return 'weight_loss';
+  }
+  // Map mainGoal → Objective
+  const map: Record<string, Objective> = {
+    fat_loss:      'weight_loss',
+    hypertrophy:   'hypertrophy',
+    recomposition: 'recomp',
+    performance:   'strength',
+    // legacy
+    weight_loss:   'weight_loss',
+    definition:    'definition',
+    strength:      'strength',
+  };
+  return map[mainGoal] ?? 'hypertrophy';
+}
+
+/**
+ * Builds a sex + aesthetic + BF-aware explanation for "Por que este treino?"
+ */
+export function buildWorkoutRationale(params: {
+  sex: SexType | null;
+  mainGoal: string;
+  aestheticGoal: string | null;
+  experience: ExperienceLevel;
+  bodyFatPct: number | null;
+  muscleMassKg: number | null;
+  daysPerWeek: number;
+  effectiveObjective: Objective;
+}): string {
+  const { sex, mainGoal, aestheticGoal, experience, bodyFatPct, muscleMassKg, daysPerWeek, effectiveObjective } = params;
+
+  const goalPt: Record<string, string> = {
+    fat_loss: 'Emagrecimento', hypertrophy: 'Hipertrofia',
+    recomposition: 'Recomposição Corporal', performance: 'Performance',
+    weight_loss: 'Emagrecimento', definition: 'Definição', strength: 'Força',
+  };
+  const effPt: Record<Objective, string> = {
+    hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento',
+    definition: 'Definição', strength: 'Força', recomp: 'Recomposição Corporal',
+    running: 'Performance de Corrida', health: 'Saúde Geral',
+  };
+  const expPt: Record<ExperienceLevel, string> = {
+    beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado',
+  };
+  const aestheticPt: Record<string, string> = {
+    v_shape: 'Shape em V', chest: 'Peitoral', back: 'Costas',
+    shoulders: 'Ombros', arms: 'Braços', definition_m: 'Definição',
+    performance_m: 'Performance', glutes: 'Glúteos', legs: 'Pernas',
+    hamstrings: 'Posteriores', defined_waist: 'Cintura Definida',
+    definition_f: 'Definição Geral', performance_f: 'Performance',
+  };
+
+  const lines: string[] = [];
+
+  // 1. Goal declaration
+  const effectiveOverride = effectiveObjective !== getEffectiveObjective(mainGoal, sex, null);
+  if (effectiveOverride && bodyFatPct) {
+    lines.push(`⚡ **Objetivo ajustado automaticamente**: seu percentual de gordura atual (${bodyFatPct}%) indica prioridade em **${effPt[effectiveObjective]}** antes de focar em ${goalPt[mainGoal] ?? mainGoal}.`);
+  } else {
+    lines.push(`🎯 **Objetivo Principal**: ${goalPt[mainGoal] ?? mainGoal}.`);
+  }
+
+  // 2. Sex-specific focus
+  if (sex === 'male') {
+    const focus = aestheticGoal ? (aestheticPt[aestheticGoal] ?? aestheticGoal) : 'Shape em V';
+    lines.push(`💪 **Foco masculino (${focus})**: volume concentrado em Peito, Costas e Ombros — os grupos que mais definem o físico masculino segundo a metodologia EDN.`);
+    if (effectiveObjective === 'weight_loss' || effectiveObjective === 'recomp') {
+      lines.push(`🔥 **Multiarticulares priorizados**: Agachamento, Terra, Supino e Remada garantem o maior gasto calórico mantendo força e massa muscular.`);
+    }
+  } else if (sex === 'female') {
+    const focus = aestheticGoal ? (aestheticPt[aestheticGoal] ?? aestheticGoal) : 'Glúteos';
+    lines.push(`🍑 **Foco feminino (${focus})**: priorizados Hip Thrust, Agachamento Búlgaro e Terra Romeno — os 3 maiores estímulos para glúteos e posteriores.`);
+    if (effectiveObjective === 'weight_loss' || effectiveObjective === 'recomp') {
+      lines.push(`💃 **Musculação progressiva** (não cardio excessivo): a metodologia EDN preserva massa magra enquanto emagrece, evitando o efeito "flácida".`);
+    }
+  }
+
+  // 3. Experience-based complexity
+  if (experience === 'beginner') {
+    lines.push(`📚 **Nível Iniciante**: exercícios em máquinas predominam para aprendizado motor seguro. Cargas progressivas a cada sessão.`);
+  } else if (experience === 'intermediate') {
+    lines.push(`📈 **Nível Intermediário**: mix de máquinas e livres. Progressão EDN com RIR 2-3 — o ponto ideal entre volume e recuperação para naturais.`);
+  } else {
+    lines.push(`🏆 **Nível Avançado**: Top Sets + Back-offs, Rest-Pause e Isometrias disponíveis. Exercícios livres dominam para máximo recrutamento neuromuscular.`);
+  }
+
+  // 4. BF composition insight
+  if (bodyFatPct) {
+    if (sex === 'male') {
+      if      (bodyFatPct < 12) lines.push(`📊 **Composição**: BF ${bodyFatPct}% — atleta muito seco. Foco em hipertrofia pura, recuperação máxima.`);
+      else if (bodyFatPct < 18) lines.push(`📊 **Composição**: BF ${bodyFatPct}% — zona ideal de hipertrofia controlada. Plano equilibrado entre volume e definição.`);
+      else if (bodyFatPct < 25) lines.push(`📊 **Composição**: BF ${bodyFatPct}% — recomposição corporal aplicada ao plano: déficit metabólico + preservação muscular.`);
+      else                       lines.push(`📊 **Composição**: BF ${bodyFatPct}% — prioridade de emagrecimento. Alto volume de exercícios multiarticulares + cardio complementar recomendado.`);
+    } else {
+      if      (bodyFatPct < 20) lines.push(`📊 **Composição**: BF ${bodyFatPct}% — atleta definida. Foco em hipertrofia de glúteos e posteriores.`);
+      else if (bodyFatPct < 30) lines.push(`📊 **Composição**: BF ${bodyFatPct}% — zona de hipertrofia controlada. Plano equilibrado entre volume glúteo e condicionamento.`);
+      else if (bodyFatPct < 35) lines.push(`📊 **Composição**: BF ${bodyFatPct}% — recomposição corporal: musculação progressiva com déficit calórico suave.`);
+      else                       lines.push(`📊 **Composição**: BF ${bodyFatPct}% — prioridade de emagrecimento com preservação muscular máxima. Cardio complementar recomendado.`);
+    }
+  }
+
+  // 5. Frequency insight
+  const freqTip =
+    daysPerWeek <= 3 ? `${daysPerWeek} dias/semana: cada grupo muscular treinado 2x por semana — frequência ótima para naturais segundo EDN.` :
+    daysPerWeek <= 4 ? `${daysPerWeek} dias/semana: alta frequência com recuperação adequada. Divisão Push/Pull/Legs recomendada.` :
+    `${daysPerWeek} dias/semana: volume alto — garanta 7-9h de sono e nutrição adequada para recuperação total.`;
+  lines.push(`🗓️ **Frequência**: ${freqTip}`);
+
+  return lines.join('\n\n');
+}

@@ -139,6 +139,7 @@ export default function PlanDetailPage() {
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [biometricNote, setBiometricNote] = useState("");
   const [aiError, setAiError] = useState<string|null>(null);
+  const [whyText, setWhyText] = useState<string|null>(null);
 
   // evolution
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory>({});
@@ -315,6 +316,7 @@ export default function PlanDetailPage() {
     } catch (err) {
       const fallback = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
       setAiError("Erro na IA — usando algoritmo EDN padrão");
+      setWhyText(null);
       setAutoPreview(fallback);
       setExpandedDay(fallback[0]?.dayId??null);
       setShowAutoDialog(true);
@@ -623,6 +625,24 @@ export default function PlanDetailPage() {
             <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-300">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" /><span>{aiError}</span>
             </div>
+          )}
+
+          {/* ── V3.2 Por que este treino? ──────────────────────────────────── */}
+          {whyText && (
+            <details className="group rounded-xl border border-emerald-500/25 bg-emerald-600/5 overflow-hidden">
+              <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-xs font-semibold text-emerald-400 hover:bg-emerald-600/10 transition-colors list-none">
+                <span className="text-base">🧠</span>
+                <span>Por que este treino foi criado?</span>
+                <span className="ml-auto text-zinc-500 group-open:rotate-180 transition-transform">▾</span>
+              </summary>
+              <div className="px-4 pb-4 pt-1 space-y-2">
+                {whyText.split('\n\n').map((line, i) => (
+                  <p key={i} className="text-[11px] text-zinc-300 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-zinc-100">$1</strong>') }}
+                  />
+                ))}
+              </div>
+            </details>
           )}
 
           {hasAnyExercise && (

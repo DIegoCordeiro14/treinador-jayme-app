@@ -2,7 +2,12 @@
 // Enums
 // ================================================
 
-export type GoalType = 'hypertrophy' | 'weight_loss' | 'definition' | 'strength';
+export type GoalType = 'hypertrophy' | 'weight_loss' | 'definition' | 'strength' | 'fat_loss' | 'recomposition' | 'performance';
+export type MainGoal = 'fat_loss' | 'hypertrophy' | 'recomposition' | 'performance';
+export type AestheticGoalMale   = 'v_shape' | 'chest' | 'back' | 'shoulders' | 'arms' | 'definition_m' | 'performance_m';
+export type AestheticGoalFemale = 'glutes' | 'legs' | 'hamstrings' | 'defined_waist' | 'definition_f' | 'performance_f';
+export type AestheticGoal = AestheticGoalMale | AestheticGoalFemale;
+export type GenderType = 'male' | 'female' | 'other';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type MuscleGroup =
   | 'chest'
@@ -44,6 +49,13 @@ export interface Profile {
   meals_per_day: number | null;
   created_at: string;
   updated_at: string;
+  // V3.2
+  gender: GenderType | null;
+  main_goal: MainGoal | null;
+  aesthetic_goal: AestheticGoal | null;
+  limitations: string[] | null;
+  available_equipment: string[] | null;
+  mesocycle_number: number | null;
 }
 
 export interface Exercise {
@@ -278,6 +290,35 @@ export const GOAL_LABELS: Record<GoalType, string> = {
   weight_loss: 'Emagrecimento',
   definition: 'Definição',
   strength: 'Força',
+  fat_loss: 'Emagrecimento',
+  recomposition: 'Recomposição',
+  performance: 'Performance',
+};
+
+export const MAIN_GOAL_LABELS: Record<MainGoal, string> = {
+  fat_loss:      'Emagrecimento',
+  hypertrophy:   'Hipertrofia',
+  recomposition: 'Recomposição Corporal',
+  performance:   'Performance',
+};
+
+export const AESTHETIC_GOAL_LABELS_MALE: Record<AestheticGoalMale, string> = {
+  v_shape:      'Shape em V',
+  chest:        'Peitoral',
+  back:         'Costas',
+  shoulders:    'Ombros',
+  arms:         'Braços',
+  definition_m: 'Definição',
+  performance_m:'Performance',
+};
+
+export const AESTHETIC_GOAL_LABELS_FEMALE: Record<AestheticGoalFemale, string> = {
+  glutes:       'Glúteos',
+  legs:         'Pernas',
+  hamstrings:   'Posteriores',
+  defined_waist:'Cintura Definida',
+  definition_f: 'Definição Geral',
+  performance_f:'Performance',
 };
 
 export const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {

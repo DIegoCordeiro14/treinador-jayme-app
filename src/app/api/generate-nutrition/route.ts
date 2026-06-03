@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const planId: string | undefined = body.plan_id;
 
     const [{ data: profile }, { data: bio }, { data: bioHistory }, { data: activePlan }] = await Promise.all([
-      supabase.from('profiles').select('experience_level,goal,weight_kg,height_cm,gender,age,meals_per_day').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('experience_level,goal,main_goal,aesthetic_goal,weight_kg,height_cm,gender,age,meals_per_day').eq('id', user.id).maybeSingle(),
       supabase.from('bioimpedance_data').select('weight_kg,bmi,body_fat_pct,skeletal_muscle_mass_kg,lean_mass_kg,basal_metabolic_rate_kcal,protein_pct,water_pct,visceral_fat_level').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('bioimpedance_data').select('weight_kg,body_fat_pct,skeletal_muscle_mass_kg,measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(4),
       planId
@@ -23,11 +23,12 @@ export async function POST(req: NextRequest) {
         : supabase.from('workout_plans').select('id,goal,schedule_config').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
     ]);
 
-    const goal = activePlan?.goal ?? profile?.goal ?? 'hypertrophy';
+    const goal = activePlan?.goal ?? (profile as any)?.main_goal ?? profile?.goal ?? 'hypertrophy';
+    const aestheticGoal = (profile as any)?.aesthetic_goal ?? null;
     const experienceLevel = profile?.experience_level ?? 'beginner';
     const mealsPerDay = Math.min(profile?.meals_per_day ?? 3, 5); // cap at 5
 
-    const goalMap: Record<string, string> = { hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento', definition: 'Definição', strength: 'Força' };
+    const goalMap: Record<string, string> = { hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento', definition: 'Definição', strength: 'Força', fat_loss: 'Emagrecimento', recomposition: 'Recomposição Corporal', performance: 'Performance' };
     const levelMap: Record<string, string> = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' };
 
     const w = bio?.weight_kg ?? profile?.weight_kg;
