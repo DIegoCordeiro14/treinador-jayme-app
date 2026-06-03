@@ -66,20 +66,32 @@ interface AnamneseForm {
   meals_per_day: string;
 }
 
+// Módulo 0: NADA vem pré-preenchido — o atleta informa tudo ativamente
 const EMPTY_FORM: AnamneseForm = {
   name: '', age: '', gender: '', weight_kg: '', height_cm: '',
   main_goal: '', aesthetic_goal: '', priority_muscle_1: '', priority_muscle_2: '',
-  experience_level: 'beginner', training_years: '',
+  experience_level: '', training_years: '',
   has_periodization_exp: false, knows_rir: false,
   has_used_top_set: false, has_used_back_off: false, has_used_deload: false,
-  weekly_frequency: '3', session_duration_min: '', preferred_time: '',
+  weekly_frequency: '', session_duration_min: '', preferred_time: '',
   training_location: '', available_equipment: [],
   sleep_hours: '', sleep_quality: '', stress_level: '', work_type: '',
   cardio_frequency: '', cardio_types: [],
   limitations: [], limitation_description: '',
   favorite_exercises: [], disliked_exercises: [], forbidden_exercises: [],
-  meals_per_day: '3',
+  meals_per_day: '',
 };
+
+// Sincroniza o campo legado `goal` (enum) a partir do main_goal da anamnese
+function mainGoalToLegacyGoal(mainGoal: string): string | undefined {
+  const map: Record<string, string> = {
+    fat_loss: 'weight_loss',
+    hypertrophy: 'hypertrophy',
+    recomposition: 'definition',
+    performance: 'strength',
+  };
+  return map[mainGoal];
+}
 
 export default function PerfilPage() {
   const supabase = createClient();
@@ -133,14 +145,14 @@ export default function PerfilPage() {
           aesthetic_goal: p.aesthetic_goal ?? '',
           priority_muscle_1: p.priority_muscle_1 ?? '',
           priority_muscle_2: p.priority_muscle_2 ?? '',
-          experience_level: p.experience_level ?? 'beginner',
+          experience_level: p.experience_level ?? '',
           training_years: p.training_years ?? '',
           has_periodization_exp: p.has_periodization_exp ?? false,
           knows_rir: p.knows_rir ?? false,
           has_used_top_set: p.has_used_top_set ?? false,
           has_used_back_off: p.has_used_back_off ?? false,
           has_used_deload: p.has_used_deload ?? false,
-          weekly_frequency: p.weekly_frequency?.toString() ?? '3',
+          weekly_frequency: p.weekly_frequency?.toString() ?? '',
           session_duration_min: p.session_duration_min?.toString() ?? '',
           preferred_time: p.preferred_time ?? '',
           training_location: p.training_location ?? '',
@@ -156,7 +168,7 @@ export default function PerfilPage() {
           favorite_exercises: (p.favorite_exercises as string[]) ?? [],
           disliked_exercises: (p.disliked_exercises as string[]) ?? [],
           forbidden_exercises: (p.forbidden_exercises as string[]) ?? [],
-          meals_per_day: p.meals_per_day?.toString() ?? '3',
+          meals_per_day: p.meals_per_day?.toString() ?? '',
         });
         setEvaluation({
           phase: p.edn_phase ?? undefined,
@@ -212,17 +224,18 @@ export default function PerfilPage() {
       weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       main_goal: form.main_goal || null,
+      goal: form.main_goal ? mainGoalToLegacyGoal(form.main_goal) : undefined,
       aesthetic_goal: form.aesthetic_goal || null,
       priority_muscle_1: form.priority_muscle_1 || null,
       priority_muscle_2: form.priority_muscle_2 || null,
-      experience_level: form.experience_level,
+      experience_level: form.experience_level || null,
       training_years: form.training_years || null,
       has_periodization_exp: form.has_periodization_exp,
       knows_rir: form.knows_rir,
       has_used_top_set: form.has_used_top_set,
       has_used_back_off: form.has_used_back_off,
       has_used_deload: form.has_used_deload,
-      weekly_frequency: parseInt(form.weekly_frequency),
+      weekly_frequency: form.weekly_frequency ? parseInt(form.weekly_frequency) : null,
       session_duration_min: form.session_duration_min ? parseInt(form.session_duration_min) : null,
       preferred_time: form.preferred_time || null,
       training_location: form.training_location || null,
@@ -238,7 +251,7 @@ export default function PerfilPage() {
       favorite_exercises: form.favorite_exercises,
       disliked_exercises: form.disliked_exercises,
       forbidden_exercises: form.forbidden_exercises,
-      meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : 3,
+      meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : null,
     });
 
     if (error) { toast.error('Erro ao salvar perfil'); setSaving(false); return; }
@@ -656,15 +669,4 @@ export default function PerfilPage() {
               <p className="text-sm text-red-300 font-semibold">Tem certeza? Esta ação é irreversível.</p>
               <p className="text-xs text-zinc-500">Todos os seus dados (treinos, evolução, XP) serão excluídos permanentemente.</p>
               <div className="flex gap-2">
-                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:bg-zinc-800 transition-colors">Cancelar</button>
-                <button onClick={handleDeleteAccount} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60">
-                  <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Excluindo...' : 'Excluir'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hove
