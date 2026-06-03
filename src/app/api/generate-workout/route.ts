@@ -188,21 +188,20 @@ ${exerciseCatalog}
 JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tríceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
 ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
 
-    // ─── AI call (with 20s timeout to prevent Vercel 503) ───────────────────────
+    // ─── AI call: complete() é mais estável que stream() para geração de JSON ────
+    // stream() pode travar em cold starts no Vercel; complete() é um POST simples
     let fullText = "";
-    const aiTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("AI_TIMEOUT")), 20000)
-    );
-    const aiStream = (async () => {
-      for await (const chunk of provider.stream({
+    const aiResult = await Promise.race([
+      provider.complete({
         messages: [{ role: "user", content: userPrompt }],
         systemPrompt: EDN_SYSTEM_PROMPT,
-        maxTokens: 2000,
-      })) {
-        if (chunk.text) fullText += chunk.text;
-      }
-    })();
-    await Promise.race([aiStream, aiTimeout]);
+        maxTokens: 1200,  // 4 dias × 6 ex × ~40 tokens + estrutura JSON = ~1100
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI_TIMEOUT")), 25000)
+      ),
+    ]);
+    fullText = aiResult;
 
     // ─── Parse JSON ───────────────────────────────────────────────────────────
     const jsonMatch = fullText.match(/\{[\s\S]*\}/);
