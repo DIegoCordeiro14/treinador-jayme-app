@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Utensils, Apple, Zap, Droplets, Clock, CheckCircle2, Sparkles,
   RefreshCw, ChevronDown, ChevronUp, TrendingUp, TrendingDown,
@@ -109,6 +109,21 @@ export default function NutricaoPage() {
   }, [supabase]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-trigger: gera o conteúdo automaticamente ao abrir a aba pela 1ª vez
+  const hasRunCoach = useRef(false);
+  const hasRunPlan  = useRef(false);
+  useEffect(() => {
+    if (loading) return;
+    if (activeTab === 'coach' && !hasRunCoach.current) {
+      hasRunCoach.current = true;
+      runCoachAnalysis();
+    } else if (activeTab === 'plano' && !hasRunPlan.current) {
+      hasRunPlan.current = true;
+      generateNutrition();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, loading]);
 
   async function generateNutrition() {
     setGenerating(true);
@@ -296,11 +311,21 @@ export default function NutricaoPage() {
         ═══════════════════════════════════════════════════════ */}
         <TabsContent value="coach" className="mt-4 space-y-4">
 
-          {/* Analyze button */}
-          <Button onClick={runCoachAnalysis} disabled={analyzing} className="w-full gap-2" variant={coachData ? 'outline' : 'default'}>
-            {analyzing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
-            {analyzing ? 'Analisando...' : coachData ? 'Reanalisar com Nutricionista IA' : 'Analisar com Nutricionista IA EDN'}
-          </Button>
+          {/* Loading state — exibido enquanto a análise automática roda */}
+          {analyzing && (
+            <div className="flex items-center justify-center gap-3 py-6 text-zinc-400">
+              <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+              <span className="text-sm">Analisando com Nutricionista IA EDN...</span>
+            </div>
+          )}
+
+          {/* Re-análise — só aparece depois que já há dados */}
+          {coachData && !analyzing && (
+            <Button onClick={runCoachAnalysis} disabled={analyzing} className="w-full gap-2" variant="outline" size="sm">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Atualizar análise
+            </Button>
+          )}
 
           {analysis && (
             <>
@@ -450,10 +475,21 @@ export default function NutricaoPage() {
             TAB PLANO
         ═══════════════════════════════════════════════════════ */}
         <TabsContent value="plano" className="mt-4 space-y-4">
-          <Button onClick={generateNutrition} disabled={generating} className="w-full gap-2" variant={plan ? 'outline' : 'default'}>
-            {generating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-blue-400" />}
-            {plan ? 'Regenerar plano com IA' : 'Gerar plano nutricional com IA'}
-          </Button>
+          {/* Loading state — geração automática */}
+          {generating && (
+            <div className="flex items-center justify-center gap-3 py-6 text-zinc-400">
+              <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+              <span className="text-sm">Gerando plano nutricional personalizado...</span>
+            </div>
+          )}
+
+          {/* Regenerar — só aparece quando já há plano */}
+          {plan && !generating && (
+            <Button onClick={generateNutrition} disabled={generating} className="w-full gap-2" variant="outline" size="sm">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Regenerar plano
+            </Button>
+          )}
 
           {plan?.meals && plan.meals.length > 0 && (
             <div className="space-y-3">
