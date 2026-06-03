@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
+import { RestTimer } from '@/components/workout/rest-timer';
 
 type SetType = 'aquecimento' | 'feeder' | 'top' | 'working';
 interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; }
@@ -91,6 +92,7 @@ export default function ExecutarPage() {
   const dayId = searchParams.get('day') ?? '';
 
   const [exercises, setExercises] = useState<WorkoutExerciseWithExercise[]>([]);
+  const [restTimer, setRestTimer] = useState<{ duration: number } | null>(null);
   const [dayName, setDayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [exStates, setExStates] = useState<ExState[]>([]);
@@ -240,6 +242,15 @@ export default function ExecutarPage() {
       const allDone = sets.every(s => s.completed);
       if (allDone && !prev && !n[exIdx].feedback && !n[exIdx].feedbackLoading) {
         setTimeout(() => loadFeedback(exIdx, exercises, n), 200);
+      }
+      // Iniciar rest timer quando série é marcada como concluída (não ao desmarcar)
+      if (!prev) {
+        const restSecs = exercises[exIdx]?.rest_seconds ?? 90;
+        const setType = sets[sIdx].setType;
+        // Não mostrar timer para séries de aquecimento
+        if (setType !== 'aquecimento') {
+          setRestTimer({ duration: restSecs });
+        }
       }
       return n;
     });
@@ -615,6 +626,14 @@ export default function ExecutarPage() {
             </button>
           </div>
         </>
+      )}
+    {/* Rest Timer overlay */}
+      {restTimer && (
+        <RestTimer
+          durationSeconds={restTimer.duration}
+          onComplete={() => setRestTimer(null)}
+          onSkip={() => setRestTimer(null)}
+        />
       )}
     </div>
   );

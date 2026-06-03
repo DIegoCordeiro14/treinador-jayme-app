@@ -252,6 +252,11 @@ export default async function DashboardPage() {
         )}
       </div>
 
+      {/* Deload banner — aparece quando streak > 3 semanas sem PR ou platô de peso detectado */}
+      {streak >= 14 && weeklyVolume > 0 && (
+        <DeloadBanner reason={`${streak} dias de treino contínuo. Se não houver PRs recentes, uma semana de deload vai maximizar suas próximas 4 semanas.`} />
+      )}
+
       {/* Onboarding checklist — só aparece sem sessões */}
       {monthlySessions.length === 0 && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">

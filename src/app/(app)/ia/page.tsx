@@ -5,6 +5,7 @@ import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { MarkdownText } from '@/components/ai/markdown-text';
 import { useLatestMetrics } from '@/hooks/useLatestMetrics';
 import { toast } from 'sonner';
 import type { AIMessage } from '@/lib/ai-coach';
@@ -302,7 +303,7 @@ export default function IAPage() {
                 )}
               >
                 {msg.content ? (
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <MarkdownText content={msg.content} />
                 ) : (
                   <div className="flex gap-1 items-center py-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />

@@ -1,4 +1,6 @@
 'use client';
+import dynamic from 'next/dynamic';
+const GPSMap = dynamic(() => import('@/components/cardio/gps-map').then(m => ({ default: m.GPSMap })), { ssr: false });
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
@@ -565,6 +567,12 @@ export default function CardioPage() {
                     {s.gps_track && <span className="flex items-center gap-1 text-blue-400"><MapPin className="h-3 w-3" />GPS</span>}
                   </div>
 
+                  {/* GPS Track Map */}
+                  {s.gps_track?.coordinates && s.gps_track.coordinates.length > 1 && (
+                    <div className="mt-3">
+                      <GPSMap coordinates={s.gps_track.coordinates} className="h-44 w-full rounded-xl overflow-hidden border border-zinc-700" />
+                    </div>
+                  )}
                   {s.notes && <p className="text-xs text-zinc-500 mt-2 italic">{s.notes}</p>}
                 </div>
               );

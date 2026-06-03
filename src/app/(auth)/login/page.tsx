@@ -15,6 +15,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +64,19 @@ export default function LoginPage() {
     }
   }
 
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    setResetLoading(false);
+    if (error) { toast.error(error.message); return; }
+    setResetSent(true);
+  }
+
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
       <div className="flex flex-col items-center mb-8">
@@ -84,7 +101,7 @@ export default function LoginPage() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label htmlFor="password" className="text-sm font-medium text-zinc-300">Senha</label>
-            <span className="text-xs text-blue-400 cursor-pointer">Esqueci minha senha</span>
+            <button type="button" onClick={() => { setShowReset(true); setResetEmail(email); }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Esqueci minha senha</button>
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
@@ -132,5 +149,43 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+
+        {/* ── Modal de recuperação de senha ─────────────────────── */}
+        {showReset && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
+              {resetSent ? (
+                <>
+                  <div className="text-center space-y-2">
+                    <div className="text-3xl">📧</div>
+                    <p className="font-semibold text-zinc-100">E-mail enviado!</p>
+                    <p className="text-sm text-zinc-400">Verifique sua caixa de entrada em <span className="text-zinc-200 font-medium">{resetEmail}</span> e siga o link para redefinir sua senha.</p>
+                  </div>
+                  <button onClick={() => { setShowReset(false); setResetSent(false); }} className="w-full py-2 rounded-lg bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700 transition-colors">Fechar</button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="font-semibold text-zinc-100">Recuperar senha</p>
+                    <p className="text-xs text-zinc-500 mt-1">Enviaremos um link de redefinição para seu e-mail.</p>
+                  </div>
+                  <form onSubmit={handleReset} className="space-y-3">
+                    <input
+                      type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)}
+                      placeholder="seu@email.com" required autoFocus
+                      className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setShowReset(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:bg-zinc-800 transition-colors">Cancelar</button>
+                      <button type="submit" disabled={resetLoading} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                        {resetLoading ? 'Enviando…' : 'Enviar link'}
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        )}
   );
 }
