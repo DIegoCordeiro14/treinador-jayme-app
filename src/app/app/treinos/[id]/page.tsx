@@ -291,7 +291,7 @@ export default function PlanDetailPage() {
         if (json.whyText) setWhyText(json.whyText);
       } else {
         // ── Fallback
-        setWhyText(null); ─────────────────────────────────────────────────────────
+        setWhyText(null);
         setAiError("IA indisponível — usando algoritmo EDN padrão");
         preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
       }
