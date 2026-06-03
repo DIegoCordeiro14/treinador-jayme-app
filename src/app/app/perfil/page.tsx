@@ -73,6 +73,8 @@ export default function PerfilPage() {
       experience_level: form.experience_level as ExperienceLevel,
       weekly_frequency: parseInt(form.weekly_frequency),
       meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : 3,
+      main_goal: (form.main_goal || null) as any,
+      aesthetic_goal: (form.aesthetic_goal || null) as any,
     });
 
     setSaving(false);
