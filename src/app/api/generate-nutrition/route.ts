@@ -15,13 +15,23 @@ export async function POST(req: NextRequest) {
     const planId: string | undefined = body.plan_id;
 
     const [{ data: profile }, { data: bio }, { data: bioHistory }, { data: activePlan }] = await Promise.all([
-      supabase.from('profiles').select('experience_level,goal,main_goal,aesthetic_goal,weight_kg,height_cm,gender,age,meals_per_day').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('experience_level,goal,main_goal,aesthetic_goal,weight_kg,height_cm,gender,age,meals_per_day,profile_completion_pct,sleep_hours,stress_level,work_type,cardio_frequency').eq('id', user.id).maybeSingle(),
       supabase.from('bioimpedance_data').select('weight_kg,bmi,body_fat_pct,skeletal_muscle_mass_kg,lean_mass_kg,basal_metabolic_rate_kcal,protein_pct,water_pct,visceral_fat_level').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('bioimpedance_data').select('weight_kg,body_fat_pct,skeletal_muscle_mass_kg,measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(4),
       planId
         ? supabase.from('workout_plans').select('id,goal,schedule_config').eq('id', planId).eq('user_id', user.id).maybeSingle()
         : supabase.from('workout_plans').select('id,goal,schedule_config').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
     ]);
+
+    // ── Módulo 0: gate — anamnese mínima de 80% para qualquer prescrição ──────
+    const completionPct = (profile as any)?.profile_completion_pct ?? 0;
+    if (completionPct < 80) {
+      return Response.json({
+        error: 'profile_incomplete',
+        message: `Perfil ${completionPct}% completo. O Coach EDN precisa de pelo menos 80% da anamnese preenchida para prescrever um plano nutricional. Complete seu perfil.`,
+        completionPct,
+      }, { status: 412 });
+    }
 
     const goal = activePlan?.goal ?? (profile as any)?.main_goal ?? profile?.goal ?? 'hypertrophy';
     const aestheticGoal = (profile as any)?.aesthetic_goal ?? null;
@@ -51,6 +61,14 @@ export async function POST(req: NextRequest) {
       if (wD) evolutionCtx = ` Evolução: peso${Number(wD)>=0?'+':''}${wD}kg.`;
     }
 
+    // ── Módulo 0: contexto de rotina/recuperação na nutrição ──────────────────
+    const lifestyleParts: string[] = [];
+    if ((profile as any)?.sleep_hours) lifestyleParts.push(`sono=${(profile as any).sleep_hours}`);
+    if ((profile as any)?.stress_level) lifestyleParts.push(`estresse=${(profile as any).stress_level}`);
+    if ((profile as any)?.work_type) lifestyleParts.push(`trabalho=${(profile as any).work_type}`);
+    if ((profile as any)?.cardio_frequency) lifestyleParts.push(`cardio=${(profile as any).cardio_frequency}`);
+    const lifestyleCtx = lifestyleParts.length > 0 ? ` Rotina: ${lifestyleParts.join(', ')}.` : '';
+
     const levelRules: Record<string, string> = {
       beginner:     'déficit/superávit ±300kcal, proteína 1.6-2.0g/kg, simples',
       intermediate: 'ajuste fino, proteína 2.0-2.2g/kg, ciclagem básica carb',
@@ -63,7 +81,7 @@ export async function POST(req: NextRequest) {
     const client = new Anthropic({ apiKey });
 
     // Compact prompt to minimise token usage
-    const prompt = `Crie plano nutricional EDN. Perfil: ${levelMap[experienceLevel]}, ${goalMap[goal]??goal}, ${profile?.age??'?'}anos/${profile?.gender??'?'}, ${mealsPerDay} refeições. Bio: ${bioCtx||'sem dados'}.${evolutionCtx} Regra: ${levelRules[experienceLevel]}.
+    const prompt = `Crie plano nutricional EDN. Perfil: ${levelMap[experienceLevel]}, ${goalMap[goal]??goal}, ${profile?.age??'?'}anos/${profile?.gender??'?'}, ${mealsPerDay} refeições. Bio: ${bioCtx||'sem dados'}.${evolutionCtx}${lifestyleCtx} Regra: ${levelRules[experienceLevel]}.
 
 JSON PURO (sem markdown):
 {"strategy":"nome","daily_calories":"ex: 2800kcal (+300 superávit)","protein_g_per_kg":2.2,"protein_pct":35,"carbs_pct":40,"fat_pct":25,"pre_workout":"descrição curta","post_workout":"descrição curta","rest_day_strategy":"descrição curta","meals":[{"name":"Café da manhã","time":"07h","calories_pct":25,"focus":"proteína+carbs","example":"3 ovos + 60g aveia"}],"key_tips":["dica 1","dica 2","dica 3"]}
