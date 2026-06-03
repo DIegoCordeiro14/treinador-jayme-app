@@ -137,10 +137,15 @@ export async function POST(req: NextRequest) {
                 // Armazenar no cache para respostas futuras idênticas
                 setCached(cacheKey, fullText);
                 const allMessages = [...messages, assistantMessage];
+                let savedId = conversationId ?? null;
                 if (conversationId) {
-                  await supabase.from('ai_conversations').update({ messages: allMessages }).eq('id', conversationId).eq('user_id', user.id);
+                  await supabase.from('ai_conversations').update({ messages: allMessages, updated_at: new Date().toISOString() }).eq('id', conversationId).eq('user_id', user.id);
                 } else {
-                  await supabase.from('ai_conversations').insert({ user_id: user.id, messages: allMessages });
+                  const { data: newConv } = await supabase.from('ai_conversations').insert({ user_id: user.id, messages: allMessages }).select('id').single();
+                  savedId = newConv?.id ?? null;
+                }
+                if (savedId) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'conversation_id', id: savedId })}\n\n`));
                 }
               } catch (_err) { /* Non-fatal */ }
               controller.enqueue(encoder.encode(`data: [DONE]\n\n`));

@@ -101,7 +101,9 @@ export default function IAPage() {
             try {
               const parsed = JSON.parse(data);
               if (parsed.error) throw new Error(parsed.error);
-              if (parsed.text) {
+              if (parsed.type === 'conversation_id' && parsed.id) {
+                setConversationId(parsed.id);
+              } else if (parsed.text) {
                 assistantText += parsed.text;
                 setMessages((prev) => {
                   const updated = [...prev];
@@ -117,7 +119,7 @@ export default function IAPage() {
         }
       }
 
-      // After stream, reload conversations to get new ID
+      // Reload lista lateral de conversas
       await loadConversations();
     } catch (err) {
       toast.error('Erro ao conectar com o Treinador Jayme IA');

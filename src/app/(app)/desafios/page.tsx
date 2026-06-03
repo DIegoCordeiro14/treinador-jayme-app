@@ -62,8 +62,8 @@ export default function DesafiosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [{ data: xp }, { data: challenges }, { data: sessions }] = await Promise.all([
-      supabase.from('user_xp').select('level').eq('user_id', user.id).single(),
+    const [{ data: xp }, { count: sCount }, { data: challenges }, { data: sessions }] = await Promise.all([
+      supabase.from('user_xp').select('level').eq('user_id', user.id).maybeSingle(),
       supabase.from('workout_sessions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('challenges').select('*').eq('is_active', true).order('end_date', { ascending: true }),
       supabase.from('workout_sessions')

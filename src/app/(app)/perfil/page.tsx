@@ -56,6 +56,11 @@ export default function PerfilPage() {
           weekly_frequency: prof.weekly_frequency?.toString() ?? '3',
           meals_per_day: (prof as any).meals_per_day?.toString() ?? '3',
         });
+        // Carregar preferências persistidas
+        setShowInRanking((prof as any).show_in_ranking ?? true);
+        setNotifTraining((prof as any).notif_training ?? true);
+        setNotifChallenge((prof as any).notif_challenge ?? true);
+        setNotifLevel((prof as any).notif_level ?? true);
       }
       if (xpData) setXp(xpData);
     }
@@ -78,6 +83,10 @@ export default function PerfilPage() {
       experience_level: form.experience_level as ExperienceLevel,
       weekly_frequency: parseInt(form.weekly_frequency),
       meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : 3,
+      show_in_ranking: showInRanking,
+      notif_training: notifTraining,
+      notif_challenge: notifChallenge,
+      notif_level: notifLevel,
     });
 
     setSaving(false);
