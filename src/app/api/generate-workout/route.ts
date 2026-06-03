@@ -195,7 +195,7 @@ ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
       provider.complete({
         messages: [{ role: "user", content: userPrompt }],
         systemPrompt: EDN_SYSTEM_PROMPT,
-        maxTokens: 1200,  // 4 dias × 6 ex × ~40 tokens + estrutura JSON = ~1100
+        maxTokens: 1800,  // 4 dias × 6-7 ex × UUID(36ch)+campos = ~1400-1600 tokens
       }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("AI_TIMEOUT")), 25000)
