@@ -85,12 +85,12 @@ export function Sidebar({ profile }: SidebarProps) {
     <aside className="hidden md:flex flex-col w-60 min-h-screen bg-zinc-950 border-r border-white/[0.07] fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-800">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4853A]">
-          <Zap className="h-5 w-5 text-white" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4853A] font-black italic text-lg text-white">
+          E
         </div>
         <div>
-          <p className="text-sm font-bold text-zinc-100 leading-none">Treinador</p>
-          <p className="text-xs text-[#D4853A] font-semibold mt-0.5">Coach EDN</p>
+          <p className="text-sm font-extrabold italic text-zinc-100 leading-none">Coach EDN</p>
+          <p className="text-[9px] text-zinc-500 font-semibold uppercase tracking-[0.12em] mt-0.5">Escola dos Naturais</p>
         </div>
       </div>
 

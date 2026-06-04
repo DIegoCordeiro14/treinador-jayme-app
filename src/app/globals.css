@@ -22,24 +22,24 @@ html, body {
 
 @layer base {
   :root {
-    --background: 0 0% 3.9%;
+    --background: 210 22% 4%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
+    --card: 211 27% 9%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
+    --popover: 213 29% 7%;
     --popover-foreground: 0 0% 98%;
     --primary: 30 65% 52%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 206 29% 15%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --muted: 206 29% 15%;
+    --muted-foreground: 200 15% 62%;
+    --accent: 206 29% 15%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 206 29% 15%;
+    --input: 206 29% 15%;
     --ring: 30 65% 52%;
     --radius: 0.75rem;
   }
@@ -57,6 +57,8 @@ html, body {
 
   body {
     @apply bg-zinc-950 text-zinc-100 antialiased;
+    background-color: #07090B;
+    color: #F0F4F6;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
@@ -71,18 +73,18 @@ html, body {
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #3f3f46; /* zinc-700 */
+    background: #2C3E4A;
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #52525b; /* zinc-600 */
+    background: #46606E;
   }
 
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #3f3f46 transparent;
+    scrollbar-color: #2C3E4A transparent;
   }
 
   /* Prevent iOS bounce on body */
@@ -118,7 +120,7 @@ html, body {
 
   /* Animated gradient background */
   .bg-animated-gradient {
-    background: linear-gradient(135deg, #09090b 0%, #18181b 50%, #0f172a 100%);
+    background: linear-gradient(135deg, #07090B 0%, #0D1520 50%, #07090B 100%);
     background-size: 400% 400%;
     animation: gradientShift 15s ease infinite;
   }
@@ -179,4 +181,22 @@ html, body {
   border-radius: 9999px;
   background: #D4853A;
   opacity: 0.7;
+}
+
+
+/* ── Coach EDN: assinatura tipográfica do mockup ── */
+h1, h2 {
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+h3 {
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+
+/* Inputs no estilo do mockup */
+input, select, textarea {
+  color-scheme: dark;
 }

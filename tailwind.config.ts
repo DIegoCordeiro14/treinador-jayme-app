@@ -10,6 +10,42 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Coach EDN mockup palette: blue-tinted dark grays replace neutral zinc ──
+        zinc: {
+          50: "#F7FAFB",
+          100: "#F0F4F6",
+          200: "#D7E0E5",
+          300: "#B0C2CB",
+          400: "#8FA3AD",
+          500: "#607D8B",
+          600: "#46606E",
+          700: "#2C3E4A",
+          800: "#1C2933",
+          900: "#0D1117",
+          950: "#07090B",
+        },
+        // Muted status tones from the mockup (--pos / --warn / --neg)
+        green: {
+          300: "#8FBCA0",
+          400: "#6FA383",
+          500: "#5A8A6A",
+          600: "#4A7359",
+          700: "#3A5A46",
+        },
+        red: {
+          300: "#C99A9A",
+          400: "#B07A7A",
+          500: "#8B5A5A",
+          600: "#7A4A4A",
+          700: "#5F3A3A",
+        },
+        yellow: {
+          300: "#D4B27A",
+          400: "#C49A5A",
+          500: "#A67C3A",
+          600: "#8F6A30",
+          700: "#705426",
+        },
         brand: {
           DEFAULT: "#D4853A",
           50: "#fdf4ec",
