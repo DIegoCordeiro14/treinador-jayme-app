@@ -190,7 +190,7 @@ export default function NutricaoPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-[11px] font-bold tracking-[0.08em] text-[#D4853A]">META DIÁRIA</p>
-                <p className="text-xl font-black italic text-zinc-100 mt-0.5">{smartMacros?.target_calories ?? plan.daily_calories ?? '—'} kcal</p>
+                <p className="text-xl font-black italic text-zinc-100 mt-0.5">{(() => { const v = smartMacros?.target_calories ?? plan.daily_calories ?? '—'; return typeof v === 'number' ? `${v} kcal` : String(v).includes('kcal') ? v : `${v} kcal`; })()}</p>
                 <p className="text-xs text-zinc-400 mt-0.5">TDEE estimado: {smartMacros?.tdee ?? '—'} kcal</p>
               </div>
               <MacroRing pct={smartMacros?.tdee && smartMacros?.target_calories ? Math.round((smartMacros.target_calories / smartMacros.tdee) * 100) : 100} color="text-[#D4853A]" label="kcal" />
