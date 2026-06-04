@@ -5,19 +5,56 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import {
-  ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot,
+  ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
-  Pause, Square, PlayCircle, Info,
+  Pause, Square, PlayCircle, Info, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
+import { RestTimer } from '@/components/workout/rest-timer';
 
-interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; }
+type SetType = 'aquecimento' | 'feeder' | 'top' | 'working';
+interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; }
+
+const SET_TYPE_CONFIG: Record<SetType, { label: string; color: string; bg: string }> = {
+  aquecimento: { label: 'Aquecimento', color: 'text-sky-400',    bg: 'bg-sky-400/15 border-sky-400/30' },
+  feeder:      { label: 'Feeder',      color: 'text-yellow-400', bg: 'bg-yellow-400/15 border-yellow-400/30' },
+  top:         { label: 'Top Set',     color: 'text-orange-400', bg: 'bg-orange-400/15 border-orange-400/30' },
+  working:     { label: 'Working',     color: 'text-zinc-300',   bg: 'bg-zinc-700/50 border-zinc-600/30' },
+};
+const SET_TYPE_CYCLE: SetType[] = ['aquecimento', 'feeder', 'top', 'working'];
+
+function autoSetTypes(count: number): SetType[] {
+  if (count === 1) return ['top'];
+  if (count === 2) return ['aquecimento', 'top'];
+  if (count === 3) return ['aquecimento', 'top', 'working'];
+  if (count === 4) return ['aquecimento', 'feeder', 'top', 'working'];
+  // 5+: aquecimento(s) + feeder + top + working(s)
+  const types: SetType[] = ['aquecimento', 'aquecimento', 'feeder', 'top'];
+  for (let i = 4; i < count; i++) types.push('working');
+  return types;
+}
 interface ExState {
   sets: SetEntry[];
   tip: string | null; tipLoading: boolean;
   feedback: string | null; feedbackLoading: boolean;
 }
+
+// V6.5 — Pilar 5: análise pré-treino do Coach EDN
+type PreCheckAdjustment = 'progress' | 'maintain' | 'reduce_10' | 'reduce_25' | 'rest';
+interface PreCheck {
+  adjustment: PreCheckAdjustment;
+  message: string;
+  recovery: { score: number; category: string };
+}
+
+const PRECHECK_STYLE: Record<PreCheckAdjustment, { title: string; border: string; bg: string; text: string }> = {
+  progress:  { title: 'Dia de progressão',         border: 'border-emerald-600/30', bg: 'bg-emerald-600/5', text: 'text-emerald-300' },
+  maintain:  { title: 'Treino conforme o plano',   border: 'border-blue-600/30',    bg: 'bg-blue-600/5',    text: 'text-blue-300' },
+  reduce_10: { title: 'Hoje sem intensificação',   border: 'border-yellow-600/30',  bg: 'bg-yellow-600/5',  text: 'text-yellow-300' },
+  reduce_25: { title: 'Volume reduzido em ~25%',   border: 'border-orange-600/30',  bg: 'bg-orange-600/5',  text: 'text-orange-300' },
+  rest:      { title: 'Descanso recomendado',      border: 'border-red-600/30',     bg: 'bg-red-600/5',     text: 'text-red-300' },
+};
 
 function fmtTime(s: number) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -52,7 +89,14 @@ const MUSCLE_PT: Record<string, string> = {
 const RIR_OPTS = ['0', '1', '2', '3', '4'];
 
 function defaultSets(count: number, prevW: number | null): SetEntry[] {
-  return Array.from({ length: count }, () => ({ weight: prevW ? String(prevW) : '', reps: '', rir: '2', completed: false }));
+  const types = autoSetTypes(count);
+  return Array.from({ length: count }, (_, i) => ({
+    weight: prevW ? String(prevW) : '',
+    reps: '',
+    rir: types[i] === 'aquecimento' ? '4' : types[i] === 'feeder' ? '3' : '2',
+    completed: false,
+    setType: types[i],
+  }));
 }
 
 export default function ExecutarPage() {
@@ -64,19 +108,30 @@ export default function ExecutarPage() {
   const dayId = searchParams.get('day') ?? '';
 
   const [exercises, setExercises] = useState<WorkoutExerciseWithExercise[]>([]);
+  const [restTimer, setRestTimer] = useState<{ duration: number } | null>(null);
   const [dayName, setDayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [exStates, setExStates] = useState<ExState[]>([]);
   const [prevLoads, setPrevLoads] = useState<Record<string, number>>({});
+  const [ednSuggestions, setEdnSuggestions] = useState<Record<string, { suggestedWeight: number; model: string; stagnant: boolean }>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [phase, setPhase] = useState<'warmup' | 'active' | 'summary'>('warmup');
   const [isPaused, setIsPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [preCheck, setPreCheck] = useState<PreCheck | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAt = useRef<Date>(new Date());
   const elapsedRef = useRef(0);
+
+  // V6.5 — Pilar 5: consulta o Coach EDN antes do treino
+  useEffect(() => {
+    fetch('/api/pre-workout-check')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.adjustment) setPreCheck(d as PreCheck); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!dayId) return;
@@ -94,11 +149,28 @@ export default function ExecutarPage() {
       setExercises(exs);
       if (sessions?.length) {
         const ids = sessions.map(s => s.id);
-        const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg').in('session_id', ids).eq('completed', true).order('weight_kg', { ascending: false });
+        const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg, session_id').in('session_id', ids).eq('completed', true);
         if (ps) {
           const loads: Record<string, number> = {};
-          ps.forEach(s => { if (!loads[s.exercise_id]) loads[s.exercise_id] = Number(s.weight_kg); });
+          // Agrupar por exercise_id e session para detectar estagnação
+          const byEx: Record<string, number[]> = {};
+          ps.forEach(s => {
+            const eid = s.exercise_id;
+            const w = Number(s.weight_kg);
+            if (!byEx[eid]) byEx[eid] = [];
+            byEx[eid].push(w);
+            if (!loads[eid] || w > loads[eid]) loads[eid] = w;
+          });
           setPrevLoads(loads);
+          // Calcular sugestões EDN simples
+          const suggestions: Record<string, { suggestedWeight: number; model: string; stagnant: boolean }> = {};
+          Object.entries(byEx).forEach(([eid, weights]) => {
+            const sorted = [...new Set(weights)].sort((a, b) => b - a);
+            const top = sorted[0] ?? 0;
+            const stagnant = sorted.length < 2 ? false : (sorted[0] - sorted[sorted.length - 1]) < 2.5;
+            suggestions[eid] = { suggestedWeight: stagnant ? top : top + 2.5, model: stagnant ? 'Estagnado — tente aumentar o volume' : 'Progressão linear', stagnant };
+          });
+          setEdnSuggestions(suggestions);
           setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, loads[ex.exercise_id] ?? null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
         } else {
           setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
@@ -169,6 +241,18 @@ export default function ExecutarPage() {
     setPhase('summary');
   }
 
+  function cycleSetType(exIdx: number, sIdx: number) {
+    setExStates(p => {
+      const n = [...p];
+      const sets = [...n[exIdx].sets];
+      const curr = sets[sIdx].setType;
+      const nextIdx = (SET_TYPE_CYCLE.indexOf(curr) + 1) % SET_TYPE_CYCLE.length;
+      sets[sIdx] = { ...sets[sIdx], setType: SET_TYPE_CYCLE[nextIdx] };
+      n[exIdx] = { ...n[exIdx], sets };
+      return n;
+    });
+  }
+
   function updateSet(exIdx: number, sIdx: number, field: keyof SetEntry, val: string | boolean) {
     setExStates(p => { const n = [...p]; const sets = [...n[exIdx].sets]; sets[sIdx] = { ...sets[sIdx], [field]: val }; n[exIdx] = { ...n[exIdx], sets }; return n; });
   }
@@ -183,6 +267,15 @@ export default function ExecutarPage() {
       const allDone = sets.every(s => s.completed);
       if (allDone && !prev && !n[exIdx].feedback && !n[exIdx].feedbackLoading) {
         setTimeout(() => loadFeedback(exIdx, exercises, n), 200);
+      }
+      // Iniciar rest timer quando série é marcada como concluída (não ao desmarcar)
+      if (!prev) {
+        const restSecs = exercises[exIdx]?.rest_seconds ?? 90;
+        const setType = sets[sIdx].setType;
+        // Não mostrar timer para séries de aquecimento
+        if (setType !== 'aquecimento') {
+          setRestTimer({ duration: restSecs });
+        }
       }
       return n;
     });
@@ -210,7 +303,7 @@ export default function ExecutarPage() {
         if (!s.completed) return;
         const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
         totalVolume += w * r;
-        allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: 'working' });
+        allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType });
       });
     });
     const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '' }).select('id').single();
@@ -242,6 +335,35 @@ export default function ExecutarPage() {
         </div>
       </div>
 
+      {/* V6.5 — Pilar 5: análise pré-treino do Coach EDN */}
+      {preCheck && (() => {
+        const sty = PRECHECK_STYLE[preCheck.adjustment];
+        return (
+          <div className={cn('rounded-xl border p-4 space-y-2', sty.border, sty.bg)}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Activity className={cn('h-4 w-4 shrink-0', sty.text)} />
+                <p className={cn('text-sm font-bold', sty.text)}>Coach EDN — {sty.title}</p>
+              </div>
+              <span className="text-[11px] font-semibold text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-full shrink-0">
+                Prontidão {preCheck.recovery.score}/100
+              </span>
+            </div>
+            <p className="text-xs text-zinc-300 leading-relaxed">{preCheck.message}</p>
+            <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+              <div
+                className={cn('h-full rounded-full transition-all',
+                  preCheck.recovery.score >= 85 ? 'bg-emerald-500' :
+                  preCheck.recovery.score >= 70 ? 'bg-blue-500' :
+                  preCheck.recovery.score >= 55 ? 'bg-yellow-500' :
+                  preCheck.recovery.score >= 40 ? 'bg-orange-500' : 'bg-red-500')}
+                style={{ width: `${preCheck.recovery.score}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* RIR reminder */}
       <div className="rounded-xl border border-yellow-600/25 bg-yellow-600/5 p-4 space-y-3">
         <div className="flex items-center gap-2">
@@ -249,7 +371,7 @@ export default function ExecutarPage() {
           <p className="text-sm font-bold text-yellow-300">Lembrete: o que e RIR?</p>
         </div>
         <p className="text-xs text-zinc-400 leading-relaxed">
-          <span className="font-semibold text-zinc-300">RIR = Repeticoes em Recamara</span> — o numero de reps que você ainda conseguiria fazer, mas <em>nao fez</em>.
+          <span className="font-semibold text-zinc-300">RIR = Repeticoes em Recamara</span> — o numero de reps que voce ainda conseguiria fazer, mas <em>nao fez</em>.
           Controlar o RIR e o que separa o treino inteligente (EDN) do treino ao acaso.
         </p>
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -419,6 +541,22 @@ export default function ExecutarPage() {
             </div>
           )}
 
+          {/* Sugestão EDN + alerta de estagnação */}
+          {ex && ednSuggestions[ex.exercise_id] && (() => {
+            const sg = ednSuggestions[ex.exercise_id];
+            return (
+              <div className={cn('rounded-lg border px-3 py-2.5 flex items-center gap-3', sg.stagnant ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-[#D4853A]/20 bg-[#D4853A]/5')}>
+                <TrendingUp className={cn('h-4 w-4 shrink-0', sg.stagnant ? 'text-yellow-400' : 'text-[#D4853A]')} />
+                <div>
+                  <p className={cn('text-xs font-bold', sg.stagnant ? 'text-yellow-300' : 'text-[#E09B5A]')}>
+                    {sg.stagnant ? '⚠ Estagnação detectada — aumente volume ou mude progressão' : `Sugestão EDN: ${sg.suggestedWeight}kg (Top Set)`}
+                  </p>
+                  <p className="text-[10px] text-zinc-500">{sg.model}</p>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Exercise video thumbnail */}
           {thumbnail && ex && (
             <a
@@ -472,16 +610,25 @@ export default function ExecutarPage() {
           {/* Sets table */}
           {st && ex && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-              <div className="grid grid-cols-[36px_1fr_1fr_90px_44px] items-center gap-2 px-4 py-2 border-b border-zinc-800">
-                <span className="text-[10px] font-bold text-zinc-600 uppercase">#</span>
+              <div className="grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2 border-b border-zinc-800">
+                <span className="text-[10px] font-bold text-zinc-600 uppercase">Tipo</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">Carga (kg)</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">Reps</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">RIR</span>
                 <span />
               </div>
-              {st.sets.map((s, si) => (
-                <div key={si} className={cn('grid grid-cols-[36px_1fr_1fr_90px_44px] items-center gap-2 px-4 py-2.5 border-b border-zinc-800/50 last:border-0 transition-colors', s.completed && 'bg-green-500/5')}>
-                  <span className={cn('text-sm font-black text-center', s.completed ? 'text-green-400' : 'text-zinc-500')}>{si + 1}</span>
+              {st.sets.map((s, si) => {
+                const typeConf = SET_TYPE_CONFIG[s.setType];
+                return (
+                <div key={si} className={cn('grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2.5 border-b border-zinc-800/50 last:border-0 transition-colors', s.completed && 'bg-green-500/5')}>
+                  <button
+                    onClick={() => !s.completed && cycleSetType(currentIdx, si)}
+                    disabled={s.completed}
+                    title="Clique para mudar o tipo"
+                    className={cn('text-[9px] font-bold px-1.5 py-1 rounded-md border text-center leading-tight truncate transition-colors', typeConf.bg, typeConf.color, s.completed ? 'cursor-default opacity-70' : 'hover:brightness-110 cursor-pointer')}
+                  >
+                    {typeConf.label}
+                  </button>
                   <input type="number" step="0.5" placeholder="--" value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   <input type="number" step="1" min="0" placeholder="--" value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
@@ -494,7 +641,8 @@ export default function ExecutarPage() {
                     {s.completed ? <CheckCircle2 className="h-5 w-5 text-green-400" /> : <Circle className="h-5 w-5 text-zinc-600" />}
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -532,6 +680,14 @@ export default function ExecutarPage() {
             </button>
           </div>
         </>
+      )}
+    {/* Rest Timer overlay */}
+      {restTimer && (
+        <RestTimer
+          durationSeconds={restTimer.duration}
+          onComplete={() => setRestTimer(null)}
+          onSkip={() => setRestTimer(null)}
+        />
       )}
     </div>
   );
