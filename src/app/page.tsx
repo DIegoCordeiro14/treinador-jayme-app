@@ -9,10 +9,13 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm">
         <div className="container mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#D4853A] shadow-glow-blue-sm">
-              <Zap className="h-4 w-4 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#D4853A] font-black italic text-base text-white shadow-glow-blue-sm">
+              E
             </div>
-            <span className="font-bold text-zinc-100">Coach EDN</span>
+            <div>
+              <span className="font-extrabold italic text-zinc-100 leading-none block">Coach EDN</span>
+              <span className="text-[8px] text-zinc-500 font-semibold uppercase tracking-[0.14em] block">Escola dos Naturais</span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login">
@@ -234,10 +237,10 @@ export default function LandingPage() {
       <footer className="border-t border-zinc-800 py-8">
         <div className="container mx-auto max-w-6xl px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-[#D4853A]">
-              <Zap className="h-3 w-3 text-white" />
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-[#D4853A] font-black italic text-xs text-white">
+              E
             </div>
-            <span className="text-sm font-semibold text-zinc-400">Coach EDN</span>
+            <span className="text-sm font-extrabold italic text-zinc-400">Coach EDN</span>
           </div>
           <p className="text-xs text-zinc-600">
             © {new Date().getFullYear()} Coach EDN. Metodologia Escola dos Naturais (EDN).

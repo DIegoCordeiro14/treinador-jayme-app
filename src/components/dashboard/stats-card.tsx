@@ -31,13 +31,11 @@ export function StatsCard({ label, value, icon, trend, color = "blue", className
     )}>
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{label}</span>
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05]", accent.text)}>
-          {icon}
-        </div>
+        <div className={cn("opacity-60", accent.text)}>{icon}</div>
       </div>
 
       <div>
-        <p className={cn("text-3xl font-black italic tracking-tight leading-none", accent.text)}>{value}</p>
+        <p className="text-3xl font-black italic tracking-tight leading-none text-zinc-100">{value}</p>
         {hint && <p className="text-[11px] text-zinc-600 mt-1.5">{hint}</p>}
         {trend && (
           <div className="flex items-center gap-1 mt-1.5">
