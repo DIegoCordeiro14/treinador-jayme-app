@@ -37,6 +37,7 @@ import {
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS, GOAL_LABELS } from "@/types";
 import { DailyBriefingPanel } from "@/components/dashboard/daily-briefing-panel";
 import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelligence-panel";
+import { ThreeLayerPanel } from "@/components/dashboard/three-layer-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
 export default async function DashboardPage() {
@@ -351,6 +352,9 @@ export default async function DashboardPage() {
       </div>
       {/* V5.0 — EDN Score 360° */}
       <AthleteIntelligencePanel name={profile?.name ?? undefined} />
+
+      {/* Camadas 1-2-3 — Dados → Interpretação → Prescrição */}
+      <ThreeLayerPanel />
 
       {/* Deload banner — aparece quando streak > 3 semanas sem PR ou platô de peso detectado */}
       {streak >= 14 && weeklyVolume > 0 && (
