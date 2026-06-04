@@ -34,7 +34,7 @@ export function BottomNav({ onOpenDrawer }: BottomNavProps) {
   );
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-900/95 backdrop-blur-sm border-t border-zinc-800 pb-safe">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-sm border-t border-white/[0.07] pb-safe">
       <div className="flex items-center justify-around px-1 py-1.5">
         {PRIMARY_ITEMS.map((item) => {
           const isActive =
@@ -57,7 +57,7 @@ export function BottomNav({ onOpenDrawer }: BottomNavProps) {
                   isActive && "drop-shadow-[0_0_6px_rgba(212,133,58,0.8)]"
                 )}
               />
-              <span className="text-[9px] font-medium leading-none">{item.label}</span>
+              <span className="text-[9px] font-bold leading-none tracking-wide uppercase">{item.label}</span>
             </Link>
           );
         })}
@@ -76,7 +76,7 @@ export function BottomNav({ onOpenDrawer }: BottomNavProps) {
               !inPrimary && "drop-shadow-[0_0_6px_rgba(212,133,58,0.8)]"
             )}
           />
-          <span className="text-[9px] font-medium leading-none">Mais</span>
+          <span className="text-[9px] font-bold leading-none tracking-wide uppercase">Mais</span>
         </button>
       </div>
     </nav>

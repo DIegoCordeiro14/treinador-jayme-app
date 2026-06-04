@@ -145,3 +145,38 @@ html, body {
     @apply focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:ring-offset-1 focus:ring-offset-zinc-950;
   }
 }
+
+/* ── Mockup design system ── */
+.card-gradient {
+  background: linear-gradient(160deg, #141C24 0%, #0D1117 100%);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.heading-display {
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.03em;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #546E7A;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.accent-bar {
+  height: 3px;
+  border-radius: 9999px;
+  background: #D4853A;
+  opacity: 0.7;
+}

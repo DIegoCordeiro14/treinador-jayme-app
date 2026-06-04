@@ -82,7 +82,7 @@ export function Sidebar({ profile }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-60 min-h-screen bg-zinc-900 border-r border-zinc-800 fixed left-0 top-0 z-40">
+    <aside className="hidden md:flex flex-col w-60 min-h-screen bg-zinc-950 border-r border-white/[0.07] fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-800">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4853A]">
@@ -98,7 +98,7 @@ export function Sidebar({ profile }: SidebarProps) {
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider px-3 mb-1.5">
+            <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.1em] px-3 mb-1.5">
               {group.label}
             </p>
             <div className="space-y-0.5">
@@ -114,7 +114,7 @@ export function Sidebar({ profile }: SidebarProps) {
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                       isActive
-                        ? "bg-[#D4853A]/10 text-[#D4853A] border-l-2 border-[#D4853A] font-semibold"
+                        ? "bg-[#D4853A]/10 text-[#D4853A] border-l-2 border-[#D4853A] font-bold"
                         : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
                     )}
                   >
