@@ -344,12 +344,17 @@ export default function TreinosPage() {
             return (
               <div
                 key={plan.id}
-                className="rounded-xl border border-zinc-800 bg-zinc-900 hover:border-zinc-700 transition-all group"
+                className={plan.is_active
+                  ? "rounded-2xl border border-[#D4853A]/25 bg-gradient-to-br from-[#D4853A]/10 to-[#D4853A]/[0.03] transition-all group"
+                  : "rounded-2xl border border-zinc-800 bg-zinc-900 hover:border-zinc-700 transition-all group"}
               >
                 <div className="flex items-start justify-between p-5 gap-4">
                   <div className="flex-1 min-w-0">
+                    {plan.is_active && (
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#D4853A] mb-1">Plano Ativo</p>
+                    )}
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-zinc-100 truncate">{plan.name}</h3>
+                      <h3 className="font-extrabold italic text-lg text-zinc-100 truncate">{plan.name}</h3>
                       {plan.is_active && (
                         <Badge variant="default" className="text-[10px] gap-1 py-0.5">
                           <CheckCircle2 className="h-2.5 w-2.5" />
@@ -362,18 +367,18 @@ export default function TreinosPage() {
                         {plan.description}
                       </p>
                     )}
-                    <div className="flex flex-wrap gap-2">
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                        <Calendar className="h-3 w-3" />
-                        {plan.days_per_week}x por semana
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      <div className="rounded-lg bg-black/20 py-2.5 px-2 text-center">
+                        <p className="text-xl font-black text-[#D4853A] leading-none">{plan.days_per_week}</p>
+                        <p className="text-[10px] text-zinc-500 mt-1">dias/sem</p>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                        <Target className="h-3 w-3" />
-                        {GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}
+                      <div className="rounded-lg bg-black/20 py-2.5 px-2 text-center">
+                        <p className="text-xl font-black text-[#D4853A] leading-none">{totalExercises}</p>
+                        <p className="text-[10px] text-zinc-500 mt-1">exercícios</p>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                        <Dumbbell className="h-3 w-3" />
-                        {totalExercises} exercícios
+                      <div className="rounded-lg bg-black/20 py-2.5 px-2 text-center">
+                        <p className="text-sm font-black text-[#D4853A] leading-none mt-1">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</p>
+                        <p className="text-[10px] text-zinc-500 mt-1.5">objetivo</p>
                       </div>
                     </div>
                   </div>

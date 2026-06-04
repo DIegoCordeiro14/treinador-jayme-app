@@ -212,7 +212,7 @@ export default function ExerciciosPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
@@ -230,7 +230,7 @@ export default function ExerciciosPage() {
           </p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {filtered.map((exercise) => (
             <ExerciseCard
               key={exercise.id}
