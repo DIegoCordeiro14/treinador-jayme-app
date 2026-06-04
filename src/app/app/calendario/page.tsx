@@ -55,11 +55,11 @@ function jsToEdn(jsDay: number) { return jsDay === 0 ? 7 : jsDay; }
 function isScheduledDay(date: Date, cfg: ScheduleConfig | null) {
   if (!cfg) return false;
   if (date < new Date(cfg.start_date + 'T00:00:00')) return false;
-  return cfg.pattern.includes(jsToEdn(getDay(date)));
+  return (cfg.pattern ?? []).includes(jsToEdn(getDay(date)));
 }
 function getWorkoutLabel(date: Date, cfg: ScheduleConfig | null) {
   if (!cfg) return '';
-  return cfg.day_assignments[String(jsToEdn(getDay(date)))] ?? '';
+  return cfg.day_assignments?.[String(jsToEdn(getDay(date)))] ?? '';
 }
 
 const MUSCLE_ABBREV: Record<string, string> = {
