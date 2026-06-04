@@ -18,6 +18,19 @@
 /* Prevent overscroll bounce on iOS */
 html, body {
   overscroll-behavior: none;
+  /* Mobile: nunca permitir rolagem horizontal — conteúdo se ajusta à largura do aparelho */
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Qualquer mídia/iframe/tabela nunca passa da largura do container */
+img, video, iframe, canvas, svg, table {
+  max-width: 100%;
+}
+
+/* Grids e flex não estouram por conteúdo longo */
+* {
+  min-width: 0;
 }
 
 @layer base {
