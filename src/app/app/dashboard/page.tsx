@@ -204,6 +204,50 @@ export default async function DashboardPage() {
     }
   }
 
+  // ── Próximo treino agendado (informativo) ──
+  const WEEKDAY_PT = ["", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"];
+  let nextWorkout: { weekday: string; name: string; label?: string | null } | null = null;
+
+  if (typedPlan && typedPlan.workout_days) {
+    const sortedDays = [...typedPlan.workout_days].sort((a, b) => a.order_index - b.order_index);
+    const schedule = (typedPlan as unknown as {
+      schedule_config?: { pattern?: number[]; day_assignments?: Record<string, string> } | null;
+    }).schedule_config;
+
+    const matchByLabel = (label: string | null): WorkoutDay | null => {
+      if (!label) return null;
+      const norm = (x: string) => x.toLowerCase().trim();
+      const byName = sortedDays.find(
+        (d) => norm(d.name) === norm(label) || norm(d.name).includes(norm(label)) || norm(label).includes(norm(d.name))
+      );
+      if (byName) return byName;
+      const tokens = norm(label).split(/[\/+,&\s]+/).filter(Boolean);
+      let best: { day: WorkoutDay; score: number } | null = null;
+      for (const d of sortedDays) {
+        const exs = (d as unknown as { workout_exercises?: { exercise?: { muscle_group?: string } }[] }).workout_exercises ?? [];
+        const score = exs.filter((we) => tokens.some((t) => (we.exercise?.muscle_group ?? "").startsWith(t.slice(0, 4)))).length;
+        if (score > 0 && (!best || score > best.score)) best = { day: d, score };
+      }
+      return best?.day ?? null;
+    };
+
+    if (schedule?.pattern?.length) {
+      const ednToday = todayDayOfWeek === 0 ? 7 : todayDayOfWeek;
+      const sortedPattern = [...schedule.pattern].sort((a, b) => a - b);
+      // primeiro dia do padrão estritamente após hoje; senão, primeiro da próxima semana
+      const nextEdn = sortedPattern.find((d) => d > ednToday) ?? sortedPattern[0];
+      if (nextEdn !== undefined) {
+        const label = schedule.day_assignments?.[String(nextEdn)] ?? null;
+        const matched = matchByLabel(label) ?? sortedDays[sortedPattern.indexOf(nextEdn) % sortedDays.length] ?? null;
+        if (matched) nextWorkout = { weekday: WEEKDAY_PT[nextEdn], name: matched.name, label };
+      }
+    } else if (sortedDays.length > 0) {
+      // sem agenda: próximo treino sequencial
+      const next = sortedDays[(weeklySessions.length + (todayWorkoutDay ? 1 : 0)) % sortedDays.length];
+      if (next && next.id !== todayWorkoutDay?.id) nextWorkout = { weekday: "próxima sessão", name: next.name };
+    }
+  }
+
   const recentSessions = typedSessions.slice(0, 5);
 
   return (
@@ -264,6 +308,7 @@ export default async function DashboardPage() {
           workoutDay={todayWorkoutDay}
           plan={typedPlan}
           isRestDay={!todayWorkoutDay}
+          nextWorkout={nextWorkout}
         />
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>

@@ -7,12 +7,31 @@ interface WorkoutTodayCardProps {
   workoutDay: WorkoutDay | null;
   plan: WorkoutPlan | null;
   isRestDay?: boolean;
+  /** Informativo do próximo treino agendado, ex.: { weekday: "sexta-feira", name: "Treino C", label: "legs/abs" } */
+  nextWorkout?: { weekday: string; name: string; label?: string | null } | null;
+}
+
+function NextWorkoutInfo({ nextWorkout }: { nextWorkout?: { weekday: string; name: string; label?: string | null } | null }) {
+  if (!nextWorkout) return null;
+  return (
+    <div className="mt-4 flex items-center gap-2.5 rounded-lg bg-[#D4853A]/[0.08] border border-[#D4853A]/20 px-3 py-2.5">
+      <ChevronRight className="h-3.5 w-3.5 text-[#D4853A] shrink-0" />
+      <p className="text-xs text-zinc-400 min-w-0">
+        Próximo treino:{" "}
+        <span className="font-semibold text-[#D4853A]">{nextWorkout.name}</span>
+        {" · "}
+        <span className="capitalize text-zinc-300">{nextWorkout.weekday}</span>
+        {nextWorkout.label ? <span className="text-zinc-500"> ({nextWorkout.label})</span> : null}
+      </p>
+    </div>
+  );
 }
 
 export function WorkoutTodayCard({
   workoutDay,
   plan,
   isRestDay = false,
+  nextWorkout = null,
 }: WorkoutTodayCardProps) {
   if (isRestDay || !workoutDay || !plan) {
     return (
@@ -38,6 +57,7 @@ export function WorkoutTodayCard({
             Recuperação é parte do treino. Descanse bem!
           </p>
         </div>
+        <NextWorkoutInfo nextWorkout={nextWorkout} />
         <Link href="/app/treinos">
           <Button variant="outline" className="w-full mt-2" size="sm">
             Ver planos de treino
@@ -104,6 +124,7 @@ export function WorkoutTodayCard({
           Iniciar Treino
         </Button>
       </Link>
+      <NextWorkoutInfo nextWorkout={nextWorkout} />
     </div>
   );
 }
