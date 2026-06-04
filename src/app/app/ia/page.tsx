@@ -183,7 +183,7 @@ export default function IAPage() {
                 </button>
                 <button
                   onClick={(e) => deleteConversation(conv.id, e)}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 hover:bg-red-400/10"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center rounded text-zinc-500 hover:text-[#B07A7A] hover:bg-[#8B5A5A]/15"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -365,7 +365,7 @@ export default function IAPage() {
                     </button>
                     <button
                       onClick={(e) => { deleteConversation(conv.id, e); }}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 hover:bg-red-400/10"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center rounded text-zinc-500 hover:text-[#B07A7A] hover:bg-[#8B5A5A]/15"
                     >
                       <X className="h-3 w-3" />
                     </button>
