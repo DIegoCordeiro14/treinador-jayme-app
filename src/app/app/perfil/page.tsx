@@ -401,7 +401,7 @@ export default function PerfilPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${tab === t.key ? 'bg-[#D4853A] text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+              className={`flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${tab === t.key ? 'bg-[#D4853A] text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
             >
               {t.icon} {t.label}
             </button>

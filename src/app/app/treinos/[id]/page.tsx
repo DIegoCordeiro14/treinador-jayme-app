@@ -398,12 +398,12 @@ export default function PlanDetailPage() {
         <Link href="/app/treinos" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors mb-3">
           <ChevronLeft className="h-4 w-4" />Treinos
         </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-100">{plan.name}</h1>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-zinc-100 break-words">{plan.name}</h1>
             {plan.description && <p className="text-sm text-zinc-400 mt-1">{plan.description}</p>}
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="secondary">{plan.days_per_week}x por semana</Badge>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <Badge variant="secondary" className="whitespace-nowrap">{plan.days_per_week}x por semana</Badge>
               <Badge variant="outline">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</Badge>
             </div>
           </div>
