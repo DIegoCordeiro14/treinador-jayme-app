@@ -1,8 +1,10 @@
 /**
- * EDN Athlete Engine — V4.0
- * Hub central de inteligência do atleta.
+ * EDN Athlete Engine — V6.5
+ * Hub central de inteligência do atleta (Pilar 2 — fonte única de verdade).
  * Consolida: perfil, bioimpedância, treinos, cardio, nutrição,
- * recuperação e gamificação em uma única visão.
+ * recuperação (Recovery Engine) e DECISÕES (Decision Engine).
+ *
+ * Fluxo: DADOS → INTERPRETAÇÃO → DECISÃO → AÇÃO → RESULTADO
  *
  * Consumido por: Dashboard, Coach EDN, Evolução, Nutrição, Cárdio.
  */
@@ -10,6 +12,7 @@
 import { computeAthleteState, formatAthleteStateForAI, type AthleteState } from './performance-engine';
 import { buildEdnBreakdown, type EdnScoreBreakdown } from './gamification';
 import { computeProjections, type ProjectionResult } from './projections';
+import { decide, formatDecisionsForAI, type Decision } from './decision-engine';
 import { createClient } from '@/lib/supabase/server';
 
 // ── Extended Athlete Intelligence ─────────────────────────────────────────────
@@ -19,6 +22,7 @@ export interface AthleteIntelligence {
   projections: ProjectionResult | null;
   briefing: DailyBriefing;
   plateauAnalysis: PlateauAnalysis;
+  decisions: Decision[];              // V6.5 — Pilar 4: Decision Engine
   nextWorkoutRecommendation: string | null;
   aiContext: string; // formatted string for AI consumption
 }
@@ -145,10 +149,11 @@ function buildBriefing(params: {
   name: string;
   state: AthleteState;
   plateau: PlateauAnalysis;
+  decisions: Decision[];
   nextDayName: string | null;
   weightTrend: number | null;
 }): DailyBriefing {
-  const { name, state, plateau, nextDayName, weightTrend } = params;
+  const { name, state, plateau, decisions, nextDayName, weightTrend } = params;
   const r = state.raw;
 
   const highlights: string[] = [];
@@ -158,8 +163,16 @@ function buildBriefing(params: {
     highlights.push('Você já treinou hoje. Foco na recuperação e hidratação.');
   } else if (r.days_since_last_workout === 1) {
     highlights.push(`Último treino: ontem. Você está no ritmo certo.`);
-  } else if (r.days_since_last_workout >= 3) {
+  } else if (r.days_since_last_workout >= 3 && r.days_since_last_workout < 999) {
     highlights.push(`Você está há ${r.days_since_last_workout} dias sem treinar. Hora de retomar.`);
+  }
+
+  // V6.5 — Recovery Engine highlight (Camada 2)
+  const rec = state.recovery_state;
+  if (rec.category === 'excellent') {
+    highlights.push(`Recuperação excelente (${rec.score}/100) — ótimo dia para buscar progressão.`);
+  } else if (rec.category === 'low' || rec.category === 'critical') {
+    highlights.push(`Recuperação ${rec.category === 'critical' ? 'crítica' : 'baixa'} (${rec.score}/100) — ajuste o volume de hoje.`);
   }
 
   // Deficit / weight trend
@@ -176,25 +189,30 @@ function buildBriefing(params: {
   // Score highlight
   if (state.edn_score >= 80) {
     highlights.push(`Score EDN ${state.edn_score}/100 — excelente consistência esta semana.`);
-  } else if (state.edn_score < 50) {
+  } else if (state.edn_score < 50 && r.sessions_last_28 > 0) {
     const weakest = Object.entries({
-      Consistência: state.raw.sessions_last_28,
-      Nutrição: 100 - state.raw.protein_days_below_target * 15,
+      Consistência: r.sessions_last_28,
+      Nutrição: 100 - r.protein_days_below_target * 15,
       Cárdio: state.cardio_load,
     }).sort((a, b) => a[1] - b[1])[0][0];
     highlights.push(`O fator que mais limita seu Score EDN (${state.edn_score}/100) é: ${weakest}.`);
   }
 
-  // Today focus
-  const todayFocus = nextDayName
-    ? `Seu próximo treino recomendado é ${nextDayName}.`
-    : 'Hoje é dia de descanso ativo — mobilidade e caminhada.';
+  // Today focus — Camada 3: a decisão nº 1 do Decision Engine vira o foco do dia
+  const topDecision = decisions[0];
+  const todayFocus = topDecision
+    ? `${topDecision.label}. ${topDecision.reason}`
+    : nextDayName
+      ? `Seu próximo treino recomendado é ${nextDayName}.`
+      : 'Hoje é dia de descanso ativo — mobilidade e caminhada.';
 
   // Alert
   let alert: string | null = null;
   if (plateau.severity === 'severe') {
     alert = 'Platô múltiplo detectado. Veja as recomendações em Evolução.';
-  } else if (r.days_since_last_workout >= 5) {
+  } else if (rec.category === 'critical' && r.sessions_last_28 > 0) {
+    alert = 'Recuperação crítica — o Coach recomenda descanso hoje.';
+  } else if (r.days_since_last_workout >= 5 && r.days_since_last_workout < 999) {
     alert = 'Mais de 5 dias sem treinar — cada dia conta para a progressão.';
   }
 
@@ -222,7 +240,7 @@ export async function computeAthleteIntelligence(userId: string): Promise<Athlet
       .then(r => (r.data ?? []).reverse()),
     supabase
       .from('profiles')
-      .select('name, weekly_frequency')
+      .select('name, weekly_frequency, main_goal')
       .eq('id', userId)
       .single()
       .then(r => r.data),
@@ -232,9 +250,25 @@ export async function computeAthleteIntelligence(userId: string): Promise<Athlet
     analyzePlateau(userId, supabase),
   ]);
 
+  // V6.5 — Pilar 4: Decision Engine (DADOS → INTERPRETAÇÃO → DECISÃO)
+  const decisions = decide({
+    recovery: state.recovery_state,
+    plateauSeverity: plateau.severity,
+    mainGoal: (nextDay as any)?.main_goal ?? state.raw.main_goal,
+    weightTrend14d: state.raw.weight_trend_14d,
+    hasPrLast4Weeks: state.raw.has_pr_last_4_weeks,
+    sessionsLast28: state.raw.sessions_last_28,
+    plannedSessions28: state.raw.planned_sessions_last_28,
+    daysSinceLastWorkout: state.raw.days_since_last_workout,
+    cardioKmWeek: state.raw.cardio_km_this_week,
+    cardioGoalKm: state.raw.cardio_goal_km,
+    proteinDaysBelow: state.raw.protein_days_below_target,
+    nutritionLogged: state.raw.nutrition_logged_days > 0,
+  });
+
   // EDN Score 360°
   const score360 = buildEdnBreakdown(
-    Math.min(100, Math.round((state.raw.sessions_last_28 / Math.max(1, state.raw.planned_sessions_last_28)) * 100)),
+    state.raw.sessions_last_28 === 0 ? 0 : Math.min(100, Math.round((state.raw.sessions_last_28 / Math.max(1, state.raw.planned_sessions_last_28)) * 100)),
     state.progression_score,
     state.nutrition_adherence,
     state.cardio_load,
@@ -258,11 +292,12 @@ export async function computeAthleteIntelligence(userId: string): Promise<Athlet
     name: nextDay?.name ?? 'atleta',
     state,
     plateau,
+    decisions,
     nextDayName: nextWorkoutRecommendation,
     weightTrend: state.raw.weight_trend_14d,
   });
 
-  // AI context
+  // AI context — inclui as decisões para o Coach explicar e executar
   const aiContext = [
     formatAthleteStateForAI(state),
     plateau.severity !== 'none' ? `Platô: ${plateau.severity} (${[
@@ -271,6 +306,7 @@ export async function computeAthleteIntelligence(userId: string): Promise<Athlet
       plateau.volumePlateau.detected && `volume estagnado`,
     ].filter(Boolean).join(', ')})` : null,
     projections ? `Projeção 30d: ${projections.projections[0]?.weightKg ?? '?'}kg | Tendência: ${projections.insight}` : null,
+    formatDecisionsForAI(decisions),
   ].filter(Boolean).join('\n');
 
   return {
@@ -279,6 +315,7 @@ export async function computeAthleteIntelligence(userId: string): Promise<Athlet
     projections,
     briefing,
     plateauAnalysis: plateau,
+    decisions,
     nextWorkoutRecommendation,
     aiContext,
   };
