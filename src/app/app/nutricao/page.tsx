@@ -47,7 +47,7 @@ interface SmartMacros { tdee: number; target_calories: number; protein_g: number
 interface WeightLog { id: string; log_date: string; weight_kg: number; body_fat_pct: number | null; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function MacroRing({ pct, color, label, value }: { pct: number; color: string; label: string; value?: string }) {
+function MacroRing({ pct, color, label, value, labelColor }: { pct: number; color: string; label: string; value?: string; labelColor?: string }) {
   const r = 28; const circ = 2 * Math.PI * r; const dash = Math.min(pct / 100, 1) * circ;
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -59,8 +59,8 @@ function MacroRing({ pct, color, label, value }: { pct: number; color: string; l
         </svg>
         <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-zinc-100">{pct}%</span>
       </div>
-      <span className="text-[11px] text-zinc-400 font-medium">{label}</span>
-      {value && <span className="text-[10px] text-zinc-600">{value}</span>}
+      <span className={`text-[11px] font-bold ${labelColor ?? "text-zinc-400"}`}>{label}</span>
+      {value && <span className="text-[10px] text-zinc-500">{value}</span>}
     </div>
   );
 }
@@ -185,25 +185,29 @@ export default function NutricaoPage() {
           {plan && <span className="ml-auto text-xs bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
         </div>
         {plan ? (
-          <div className="flex justify-around mt-2">
-            <MacroRing pct={plan.carbs_pct} color="text-[#A67C3A]" label="Carbs" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
-            <MacroRing pct={Math.min(Math.round(plan.protein_g_per_kg * 4), 100)} color="text-[#E09B5A]" label="Proteina" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
-            <MacroRing pct={plan.fat_pct} color="text-[#8B5A5A]" label="Gordura" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
-          </div>
+          <>
+            {/* Linha kcal — layout do mockup */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] text-[#D4853A]">META DIÁRIA</p>
+                <p className="text-xl font-black italic text-zinc-100 mt-0.5">{smartMacros?.target_calories ?? plan.daily_calories ?? '—'} kcal</p>
+                <p className="text-xs text-zinc-400 mt-0.5">TDEE estimado: {smartMacros?.tdee ?? '—'} kcal</p>
+              </div>
+              <MacroRing pct={smartMacros?.tdee && smartMacros?.target_calories ? Math.round((smartMacros.target_calories / smartMacros.tdee) * 100) : 100} color="text-[#D4853A]" label="kcal" />
+            </div>
+            <div className="flex justify-around">
+              <MacroRing pct={Math.min(Math.round(plan.protein_g_per_kg * 4), 100)} color="text-[#5A8A6A]" label="Proteína" labelColor="text-[#5A8A6A]" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
+              <MacroRing pct={plan.carbs_pct} color="text-[#A67C3A]" label="Carbo" labelColor="text-[#A67C3A]" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
+              <MacroRing pct={plan.fat_pct} color="text-[#8B5A5A]" label="Gordura" labelColor="text-[#8B5A5A]" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
+            </div>
+          </>
         ) : (
           <div className="text-center py-4 opacity-60">
             <p className="text-sm">Nenhum plano gerado</p>
             <p className="text-xs mt-1">Use o Coach IA abaixo</p>
           </div>
         )}
-        {(smartMacros || plan) && (
-          <div className="flex justify-between mt-4 pt-3 border-t border-white/20 text-xs">
-            <span className="opacity-70">TDEE estimado</span>
-            <span className="font-bold">{smartMacros?.tdee ?? '—'} kcal</span>
-            <span className="opacity-70">Meta</span>
-            <span className="font-bold">{smartMacros?.target_calories ?? plan?.daily_calories ?? '—'} {smartMacros ? 'kcal' : ''}</span>
-          </div>
-        )}
+
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

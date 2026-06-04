@@ -391,6 +391,14 @@ export default function EvolucaoPage() {
   const weightDelta = latest?.weight_kg && prev?.weight_kg ? latest.weight_kg - prev.weight_kg : null;
   const totalVolume = sessions.reduce((s, sess) => s + (sess.total_volume_kg ?? 0), 0);
   const latestBio = bioList[0] ?? null;
+  const prevBio = bioList[1] ?? null;
+  const delta = (cur: number | null, prev: number | null | undefined, unit = '', invert = false) => {
+    if (cur == null || prev == null) return null;
+    const d = +(cur - prev).toFixed(1);
+    if (d === 0) return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#A67C3A]/15 text-[#A67C3A]">=</span>;
+    const good = invert ? d < 0 : d > 0;
+    return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${good ? 'bg-[#5A8A6A]/15 text-[#5A8A6A]' : 'bg-[#8B5A5A]/15 text-[#8B5A5A]'}`}>{d > 0 ? '+' : '−'}{Math.abs(d)}{unit}</span>;
+  };
 
   async function generateReport() {
     setReportLoading(true);
@@ -487,23 +495,21 @@ export default function EvolucaoPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-[#D4853A]', badge: null },
-                    { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-yellow-400', badge: latestBio.bmi !== null ? (() => { const b = latestBio.bmi!; return b < 25 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Meta atingida</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400">Meta: &lt; 25</span>; })() : null },
-                    { label: 'Gordura Corporal', value: latestBio.body_fat_pct ? `${latestBio.body_fat_pct}%` : null, icon: <TrendingUp className="h-3.5 w-3.5" />, color: 'text-orange-400', badge: statusBadge(latestBio.body_fat_pct, { ok: 20, warn: 25 }, ['Normal', 'Alta', 'Muito alta']) },
-                    { label: 'Músculo', value: latestBio.skeletal_muscle_mass_kg ? `${latestBio.skeletal_muscle_mass_kg} kg` : null, icon: <Dumbbell className="h-3.5 w-3.5" />, color: 'text-green-400', badge: null },
-                    { label: 'Água Corporal', value: latestBio.water_pct ? `${latestBio.water_pct}%` : null, icon: <Droplets className="h-3.5 w-3.5" />, color: 'text-cyan-400', badge: statusBadge(latestBio.water_pct, { ok: 50, warn: 45 }, ['Normal', 'Baixa', 'Muito baixa'], true) },
-                    { label: 'Metabolismo Basal', value: latestBio.basal_metabolic_rate_kcal ? `${latestBio.basal_metabolic_rate_kcal} kcal` : null, icon: <Flame className="h-3.5 w-3.5" />, color: 'text-red-400', badge: null },
-                    { label: 'Gordura Visceral', value: latestBio.visceral_fat_level ? `Nível ${latestBio.visceral_fat_level}` : null, icon: <Heart className="h-3.5 w-3.5" />, color: 'text-pink-400', badge: statusBadge(latestBio.visceral_fat_level, { ok: 9, warn: 14 }, ['Normal', 'Alta', 'Muito alta']) },
-                    { label: 'Massa Óssea', value: latestBio.bone_mass_kg ? `${latestBio.bone_mass_kg} kg` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-zinc-400', badge: null },
-                    { label: 'Proteína corporal', value: latestBio.protein_pct ? `${latestBio.protein_pct}%` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-purple-400', badge: latestBio.protein_pct !== null ? (latestBio.protein_pct < 18 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400">Aumentar proteína</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Normal</span>) : null },
-                  ].filter((item) => item.value !== null).map((item) => (
-                    <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
-                      <div className={cn('flex items-center gap-1.5 mb-1', item.color)}>
-                        {item.icon}
-                        <span className="text-[11px] font-medium text-zinc-400">{item.label}</span>
-                      </div>
-                      <p className="text-base font-semibold text-zinc-100">{item.value}</p>
-                      {item.badge && <div className="mt-1">{item.badge}</div>}
+                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-zinc-100', badge: null, delta: delta(latestBio.weight_kg, prevBio?.weight_kg, 'kg', true) },
+                    { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-zinc-100', delta: delta(latestBio.bmi, prevBio?.bmi, '', true), badge: latestBio.bmi !== null ? (() => { const b = latestBio.bmi!; return b < 25 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Meta atingida</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400">Meta: &lt; 25</span>; })() : null },
+                    { label: 'Gordura Corporal', value: latestBio.body_fat_pct ? `${latestBio.body_fat_pct}%` : null, icon: <TrendingUp className="h-3.5 w-3.5" />, color: 'text-[#D4853A]', delta: delta(latestBio.body_fat_pct, prevBio?.body_fat_pct, '%', true), badge: statusBadge(latestBio.body_fat_pct, { ok: 20, warn: 25 }, ['Normal', 'Alta', 'Muito alta']) },
+                    { label: 'Músculo', value: latestBio.skeletal_muscle_mass_kg ? `${latestBio.skeletal_muscle_mass_kg} kg` : null, icon: <Dumbbell className="h-3.5 w-3.5" />, color: 'text-[#5A8A6A]', badge: null, delta: delta(latestBio.skeletal_muscle_mass_kg, prevBio?.skeletal_muscle_mass_kg, 'kg') },
+                    { label: 'Água Corporal', value: latestBio.water_pct ? `${latestBio.water_pct}%` : null, icon: <Droplets className="h-3.5 w-3.5" />, color: 'text-zinc-100', delta: delta(latestBio.water_pct, prevBio?.water_pct, '%'), badge: statusBadge(latestBio.water_pct, { ok: 50, warn: 45 }, ['Normal', 'Baixa', 'Muito baixa'], true) },
+                    { label: 'Metabolismo Basal', value: latestBio.basal_metabolic_rate_kcal ? `${latestBio.basal_metabolic_rate_kcal} kcal` : null, icon: <Flame className="h-3.5 w-3.5" />, color: 'text-zinc-100', badge: null, delta: delta(latestBio.basal_metabolic_rate_kcal, prevBio?.basal_metabolic_rate_kcal) },
+                    { label: 'Gordura Visceral', value: latestBio.visceral_fat_level ? `Nível ${latestBio.visceral_fat_level}` : null, icon: <Heart className="h-3.5 w-3.5" />, color: 'text-zinc-100', delta: delta(latestBio.visceral_fat_level, prevBio?.visceral_fat_level, '', true), badge: statusBadge(latestBio.visceral_fat_level, { ok: 9, warn: 14 }, ['Normal', 'Alta', 'Muito alta']) },
+                    { label: 'Massa Óssea', value: latestBio.bone_mass_kg ? `${latestBio.bone_mass_kg} kg` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-zinc-100', badge: null, delta: delta(latestBio.bone_mass_kg, prevBio?.bone_mass_kg, 'kg') },
+                    { label: 'Proteína corporal', value: latestBio.protein_pct ? `${latestBio.protein_pct}%` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-[#5A8A6A]', delta: delta(latestBio.protein_pct, prevBio?.protein_pct, '%'), badge: latestBio.protein_pct !== null ? (latestBio.protein_pct < 18 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400">Aumentar proteína</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Normal</span>) : null },
+                  ].filter((item) => item.value !== null).map((item: { label: string; value: string | null; icon: React.ReactNode; color: string; badge: React.ReactNode | null; delta?: React.ReactNode | null }) => (
+                    <div key={item.label} className="rounded-xl border border-white/[0.07] bg-[#0D1520] p-3 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 mb-1">{item.label}</p>
+                      <p className={cn("text-2xl font-black leading-none", item.color)}>{String(item.value).replace(/ ?(kg|kcal|%|Nível ?)/g, '')}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">{(String(item.value).match(/kg|kcal|%/) ?? ['' + (item.label === 'Gordura Visceral' ? 'nível' : '')])[0]}</p>
+                      {(item.delta ?? item.badge) && <div className="mt-1.5 flex justify-center">{item.delta ?? item.badge}</div>}
                     </div>
                   ))}
                 </div>
