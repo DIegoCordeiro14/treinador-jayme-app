@@ -326,7 +326,7 @@ export default function TreinosPage() {
             Criar primeiro plano
           </Button>
           {bioInfo && (
-            <p className="text-xs text-blue-400 mt-3 flex items-center justify-center gap-1">
+            <p className="text-xs text-[#D4853A] mt-3 flex items-center justify-center gap-1">
               <Sparkles className="h-3 w-3" />
               A IA vai montar o treino ideal com base no seu perfil e bioimpedância
             </p>
@@ -453,10 +453,10 @@ export default function TreinosPage() {
           ) : (
             <>
               {/* Prescrição vinda do perfil — sem campos manuais de dias/objetivo */}
-              <div className="rounded-xl border border-blue-600/30 bg-blue-600/10 p-3.5 space-y-2">
+              <div className="rounded-xl border border-[#D4853A]/30 bg-[#D4853A]/10 p-3.5 space-y-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-blue-400 shrink-0" />
-                  <p className="text-xs font-semibold text-blue-300">
+                  <Sparkles className="h-4 w-4 text-[#D4853A] shrink-0" />
+                  <p className="text-xs font-semibold text-[#E09B5A]">
                     Prescrição automática — baseada na sua anamnese
                   </p>
                 </div>
@@ -471,10 +471,10 @@ export default function TreinosPage() {
                 )}
                 <div className="flex items-center gap-2 pt-0.5 flex-wrap">
                   <span className="text-[11px] text-zinc-500">Do seu perfil:</span>
-                  <span className="text-[11px] font-semibold text-blue-300 bg-blue-600/20 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-semibold text-[#E09B5A] bg-[#D4853A]/20 px-2 py-0.5 rounded-full">
                     {prescription?.goalLabel}
                   </span>
-                  <span className="text-[11px] text-blue-300 bg-blue-600/20 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] text-[#E09B5A] bg-[#D4853A]/20 px-2 py-0.5 rounded-full">
                     {prescription?.daysPerWeek}x/semana
                   </span>
                   <Link

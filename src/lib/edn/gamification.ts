@@ -22,7 +22,7 @@ export const LEAGUES: LeagueInfo[] = [
   { id: 'prata',    label: 'Prata',       emoji: '🥈', color: 'text-zinc-300',    bgColor: 'bg-zinc-700/20',   borderColor: 'border-zinc-500/40',   min: 40, max: 59  },
   { id: 'ouro',     label: 'Ouro',        emoji: '🥇', color: 'text-yellow-400',  bgColor: 'bg-yellow-900/20', borderColor: 'border-yellow-600/40', min: 60, max: 74  },
   { id: 'platina',  label: 'Platina',     emoji: '💎', color: 'text-cyan-300',    bgColor: 'bg-cyan-900/20',   borderColor: 'border-cyan-500/40',   min: 75, max: 84  },
-  { id: 'diamante', label: 'Diamante',    emoji: '💠', color: 'text-blue-300',    bgColor: 'bg-blue-900/20',   borderColor: 'border-blue-500/40',   min: 85, max: 94  },
+  { id: 'diamante', label: 'Diamante',    emoji: '💠', color: 'text-[#E09B5A]',    bgColor: 'bg-[#D4853A]/10',   borderColor: 'border-[#D4853A]/40',   min: 85, max: 94  },
   { id: 'elite',    label: 'Elite EDN',   emoji: '⚡', color: 'text-violet-400',  bgColor: 'bg-violet-900/20', borderColor: 'border-violet-500/40', min: 95, max: 100 },
 ];
 

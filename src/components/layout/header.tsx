@@ -27,7 +27,7 @@ export function Header({ profile, title, onOpenDrawer }: HeaderProps) {
 
         {/* Logo / Title */}
         <Link href="/app/dashboard" className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#D4853A]">
             <Zap className="h-3.5 w-3.5 text-white" />
           </div>
           <span className="text-sm font-bold text-zinc-100">

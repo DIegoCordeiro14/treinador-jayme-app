@@ -20,7 +20,7 @@ interface ActionCardProps {
 }
 
 const VARIANTS = {
-  blue:  { border: 'border-blue-600/30',  bg: 'bg-blue-600/5',  icon: 'text-blue-400',  btn: '' },
+  blue:  { border: 'border-[#D4853A]/30',  bg: 'bg-[#D4853A]/5',  icon: 'text-[#D4853A]',  btn: '' },
   amber: { border: 'border-amber-500/30', bg: 'bg-amber-500/5', icon: 'text-amber-400', btn: 'bg-amber-600 hover:bg-amber-700 text-white border-0' },
   green: { border: 'border-green-600/30', bg: 'bg-green-600/5', icon: 'text-green-400', btn: 'bg-green-600 hover:bg-green-700 text-white border-0' },
   red:   { border: 'border-red-600/30',   bg: 'bg-red-600/5',   icon: 'text-red-400',   btn: 'bg-red-600 hover:bg-red-700 text-white border-0' },

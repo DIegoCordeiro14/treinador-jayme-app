@@ -106,14 +106,14 @@ export default function RankingPage() {
         <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="font-semibold text-zinc-100 flex items-center gap-2">
-              <Star className="h-4 w-4 text-blue-400" /> Seu Score EDN
+              <Star className="h-4 w-4 text-[#D4853A]" /> Seu Score EDN
             </p>
             <LeagueBadge league={myEdnRow.league} score={myEdnRow.edn_score} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-3">
               <div>
-                <p className="text-4xl font-black text-blue-400">{myEdnRow.edn_score}</p>
+                <p className="text-4xl font-black text-[#D4853A]">{myEdnRow.edn_score}</p>
                 <p className="text-xs text-zinc-500 mt-0.5">Score Total</p>
               </div>
               {[
@@ -128,7 +128,7 @@ export default function RankingPage() {
                     <span className="text-zinc-500">{c.label} ×{c.w}%</span>
                     <span className="text-zinc-400">{c.v}/100</span>
                   </div>
-                  <div className="h-1 rounded-full bg-zinc-800"><div className="h-full rounded-full bg-blue-500/60 transition-all" style={{ width: `${c.v}%` }} /></div>
+                  <div className="h-1 rounded-full bg-zinc-800"><div className="h-full rounded-full bg-[#D4853A]/60 transition-all" style={{ width: `${c.v}%` }} /></div>
                 </div>
               ))}
             </div>
@@ -136,7 +136,7 @@ export default function RankingPage() {
               <RadarChart data={radarData}>
                 <PolarGrid stroke="#3f3f46" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 8 }} />
-                <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                <Radar dataKey="value" stroke="#D4853A" fill="#D4853A" fillOpacity={0.2} />
                 <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', fontSize: 10 }} />
               </RadarChart>
             </ResponsiveContainer>
@@ -229,7 +229,7 @@ export default function RankingPage() {
                       <p className="text-xs text-zinc-500">{entry.workouts_count} treinos</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-bold text-blue-400">{entry.score_total.toFixed(1)}</p>
+                      <p className="font-bold text-[#D4853A]">{entry.score_total.toFixed(1)}</p>
                       <p className="text-[10px] text-zinc-600">score</p>
                     </div>
                   </div>

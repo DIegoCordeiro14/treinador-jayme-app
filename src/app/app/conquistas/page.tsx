@@ -77,8 +77,8 @@ export default function ConquistasPage() {
       {/* XP Card */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/15 border border-blue-600/30">
-            <span className="text-2xl font-bold text-blue-400">{progress.level}</span>
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#D4853A]/15 border border-[#D4853A]/30">
+            <span className="text-2xl font-bold text-[#D4853A]">{progress.level}</span>
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
@@ -93,7 +93,7 @@ export default function ConquistasPage() {
             </div>
             <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-[#D4853A] to-[#E09B5A] transition-all duration-500"
                 style={{ width: `${progress.pct}%` }}
               />
             </div>
@@ -116,14 +116,14 @@ export default function ConquistasPage() {
                 className={cn(
                   'rounded-xl border p-4 transition-all',
                   isEarned
-                    ? 'border-blue-600/30 bg-blue-600/5 shadow-sm'
+                    ? 'border-[#D4853A]/30 bg-[#D4853A]/5 shadow-sm'
                     : 'border-zinc-800 bg-zinc-900 opacity-50'
                 )}
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className={cn('text-2xl', !isEarned && 'grayscale')}>{def.icon}</span>
                   {isEarned ? (
-                    <span className="text-[10px] font-bold text-blue-400 bg-blue-600/10 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-bold text-[#D4853A] bg-[#D4853A]/10 px-1.5 py-0.5 rounded">
                       +{def.xp} XP
                     </span>
                   ) : (
@@ -156,7 +156,7 @@ export default function ConquistasPage() {
                   </div>
                   <span className="text-sm text-zinc-300">{log.reason}</span>
                 </div>
-                <span className="text-sm font-semibold text-blue-400">+{log.xp_earned} XP</span>
+                <span className="text-sm font-semibold text-[#D4853A]">+{log.xp_earned} XP</span>
               </div>
             ))}
           </div>

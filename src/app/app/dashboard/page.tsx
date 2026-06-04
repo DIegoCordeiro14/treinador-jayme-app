@@ -234,7 +234,7 @@ export default async function DashboardPage() {
       {monthlySessions.length === 0 && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
           <p className="text-sm font-semibold text-zinc-200 mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-blue-400" /> Primeiros passos
+            <TrendingUp className="h-4 w-4 text-[#D4853A]" /> Primeiros passos
           </p>
           <div className="space-y-2">
             {[
@@ -262,7 +262,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-zinc-100">Plano Ativo</h2>
             <Link href={`/app/treinos/${typedPlan.id}`}>
-              <button className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+              <button className="text-xs text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1 transition-colors">
                 Ver plano <ChevronRight className="h-3 w-3" />
               </button>
             </Link>
@@ -305,7 +305,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-zinc-100">Sessões Recentes</h2>
             <Link href="/app/historico">
-              <button className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+              <button className="text-xs text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1 transition-colors">
                 Ver todas <ChevronRight className="h-3 w-3" />
               </button>
             </Link>

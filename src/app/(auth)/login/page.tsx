@@ -81,7 +81,7 @@ export default function LoginPage() {
     <>
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
       <div className="flex flex-col items-center mb-8">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 mb-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D4853A] mb-3">
           <Zap className="h-6 w-6 text-white" />
         </div>
         <h1 className="text-xl font-bold text-zinc-100">Coach EDN</h1>
@@ -95,21 +95,21 @@ export default function LoginPage() {
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
             <input id="email" name="email" type="email" autoComplete="email"
               placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)}
-              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors" />
+              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors" />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label htmlFor="password" className="text-sm font-medium text-zinc-300">Senha</label>
-            <button type="button" onClick={() => { setShowReset(true); setResetEmail(email); }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Esqueci minha senha</button>
+            <button type="button" onClick={() => { setShowReset(true); setResetEmail(email); }} className="text-xs text-[#D4853A] hover:text-[#E09B5A] transition-colors">Esqueci minha senha</button>
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
             <input id="password" name="password" type={showPassword ? "text" : "password"}
               autoComplete="current-password" placeholder="••••••••" value={password}
               onChange={e => setPassword(e.target.value)}
-              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors" />
+              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors" />
             <button type="button" onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors">
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -145,7 +145,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-zinc-500 mt-6">
         Não tem conta?{" "}
-        <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+        <Link href="/register" className="text-[#D4853A] hover:text-[#E09B5A] font-medium transition-colors">
           Criar conta grátis
         </Link>
       </p>
@@ -174,11 +174,11 @@ export default function LoginPage() {
                     <input
                       type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)}
                       placeholder="seu@email.com" required autoFocus
-                      className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A]"
                     />
                     <div className="flex gap-2">
                       <button type="button" onClick={() => setShowReset(false)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:bg-zinc-800 transition-colors">Cancelar</button>
-                      <button type="submit" disabled={resetLoading} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                      <button type="submit" disabled={resetLoading} className="flex-1 py-2 rounded-lg bg-[#D4853A] text-white text-sm font-medium hover:bg-[#B8702E] disabled:opacity-50 transition-colors">
                         {resetLoading ? 'Enviando…' : 'Enviar link'}
                       </button>
                     </div>

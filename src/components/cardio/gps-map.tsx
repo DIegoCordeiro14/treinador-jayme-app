@@ -40,7 +40,7 @@ export function GPSMap({ coordinates, className }: Props) {
       const latlngs: [number, number][] = coordinates.map(c => [c.lat, c.lng]);
 
       // Route polyline
-      L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.85 }).addTo(map);
+      L.polyline(latlngs, { color: '#D4853A', weight: 4, opacity: 0.85 }).addTo(map);
 
       // Start/end markers
       const startIcon = L.divIcon({

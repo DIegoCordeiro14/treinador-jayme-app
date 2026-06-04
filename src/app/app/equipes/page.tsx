@@ -163,11 +163,11 @@ export default function EquipesPage() {
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label>Nome da equipe</Label>
-              <input value={createForm.name} onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Naturais do Rio" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <input value={createForm.name} onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Naturais do Rio" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
             </div>
             <div className="space-y-1.5">
               <Label>Descrição (opcional)</Label>
-              <textarea value={createForm.description} onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Descreva sua equipe…" rows={2} className="flex w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none" />
+              <textarea value={createForm.description} onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Descreva sua equipe…" rows={2} className="flex w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] resize-none" />
             </div>
             <Button className="w-full" onClick={createTeam}>Criar Equipe</Button>
           </div>
@@ -179,7 +179,7 @@ export default function EquipesPage() {
         <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-sm">
           <DialogHeader><DialogTitle>Entrar com Código</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
-            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="Código de convite (8 chars)" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono text-center tracking-widest" maxLength={8} />
+            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="Código de convite (8 chars)" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] font-mono text-center tracking-widest" maxLength={8} />
             <Button className="w-full" onClick={joinByCode}>Entrar</Button>
           </div>
         </DialogContent>
@@ -193,7 +193,7 @@ function TeamCard({ team, isMember, onJoin, onLeave, onCopyCode, copied }: {
   onJoin?: () => void; onLeave?: () => void; onCopyCode?: () => void; copied?: boolean;
 }) {
   return (
-    <div className={cn('rounded-xl border p-4 transition-all', isMember ? 'border-blue-600/30 bg-blue-600/5' : 'border-zinc-800 bg-zinc-900')}>
+    <div className={cn('rounded-xl border p-4 transition-all', isMember ? 'border-[#D4853A]/30 bg-[#D4853A]/5' : 'border-zinc-800 bg-zinc-900')}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-lg">

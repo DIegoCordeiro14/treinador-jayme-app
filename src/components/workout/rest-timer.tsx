@@ -37,7 +37,7 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
       ? "#ef4444"
       : remaining <= 30
       ? "#f59e0b"
-      : "#2563eb";
+      : "#D4853A";
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-8 animate-in fade-in-0">

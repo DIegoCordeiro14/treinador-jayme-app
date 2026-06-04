@@ -456,7 +456,7 @@ export const COMPLEXITY_LABELS: Record<RecommendedComplexity, string> = {
 
 export const MUSCLE_GROUP_COLORS: Record<MuscleGroup, string> = {
   chest: 'bg-red-500/20 text-red-400 border-red-500/30',
-  back: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  back: 'bg-[#D4853A]/20 text-[#D4853A] border-[#D4853A]/30',
   shoulders: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   biceps: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   triceps: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',

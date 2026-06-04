@@ -35,7 +35,7 @@ function fmtDuration(secs: number | null) {
 }
 
 const MUSCLE_COLORS: Record<string, string> = {
-  chest: 'text-red-400 bg-red-500/10',   back: 'text-blue-400 bg-blue-500/10',
+  chest: 'text-red-400 bg-red-500/10',   back: 'text-[#D4853A] bg-[#D4853A]/10',
   shoulders: 'text-purple-400 bg-purple-500/10', biceps: 'text-orange-400 bg-orange-500/10',
   triceps: 'text-yellow-400 bg-yellow-500/10', legs: 'text-green-400 bg-green-500/10',
   glutes: 'text-pink-400 bg-pink-500/10', abs: 'text-cyan-400 bg-cyan-500/10',
@@ -173,8 +173,8 @@ export default function HistoricoPage() {
                   className="w-full flex items-center gap-4 p-4 text-left hover:bg-zinc-800/50 transition-colors"
                   onClick={() => loadSets(sess.id)}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600/15 border border-blue-600/20">
-                    <Dumbbell className="h-4.5 w-4.5 text-blue-400" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#D4853A]/15 border border-[#D4853A]/20">
+                    <Dumbbell className="h-4.5 w-4.5 text-[#D4853A]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-zinc-100 text-sm truncate">
@@ -186,7 +186,7 @@ export default function HistoricoPage() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-bold text-sm text-blue-400">{Math.round(sess.total_volume_kg)}kg</p>
+                    <p className="font-bold text-sm text-[#D4853A]">{Math.round(sess.total_volume_kg)}kg</p>
                     <p className="text-[10px] text-zinc-600">volume</p>
                   </div>
                   {isOpen ? <ChevronUp className="h-4 w-4 text-zinc-500 shrink-0" /> : <ChevronDown className="h-4 w-4 text-zinc-500 shrink-0" />}

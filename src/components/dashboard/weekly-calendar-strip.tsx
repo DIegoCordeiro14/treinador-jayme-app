@@ -44,7 +44,7 @@ export function WeeklyCalendarStrip({ sessions }: WeeklyCalendarStripProps) {
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold transition-all",
                   hasWorkout && "bg-green-600/20 border border-green-600/40 text-green-400",
-                  !hasWorkout && dayIsToday && "bg-blue-600/20 border border-blue-600/50 text-blue-300 ring-1 ring-blue-600/50",
+                  !hasWorkout && dayIsToday && "bg-[#D4853A]/20 border border-[#D4853A]/50 text-[#E09B5A] ring-1 ring-[#D4853A]/50",
                   !hasWorkout && isPast && "bg-zinc-800 text-zinc-600",
                   !hasWorkout && !isPast && !dayIsToday && "bg-zinc-800/50 border border-zinc-700/50 text-zinc-500"
                 )}
@@ -67,7 +67,7 @@ export function WeeklyCalendarStrip({ sessions }: WeeklyCalendarStripProps) {
           <span className="text-[11px] text-zinc-500">Treino feito</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-2.5 w-2.5 rounded bg-blue-600/30 border border-blue-600/50" />
+          <div className="h-2.5 w-2.5 rounded bg-[#D4853A]/30 border border-[#D4853A]/50" />
           <span className="text-[11px] text-zinc-500">Hoje</span>
         </div>
         <div className="flex items-center gap-1.5">

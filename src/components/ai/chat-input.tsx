@@ -58,7 +58,7 @@ export function ChatInput({
             <button
               key={prompt}
               onClick={() => onSuggestionClick(prompt)}
-              className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 text-zinc-400 hover:border-blue-600/50 hover:text-blue-400 hover:bg-blue-600/5 transition-all"
+              className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 text-zinc-400 hover:border-[#D4853A]/50 hover:text-[#D4853A] hover:bg-[#D4853A]/5 transition-all"
             >
               {prompt}
             </button>
@@ -68,7 +68,7 @@ export function ChatInput({
 
       {/* Input area */}
       <div className="flex items-end gap-3">
-        <div className="flex-1 min-w-0 rounded-xl border border-zinc-700 bg-zinc-800/50 focus-within:border-blue-600/50 transition-colors">
+        <div className="flex-1 min-w-0 rounded-xl border border-zinc-700 bg-zinc-800/50 focus-within:border-[#D4853A]/50 transition-colors">
           <textarea
             ref={textareaRef}
             value={value}
@@ -86,7 +86,7 @@ export function ChatInput({
           className={cn(
             "flex h-11 w-11 items-center justify-center rounded-xl transition-all",
             value.trim() && !isLoading
-              ? "bg-blue-600 text-white hover:bg-blue-500 shadow-glow-blue-sm"
+              ? "bg-[#D4853A] text-white hover:bg-[#C47833] shadow-glow-blue-sm"
               : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
           )}
         >

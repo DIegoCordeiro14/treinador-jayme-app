@@ -339,7 +339,7 @@ export default function CardioPage() {
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: 'Melhor Pace', value: formatPace(bestPace), sub: 'por km', icon: <Zap className="h-4 w-4" />, color: 'text-orange-400' },
-              { label: 'Pace Medio', value: formatPace(avgPace), sub: 'por km', icon: <Activity className="h-4 w-4" />, color: 'text-blue-400' },
+              { label: 'Pace Medio', value: formatPace(avgPace), sub: 'por km', icon: <Activity className="h-4 w-4" />, color: 'text-[#D4853A]' },
               { label: 'Total km', value: totalKm.toFixed(1), sub: 'acumulado', icon: <MapPin className="h-4 w-4" />, color: 'text-green-400' },
               { label: 'Longao', value: `${longestRun.toFixed(1)} km`, sub: 'recorde pessoal', icon: <Award className="h-4 w-4" />, color: 'text-purple-400' },
               { label: 'Tempo Total', value: formatTime(totalMin), sub: 'em atividade', icon: <Clock className="h-4 w-4" />, color: 'text-yellow-400' },
@@ -562,7 +562,7 @@ export default function CardioPage() {
                     {s.elevation_gain_m && <span className="flex items-center gap-1"><Mountain className="h-3 w-3" />+{s.elevation_gain_m}m</span>}
                     {s.calories_burned && <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-orange-400" />{s.calories_burned} kcal</span>}
                     {s.perceived_effort && <span className="flex items-center gap-1"><Star className="h-3 w-3 text-yellow-400" />{s.perceived_effort}/10</span>}
-                    {s.gps_track && <span className="flex items-center gap-1 text-blue-400"><MapPin className="h-3 w-3" />GPS</span>}
+                    {s.gps_track && <span className="flex items-center gap-1 text-[#D4853A]"><MapPin className="h-3 w-3" />GPS</span>}
                   </div>
 
                   {/* GPS Track Map */}
@@ -652,7 +652,7 @@ export default function CardioPage() {
             {[
               { type: 'Corrida Facil', desc: `${Math.round(goalKm * 0.4)}-${Math.round(goalKm * 0.5)} km | Pace suave | Zona Z2`, color: 'text-green-400', days: '2-3x por semana' },
               { type: 'Intervalo', desc: `4-6x 800m | Pace de prova | Descanso 2min`, color: 'text-orange-400', days: '1x por semana' },
-              { type: 'Longao', desc: `${Math.round(goalKm * 0.7)}-${Math.round(goalKm * 0.9)} km | Pace leve | Construir base`, color: 'text-blue-400', days: '1x por semana' },
+              { type: 'Longao', desc: `${Math.round(goalKm * 0.7)}-${Math.round(goalKm * 0.9)} km | Pace leve | Construir base`, color: 'text-[#D4853A]', days: '1x por semana' },
             ].map(t => (
               <div key={t.type} className="flex items-start gap-3 rounded-lg bg-zinc-800 p-3">
                 <div className={cn('h-2 w-2 rounded-full mt-1.5 shrink-0', t.color.replace('text-', 'bg-'))} />

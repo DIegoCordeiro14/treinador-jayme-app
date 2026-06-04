@@ -35,13 +35,13 @@ export function AchievementCard({ achievement, locked = false }: AchievementCard
       <div
         className={cn(
           "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-          locked ? "bg-zinc-800" : "bg-blue-600/15 border border-blue-600/30"
+          locked ? "bg-zinc-800" : "bg-[#D4853A]/15 border border-[#D4853A]/30"
         )}
       >
         <Icon
           className={cn(
             "h-6 w-6",
-            locked ? "text-zinc-600" : "text-blue-400"
+            locked ? "text-zinc-600" : "text-[#D4853A]"
           )}
         />
       </div>
@@ -51,7 +51,7 @@ export function AchievementCard({ achievement, locked = false }: AchievementCard
         </p>
         <p className="text-xs text-zinc-500 mt-0.5">{achievement.description}</p>
         {!locked && (
-          <p className="text-[11px] text-blue-400/70 mt-1">
+          <p className="text-[11px] text-[#D4853A]/70 mt-1">
             Conquistado em{" "}
             {format(parseISO(achievement.earned_at), "dd 'de' MMMM 'de' yyyy", {
               locale: ptBR,

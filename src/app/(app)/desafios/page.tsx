@@ -31,13 +31,13 @@ interface Challenge {
 
 const TYPE_ICONS: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
   consistency:  { icon: <Zap className="h-4 w-4" />,       color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  progression:  { icon: <TrendingUp className="h-4 w-4" />, color: 'text-blue-400',   bg: 'bg-blue-400/10' },
+  progression:  { icon: <TrendingUp className="h-4 w-4" />, color: 'text-[#D4853A]',   bg: 'bg-[#D4853A]/10' },
   volume:       { icon: <Dumbbell className="h-4 w-4" />,   color: 'text-purple-400', bg: 'bg-purple-400/10' },
   frequency:    { icon: <Calendar className="h-4 w-4" />,   color: 'text-green-400',  bg: 'bg-green-400/10' },
 };
 
 const DIFF_LABELS = ['', 'Iniciante', 'Intermediário', 'Avançado', 'Expert', 'Elite'];
-const DIFF_COLORS = ['', 'text-green-400', 'text-blue-400', 'text-yellow-400', 'text-orange-400', 'text-red-400'];
+const DIFF_COLORS = ['', 'text-green-400', 'text-[#D4853A]', 'text-yellow-400', 'text-orange-400', 'text-red-400'];
 
 function periodRange(period: string, startDate: string) {
   if (period === 'monthly') {
@@ -277,7 +277,7 @@ function ChallengeCard({ challenge: c, onJoin }: { challenge: Challenge; onJoin?
     <div className={cn(
       'rounded-xl border p-4 transition-all',
       c.completed ? 'border-green-600/30 bg-green-600/5' :
-      isParticipating ? 'border-blue-600/20 bg-zinc-900' :
+      isParticipating ? 'border-[#D4853A]/20 bg-zinc-900' :
       'border-zinc-800 bg-zinc-900'
     )}>
       <div className="flex items-start justify-between mb-3">

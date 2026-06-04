@@ -112,8 +112,8 @@ export default function ConquistasPage() {
       {/* XP Progress */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600/15 border border-blue-600/30 shrink-0">
-            <span className="text-xl font-black text-blue-400">{progress.level}</span>
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#D4853A]/15 border border-[#D4853A]/30 shrink-0">
+            <span className="text-xl font-black text-[#D4853A]">{progress.level}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
@@ -124,7 +124,7 @@ export default function ConquistasPage() {
               <p className="text-xs text-zinc-400">{progress.current}/{progress.needed} XP → nível {progress.level + 1}</p>
             </div>
             <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500" style={{ width: `${progress.pct}%` }} />
+              <div className="h-full rounded-full bg-gradient-to-r from-[#D4853A] to-[#E09B5A] transition-all duration-500" style={{ width: `${progress.pct}%` }} />
             </div>
           </div>
         </div>
@@ -139,11 +139,11 @@ export default function ConquistasPage() {
             const earnedRecord = earned.find((a) => a.type === def.id);
             const prog = sessionProgress[def.id];
             return (
-              <div key={def.id} className={cn('rounded-xl border p-4 transition-all', isEarned ? 'border-blue-600/30 bg-blue-600/5' : 'border-zinc-800 bg-zinc-900 opacity-50')}>
+              <div key={def.id} className={cn('rounded-xl border p-4 transition-all', isEarned ? 'border-[#D4853A]/30 bg-[#D4853A]/5' : 'border-zinc-800 bg-zinc-900 opacity-50')}>
                 <div className="flex items-start justify-between mb-2">
                   <span className={cn('text-2xl', !isEarned && 'grayscale')}>{def.icon}</span>
                   {isEarned
-                    ? <span className="text-[10px] font-bold text-blue-400 bg-blue-600/10 px-1.5 py-0.5 rounded">+{def.xp} XP</span>
+                    ? <span className="text-[10px] font-bold text-[#D4853A] bg-[#D4853A]/10 px-1.5 py-0.5 rounded">+{def.xp} XP</span>
                     : <Lock className="h-3.5 w-3.5 text-zinc-600" />}
                 </div>
                 <p className="text-sm font-semibold text-zinc-200 leading-tight">{def.title}</p>
@@ -156,7 +156,7 @@ export default function ConquistasPage() {
                   return (
                     <div className="mt-2 space-y-1">
                       <div className="flex justify-between text-[10px] text-zinc-600"><span>{prog.current}/{prog.total}</span><span>{pct}%</span></div>
-                      <div className="h-1 rounded-full bg-zinc-800"><div className="h-full rounded-full bg-blue-500/50" style={{ width: `${pct}%` }} /></div>
+                      <div className="h-1 rounded-full bg-zinc-800"><div className="h-full rounded-full bg-[#D4853A]/50" style={{ width: `${pct}%` }} /></div>
                     </div>
                   );
                 })()}
@@ -177,7 +177,7 @@ export default function ConquistasPage() {
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-800"><Zap className="h-3.5 w-3.5 text-yellow-400" /></div>
                   <span className="text-sm text-zinc-300">{log.reason}</span>
                 </div>
-                <span className="text-sm font-semibold text-blue-400">+{log.xp_earned} XP</span>
+                <span className="text-sm font-semibold text-[#D4853A]">+{log.xp_earned} XP</span>
               </div>
             ))}
           </div>

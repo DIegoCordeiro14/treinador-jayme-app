@@ -68,7 +68,7 @@ export default function RegisterPage() {
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
       {/* Logo */}
       <div className="flex flex-col items-center mb-8">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 shadow-glow-blue-sm mb-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D4853A] shadow-glow-blue-sm mb-3">
           <Zap className="h-6 w-6 text-white" />
         </div>
         <h1 className="text-xl font-bold text-zinc-100">Criar sua conta</h1>
@@ -87,7 +87,7 @@ export default function RegisterPage() {
               type="text"
               placeholder="Seu nome"
               autoComplete="name"
-              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
+              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
             />
           </div>
           {errors.name && (
@@ -106,7 +106,7 @@ export default function RegisterPage() {
               type="email"
               placeholder="seu@email.com"
               autoComplete="email"
-              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
+              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
             />
           </div>
           {errors.email && (
@@ -125,7 +125,7 @@ export default function RegisterPage() {
               type={showPassword ? "text" : "password"}
               placeholder="Mínimo 6 caracteres"
               autoComplete="new-password"
-              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
+              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
             />
             <button
               type="button"
@@ -151,7 +151,7 @@ export default function RegisterPage() {
               type={showConfirm ? "text" : "password"}
               placeholder="Repita a senha"
               autoComplete="new-password"
-              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
+              className="flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:ring-offset-1 focus:ring-offset-zinc-900 transition-colors"
             />
             <button
               type="button"
@@ -202,7 +202,7 @@ export default function RegisterPage() {
       {/* Login link */}
       <p className="text-center text-sm text-zinc-500 mt-6">
         Já tem conta?{" "}
-        <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+        <Link href="/login" className="text-[#D4853A] hover:text-[#E09B5A] font-medium transition-colors">
           Entrar
         </Link>
       </p>

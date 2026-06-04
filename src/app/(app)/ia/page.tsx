@@ -203,7 +203,7 @@ export default function IAPage() {
                   className={cn(
                     'w-full text-left px-3 py-2.5 pr-8 rounded-lg text-xs transition-colors',
                     conversationId === conv.id
-                      ? 'bg-blue-600/20 text-blue-300 border border-blue-600/30'
+                      ? 'bg-[#D4853A]/20 text-[#E09B5A] border border-[#D4853A]/30'
                       : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
                   )}
                 >
@@ -242,8 +242,8 @@ export default function IAPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/15 border border-blue-600/30">
-              <Bot className="h-5 w-5 text-blue-400" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4853A]/15 border border-[#D4853A]/30">
+              <Bot className="h-5 w-5 text-[#D4853A]" />
             </div>
             <div>
               <p className="font-semibold text-zinc-100 text-sm">
@@ -267,15 +267,15 @@ export default function IAPage() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 border border-blue-600/20 mb-4">
-                <Brain className="h-8 w-8 text-blue-400" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#D4853A]/10 border border-[#D4853A]/20 mb-4">
+                <Brain className="h-8 w-8 text-[#D4853A]" />
               </div>
               <h3 className="font-semibold text-zinc-100 mb-2">Olá! Sou o Coach EDN</h3>
               <p className="text-sm text-zinc-400 max-w-sm mb-6">
                 Coach especialista em treinamento natural — Escola dos Naturais (EDN).
                 Pergunte sobre treino, progressão, deload, nutrição ou qualquer dúvida sobre como treinar de verdade.
               </p>
-              <blockquote className="text-sm text-zinc-500 italic border-l-2 border-blue-600/40 pl-3 text-left max-w-xs">
+              <blockquote className="text-sm text-zinc-500 italic border-l-2 border-[#D4853A]/40 pl-3 text-left max-w-xs">
                 &ldquo;Se o seu treino melhora, o seu físico melhora.&rdquo;
               </blockquote>
               {bodyMetrics.weight_kg && (
@@ -313,15 +313,15 @@ export default function IAPage() {
               )}
             >
               {msg.role === 'assistant' && (
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600/15 border border-blue-600/30 mt-0.5">
-                  <Bot className="h-3.5 w-3.5 text-blue-400" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#D4853A]/15 border border-[#D4853A]/30 mt-0.5">
+                  <Bot className="h-3.5 w-3.5 text-[#D4853A]" />
                 </div>
               )}
               <div
                 className={cn(
                   'max-w-[90%] sm:max-w-[80%] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed',
                   msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-sm'
+                    ? 'bg-[#D4853A] text-white rounded-br-sm'
                     : 'bg-zinc-800 text-zinc-100 rounded-bl-sm border border-zinc-700'
                 )}
               >
@@ -329,9 +329,9 @@ export default function IAPage() {
                   <MarkdownText content={msg.content} />
                 ) : (
                   <div className="flex gap-1 items-center py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4853A] animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4853A] animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4853A] animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 )}
               </div>
@@ -356,7 +356,7 @@ export default function IAPage() {
               placeholder="Pergunte algo sobre treino, progressão, deload…"
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors max-h-32 overflow-y-auto disabled:opacity-50"
+              className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:border-transparent transition-colors max-h-32 overflow-y-auto disabled:opacity-50"
               style={{ minHeight: '44px' }}
             />
             <Button
@@ -396,7 +396,7 @@ export default function IAPage() {
                       onClick={() => { loadConversation(conv); setShowHistory(false); }}
                       className={cn('w-full text-left px-3 py-2.5 pr-8 rounded-lg text-xs transition-colors',
                         conversationId === conv.id
-                          ? 'bg-blue-600/20 text-blue-300 border border-blue-600/30'
+                          ? 'bg-[#D4853A]/20 text-[#E09B5A] border border-[#D4853A]/30'
                           : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
                       )}
                     >

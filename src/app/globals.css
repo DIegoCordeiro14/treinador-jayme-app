@@ -28,8 +28,8 @@ html, body {
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 7%;
     --popover-foreground: 0 0% 98%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 30 65% 52%;
+    --primary-foreground: 0 0% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
@@ -40,7 +40,7 @@ html, body {
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 30 65% 52%;
     --radius: 0.75rem;
   }
 }
@@ -113,7 +113,7 @@ html, body {
 
   /* Glow effects */
   .glow-blue {
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 0 20px rgba(212,133,58,0.3);
   }
 
   /* Animated gradient background */
@@ -142,6 +142,6 @@ html, body {
 
   /* Focus ring utility */
   .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 focus:ring-offset-zinc-950;
+    @apply focus:outline-none focus:ring-2 focus:ring-[#D4853A] focus:ring-offset-1 focus:ring-offset-zinc-950;
   }
 }

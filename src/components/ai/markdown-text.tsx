@@ -35,7 +35,7 @@ export function MarkdownText({ content, className }: Props) {
       if (m.index > last) parts.push(text.slice(last, m.index));
       if (m[1]) parts.push(<strong key={m.index} className="font-semibold text-zinc-100">{m[2]}</strong>);
       else if (m[3]) parts.push(<em key={m.index} className="italic text-zinc-300">{m[4]}</em>);
-      else if (m[5]) parts.push(<code key={m.index} className="bg-zinc-800 text-blue-300 px-1 py-0.5 rounded text-[11px] font-mono">{m[6]}</code>);
+      else if (m[5]) parts.push(<code key={m.index} className="bg-zinc-800 text-[#E09B5A] px-1 py-0.5 rounded text-[11px] font-mono">{m[6]}</code>);
       last = m.index + m[0].length;
     }
     if (last < text.length) parts.push(text.slice(last));

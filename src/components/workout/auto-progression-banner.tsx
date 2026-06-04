@@ -114,9 +114,9 @@ export function AutoProgressionBanner({ planId }: AutoProgressionBannerProps) {
   }
 
   return (
-    <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4 space-y-3">
+    <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-blue-400" />
+        <TrendingUp className="h-4 w-4 text-[#D4853A]" />
         <p className="text-sm font-semibold text-zinc-100">Progressão automática sugerida</p>
         <span className="ml-auto text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-full">
           Coach EDN

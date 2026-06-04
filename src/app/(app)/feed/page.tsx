@@ -25,7 +25,7 @@ interface FeedItem {
 }
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
-  workout_complete: { icon: <Dumbbell className="h-4 w-4" />, color: 'text-blue-400',   bg: 'bg-blue-400/10',   label: 'Treino concluído' },
+  workout_complete: { icon: <Dumbbell className="h-4 w-4" />, color: 'text-[#D4853A]',   bg: 'bg-[#D4853A]/10',   label: 'Treino concluído' },
   new_pr:          { icon: <TrendingUp className="h-4 w-4" />, color: 'text-green-400', bg: 'bg-green-400/10', label: 'Novo PR' },
   achievement:     { icon: <Trophy className="h-4 w-4" />,     color: 'text-yellow-400',bg: 'bg-yellow-400/10',label: 'Conquista' },
   body_update:     { icon: <Star className="h-4 w-4" />,       color: 'text-purple-400',bg: 'bg-purple-400/10',label: 'Evolução corporal' },

@@ -149,7 +149,7 @@ export default function ExerciciosPage() {
             className={cn(
               "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
               selectedMuscle === filter.key
-                ? "bg-blue-600 border-blue-600 text-white"
+                ? "bg-[#D4853A] border-[#D4853A] text-white"
                 : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
             )}
           >
@@ -203,7 +203,7 @@ export default function ExerciciosPage() {
           </p>
           <button
             onClick={() => { setSearch(""); setSelectedMuscle("all"); setSelectedEquipment("all"); setShowFavorites(false); }}
-            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            className="text-xs text-[#D4853A] hover:text-[#E09B5A] transition-colors"
           >
             Limpar filtros
           </button>

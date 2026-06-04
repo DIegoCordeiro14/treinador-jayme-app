@@ -5,12 +5,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-zinc-950 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-zinc-950 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4853A] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95",
   {
     variants: {
       variant: {
         default:
-          "bg-blue-600 text-white hover:bg-blue-500 shadow-sm hover:shadow-glow-blue-sm",
+          "bg-[#D4853A] text-white hover:bg-[#C47833] shadow-sm hover:shadow-glow-blue-sm",
         outline:
           "border border-zinc-700 bg-transparent text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600",
         ghost:
@@ -20,7 +20,7 @@ const buttonVariants = cva(
         secondary:
           "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700",
         link:
-          "text-blue-400 underline-offset-4 hover:underline hover:text-blue-300 p-0 h-auto",
+          "text-[#D4853A] underline-offset-4 hover:underline hover:text-[#E09B5A] p-0 h-auto",
       },
       size: {
         sm: "h-8 px-3 text-xs rounded-md",

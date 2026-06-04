@@ -35,7 +35,7 @@ const MUSCLE_ILLUSTRATIONS: Record<MuscleGroup, string> = {
 };
 
 const MUSCLE_BG: Record<MuscleGroup, string> = {
-  chest:     "from-blue-900/40 to-blue-800/20 border-blue-700/30",
+  chest:     "from-[#D4853A]/20 to-[#D4853A]/10 border-[#D4853A]/20",
   back:      "from-green-900/40 to-green-800/20 border-green-700/30",
   shoulders: "from-yellow-900/40 to-yellow-800/20 border-yellow-700/30",
   biceps:    "from-orange-900/40 to-orange-800/20 border-orange-700/30",
@@ -172,7 +172,7 @@ export function ExerciseCard({ exercise, isFavorite = false, onToggleFavorite }:
                 <ul className="space-y-1.5">
                   {exercise.tips.map((tip, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-zinc-400">
-                      <span className="text-blue-400 mt-0.5 shrink-0">✓</span>
+                      <span className="text-[#D4853A] mt-0.5 shrink-0">✓</span>
                       {tip}
                     </li>
                   ))}

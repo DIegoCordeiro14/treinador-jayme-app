@@ -216,7 +216,7 @@ export default function CalendarioPage() {
           <p className="text-xs text-zinc-500 mt-0.5">Treinos no mês</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xl font-bold text-blue-400">{stats.volume > 0 ? `${(stats.volume / 1000).toFixed(1)}t` : '—'}</p>
+          <p className="text-2xl font-bold text-[#D4853A]">{stats.volume > 0 ? `${(stats.volume / 1000).toFixed(1)}t` : '—'}</p>
           <p className="text-xs text-zinc-500 mt-0.5">Volume total</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
@@ -259,10 +259,10 @@ export default function CalendarioPage() {
                   'relative flex flex-col items-center justify-center rounded-lg p-1 min-h-[48px] transition-all text-sm font-medium',
                   !inMonth && 'opacity-20 cursor-default',
                   inMonth && 'hover:bg-zinc-800',
-                  isToday(day) && 'ring-1 ring-blue-600',
+                  isToday(day) && 'ring-1 ring-[#D4853A]',
                   isSelected && 'bg-zinc-800',
                   session && 'text-zinc-100',
-                  planned && 'text-blue-300',
+                  planned && 'text-[#E09B5A]',
                   !session && !planned && inMonth && (isPast ? 'text-zinc-500' : 'text-zinc-600'),
                 )}
               >
@@ -270,9 +270,9 @@ export default function CalendarioPage() {
                 {session && <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-green-400" />}
                 {planned && (
                   <>
-                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-blue-500/70" />
+                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#D4853A]/70" />
                     {workoutLabel && (
-                      <span className="absolute top-0.5 right-0.5 text-[7px] text-blue-400/70 font-medium leading-none truncate max-w-[46px]">
+                      <span className="absolute top-0.5 right-0.5 text-[7px] text-[#D4853A]/70 font-medium leading-none truncate max-w-[46px]">
                         {shortLabel(workoutLabel)}
                       </span>
                     )}
@@ -288,10 +288,10 @@ export default function CalendarioPage() {
             <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />Treino feito
           </div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="w-2 h-2 rounded-full bg-blue-500/70 inline-block" />Treino planejado
+            <span className="w-2 h-2 rounded-full bg-[#D4853A]/70 inline-block" />Treino planejado
           </div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="w-4 h-0.5 rounded bg-blue-600 inline-block" />Hoje
+            <span className="w-4 h-0.5 rounded bg-[#D4853A] inline-block" />Hoje
           </div>
         </div>
       </div>
@@ -312,7 +312,7 @@ export default function CalendarioPage() {
             </div>
           ) : isScheduledDay(selectedDay, cfg) && selectedDay >= TODAY_START ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-blue-300">
+              <div className="flex items-center gap-2 text-sm text-[#E09B5A]">
                 <CalendarDays className="h-4 w-4" />
                 <span>Treino planejado: <strong>{getWorkoutLabel(selectedDay, cfg)}</strong></span>
               </div>
@@ -368,7 +368,7 @@ export default function CalendarioPage() {
       {cfg && (cfg.cardio || cfg.nutrition) && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
-            <Sparkles className="h-4 w-4 text-blue-400" />
+            <Sparkles className="h-4 w-4 text-[#D4853A]" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-zinc-100">Plano gerado pelo Coach EDN</p>
               {cfg.reasoning && <p className="text-xs text-zinc-500 mt-0.5">{cfg.reasoning}</p>}
@@ -386,7 +386,7 @@ export default function CalendarioPage() {
                 onClick={() => setPlanTab(tab.key as 'cardio' | 'nutrition')}
                 className={cn(
                   'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors',
-                  planTab === tab.key ? 'text-blue-400 border-b-2 border-blue-500' : 'text-zinc-500 hover:text-zinc-300'
+                  planTab === tab.key ? 'text-[#D4853A] border-b-2 border-[#D4853A]' : 'text-zinc-500 hover:text-zinc-300'
                 )}
               >
                 {tab.icon}{tab.label}
@@ -406,7 +406,7 @@ export default function CalendarioPage() {
                     {cfg.cardio.training_days.notes && <p className="text-[11px] text-zinc-600 italic">{cfg.cardio.training_days.notes}</p>}
                   </div>
                   <div className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3 space-y-1.5">
-                    <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-wide">Dias de descanso</p>
+                    <p className="text-[11px] font-semibold text-[#D4853A] uppercase tracking-wide">Dias de descanso</p>
                     <p className="text-xs text-zinc-200 font-medium">{cfg.cardio.rest_days.type}</p>
                     <p className="text-xs text-zinc-400">{cfg.cardio.rest_days.duration_min}min · {cfg.cardio.rest_days.intensity}</p>
                     {cfg.cardio.rest_days.notes && <p className="text-[11px] text-zinc-600 italic">{cfg.cardio.rest_days.notes}</p>}
@@ -429,7 +429,7 @@ export default function CalendarioPage() {
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     {[
-                      { label: 'Proteína', value: `${cfg.nutrition.protein_g_per_kg}g/kg`, color: 'text-blue-400' },
+                      { label: 'Proteína', value: `${cfg.nutrition.protein_g_per_kg}g/kg`, color: 'text-[#D4853A]' },
                       { label: 'Carbs', value: `${cfg.nutrition.carbs_pct}%`, color: 'text-yellow-400' },
                       { label: 'Gordura', value: `${cfg.nutrition.fat_pct}%`, color: 'text-orange-400' },
                     ].map(m => (
@@ -446,7 +446,7 @@ export default function CalendarioPage() {
                   {[
                     { label: 'Pré-treino', value: cfg.nutrition.pre_workout, color: 'text-yellow-400' },
                     { label: 'Pós-treino', value: cfg.nutrition.post_workout, color: 'text-green-400' },
-                    { label: 'Dia de descanso', value: cfg.nutrition.rest_day_strategy, color: 'text-blue-400' },
+                    { label: 'Dia de descanso', value: cfg.nutrition.rest_day_strategy, color: 'text-[#D4853A]' },
                   ].map(item => (
                     <div key={item.label} className="text-xs">
                       <span className={cn('font-semibold', item.color)}>{item.label}: </span>
@@ -491,13 +491,13 @@ export default function CalendarioPage() {
                 type="date"
                 value={scheduleStartDate}
                 onChange={e => setScheduleStartDate(e.target.value)}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D4853A]"
               />
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-800/50 p-3 space-y-1">
               <div className="flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                <Sparkles className="h-3.5 w-3.5 text-[#D4853A]" />
                 <p className="text-xs font-medium text-zinc-300">O Coach EDN vai gerar</p>
               </div>
               <ul className="text-[11px] text-zinc-500 space-y-0.5 pl-5 list-disc">

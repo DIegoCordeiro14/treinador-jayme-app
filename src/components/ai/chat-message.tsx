@@ -22,7 +22,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-          isUser ? "bg-zinc-700" : "bg-blue-600"
+          isUser ? "bg-zinc-700" : "bg-[#D4853A]"
         )}
       >
         {isUser ? (
@@ -67,7 +67,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
 export function TypingIndicator() {
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#D4853A]">
         <Zap className="h-4 w-4 text-white" />
       </div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3">

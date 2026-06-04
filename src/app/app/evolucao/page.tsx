@@ -95,7 +95,7 @@ function NumInput({ label, field, placeholder, form, setForm, step = '0.1' }: {
         type="number" step={step} placeholder={placeholder}
         value={form[field] ?? ''}
         onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-        className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
+        className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors"
       />
     </div>
   );
@@ -142,7 +142,7 @@ function ProjecoesTab() {
     : Minus;
   const trendColor = trend7d === null ? 'text-zinc-500'
     : trend7d < -0.1 ? 'text-green-400'
-    : trend7d > 0.1 ? 'text-blue-400'
+    : trend7d > 0.1 ? 'text-[#D4853A]'
     : 'text-zinc-400';
 
   return (
@@ -172,7 +172,7 @@ function ProjecoesTab() {
       <div className="grid grid-cols-2 gap-3">
         {[
           { label: 'Score EDN', value: `${state.edn_score}/100`, color: state.edn_score >= 75 ? 'text-green-400' : state.edn_score >= 50 ? 'text-yellow-400' : 'text-red-400' },
-          { label: 'Consistência', value: `${Math.round((r.sessions_last_28 / Math.max(1, r.planned_sessions_last_28)) * 100)}%`, color: 'text-blue-400' },
+          { label: 'Consistência', value: `${Math.round((r.sessions_last_28 / Math.max(1, r.planned_sessions_last_28)) * 100)}%`, color: 'text-[#D4853A]' },
           { label: 'Sessões/28d', value: `${r.sessions_last_28} / ${r.planned_sessions_last_28}`, color: 'text-zinc-300' },
           { label: 'Sem PR há', value: r.has_pr_last_4_weeks ? '< 4 sem.' : '4+ sem.', color: r.has_pr_last_4_weeks ? 'text-green-400' : 'text-amber-400' },
         ].map(stat => (
@@ -202,11 +202,11 @@ function ProjecoesTab() {
 
       {/* Recomendações */}
       {state.recommendations.length > 0 && (
-        <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4 space-y-2">
-          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wide">Recomendações do Coach EDN</p>
+        <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-4 space-y-2">
+          <p className="text-xs font-semibold text-[#E09B5A] uppercase tracking-wide">Recomendações do Coach EDN</p>
           {state.recommendations.map((rec, i) => (
             <p key={i} className="text-sm text-zinc-300 flex items-start gap-2">
-              <span className="text-blue-400 shrink-0 mt-0.5">→</span><span dangerouslySetInnerHTML={{ __html: rec.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
+              <span className="text-[#D4853A] shrink-0 mt-0.5">→</span><span dangerouslySetInnerHTML={{ __html: rec.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
             </p>
           ))}
         </div>
@@ -438,7 +438,7 @@ export default function EvolucaoPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Peso', value: latestBio?.weight_kg ? `${latestBio.weight_kg}kg` : latest?.weight_kg ? `${latest.weight_kg}kg` : '—', delta: weightDelta, icon: <Scale className="h-4 w-4" />, color: 'text-blue-400' },
+          { label: 'Peso', value: latestBio?.weight_kg ? `${latestBio.weight_kg}kg` : latest?.weight_kg ? `${latest.weight_kg}kg` : '—', delta: weightDelta, icon: <Scale className="h-4 w-4" />, color: 'text-[#D4853A]' },
           { label: 'Gordura', value: latestBio?.body_fat_pct ? `${latestBio.body_fat_pct}%` : latest?.body_fat_pct ? `${latest.body_fat_pct}%` : '—', icon: <TrendingUp className="h-4 w-4" />, color: 'text-orange-400' },
           { label: 'Músculo', value: latestBio?.skeletal_muscle_mass_kg ? `${latestBio.skeletal_muscle_mass_kg}kg` : '—', icon: <Dumbbell className="h-4 w-4" />, color: 'text-green-400' },
           { label: 'Sessões', value: sessions.length, icon: <BarChart2 className="h-4 w-4" />, color: 'text-purple-400' },
@@ -479,7 +479,7 @@ export default function EvolucaoPage() {
                   </div>
                   {latestBio.body_score !== null && (
                     <div className="text-center">
-                      <p className="text-3xl font-bold text-blue-400">{latestBio.body_score}</p>
+                      <p className="text-3xl font-bold text-[#D4853A]">{latestBio.body_score}</p>
                       <p className="text-[10px] text-zinc-500">Pontuação</p>
                     </div>
                   )}
@@ -487,7 +487,7 @@ export default function EvolucaoPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-blue-400', badge: null },
+                    { label: 'Peso', value: latestBio.weight_kg ? `${latestBio.weight_kg} kg` : null, icon: <Scale className="h-3.5 w-3.5" />, color: 'text-[#D4853A]', badge: null },
                     { label: 'IMC', value: latestBio.bmi ? `${latestBio.bmi}` : null, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-yellow-400', badge: latestBio.bmi !== null ? (() => { const b = latestBio.bmi!; return b < 25 ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400">Meta atingida</span> : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400">Meta: &lt; 25</span>; })() : null },
                     { label: 'Gordura Corporal', value: latestBio.body_fat_pct ? `${latestBio.body_fat_pct}%` : null, icon: <TrendingUp className="h-3.5 w-3.5" />, color: 'text-orange-400', badge: statusBadge(latestBio.body_fat_pct, { ok: 20, warn: 25 }, ['Normal', 'Alta', 'Muito alta']) },
                     { label: 'Músculo', value: latestBio.skeletal_muscle_mass_kg ? `${latestBio.skeletal_muscle_mass_kg} kg` : null, icon: <Dumbbell className="h-3.5 w-3.5" />, color: 'text-green-400', badge: null },
@@ -533,7 +533,7 @@ export default function EvolucaoPage() {
                             <td className="px-3 py-2.5 text-green-400">{b.skeletal_muscle_mass_kg ? `${b.skeletal_muscle_mass_kg}kg` : '—'}</td>
                             <td className="px-3 py-2.5 text-cyan-400">{b.water_pct ? `${b.water_pct}%` : '—'}</td>
                             <td className="px-3 py-2.5 text-pink-400">{b.visceral_fat_level ?? '—'}</td>
-                            <td className="px-3 py-2.5 text-blue-400 font-semibold">{b.body_score ?? '—'}</td>
+                            <td className="px-3 py-2.5 text-[#D4853A] font-semibold">{b.body_score ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -570,7 +570,7 @@ export default function EvolucaoPage() {
                         <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
                         <YAxis tick={{ fill: '#71717a', fontSize: 11 }} domain={['auto', 'auto']} />
                         <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
-                        <Line type="monotone" dataKey="peso" name="Peso kg" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} connectNulls />
+                        <Line type="monotone" dataKey="peso" name="Peso kg" stroke="#D4853A" strokeWidth={2} dot={{ r: 3, fill: '#D4853A' }} connectNulls />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -603,7 +603,7 @@ export default function EvolucaoPage() {
                   <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#71717a', fontSize: 11 }} domain={['auto', 'auto']} />
                   <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
-                  <Line type="monotone" dataKey="peso" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} />
+                  <Line type="monotone" dataKey="peso" stroke="#D4853A" strokeWidth={2} dot={{ r: 3, fill: '#D4853A' }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -623,7 +623,7 @@ export default function EvolucaoPage() {
                   <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#71717a', fontSize: 11 }} />
                   <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
-                  <Bar dataKey="volume" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="volume" fill="#D4853A" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -665,8 +665,8 @@ export default function EvolucaoPage() {
         <TabsContent value="relatorio" className="mt-4 space-y-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/20">
-                <Sparkles className="h-5 w-5 text-blue-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#D4853A]/20">
+                <Sparkles className="h-5 w-5 text-[#D4853A]" />
               </div>
               <div>
                 <p className="font-semibold text-zinc-100">Relatorio Semanal IA</p>
@@ -676,7 +676,7 @@ export default function EvolucaoPage() {
             <button
               onClick={generateReport}
               disabled={reportLoading}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-3 rounded-xl bg-[#D4853A] hover:bg-[#D4853A] disabled:opacity-60 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
             >
               {reportLoading ? (
                 <><RefreshCw className="h-4 w-4 animate-spin" /> Gerando relatorio...</>
@@ -695,7 +695,7 @@ export default function EvolucaoPage() {
             <>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Sessoes', value: report.sessions_count, icon: <Dumbbell className="h-4 w-4" />, color: 'text-blue-400' },
+                  { label: 'Sessoes', value: report.sessions_count, icon: <Dumbbell className="h-4 w-4" />, color: 'text-[#D4853A]' },
                   { label: 'Volume', value: report.total_volume_kg > 0 ? report.total_volume_kg + 'kg' : '—', icon: <BarChart2 className="h-4 w-4" />, color: 'text-green-400' },
                   { label: 'Cardio', value: report.total_cardio_km > 0 ? report.total_cardio_km + 'km' : '—', icon: <Activity className="h-4 w-4" />, color: 'text-orange-400' },
                 ].map((s) => (
@@ -707,10 +707,10 @@ export default function EvolucaoPage() {
                 ))}
               </div>
 
-              <div className="rounded-xl border border-blue-600/30 bg-blue-600/10 p-4">
+              <div className="rounded-xl border border-[#D4853A]/30 bg-[#D4853A]/10 p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-4 w-4 text-blue-400 shrink-0" />
-                  <p className="text-xs font-semibold text-blue-300 uppercase tracking-wide">{report.period}</p>
+                  <Sparkles className="h-4 w-4 text-[#D4853A] shrink-0" />
+                  <p className="text-xs font-semibold text-[#E09B5A] uppercase tracking-wide">{report.period}</p>
                 </div>
                 <p className="text-sm text-zinc-200 leading-relaxed">{report.summary}</p>
               </div>
@@ -750,8 +750,8 @@ export default function EvolucaoPage() {
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Sugestoes de Evolucao</p>
                 {(report.suggestions ?? []).map((s: any, i: number) => {
-                  const ps = s.priority === 'alta' ? 'border-red-500/40 bg-red-500/5' : s.priority === 'media' ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-blue-500/40 bg-blue-500/5';
-                  const pb = s.priority === 'alta' ? 'text-red-400 bg-red-500/10' : s.priority === 'media' ? 'text-yellow-400 bg-yellow-500/10' : 'text-blue-400 bg-blue-500/10';
+                  const ps = s.priority === 'alta' ? 'border-red-500/40 bg-red-500/5' : s.priority === 'media' ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-[#D4853A]/40 bg-[#D4853A]/5';
+                  const pb = s.priority === 'alta' ? 'text-red-400 bg-red-500/10' : s.priority === 'media' ? 'text-yellow-400 bg-yellow-500/10' : 'text-[#D4853A] bg-[#D4853A]/10';
                   return (
                     <div key={i} className={cn('rounded-xl border p-4', ps)}>
                       <div className="flex items-center gap-2 mb-2">
@@ -816,7 +816,7 @@ export default function EvolucaoPage() {
                 <input type="number" step="0.1" placeholder={field.placeholder}
                   value={measForm[field.key as keyof typeof measForm]}
                   onChange={(e) => setMeasForm((f) => ({ ...f, [field.key]: e.target.value }))}
-                  className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
+                  className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors"
                 />
               </div>
             ))}
@@ -836,7 +836,7 @@ export default function EvolucaoPage() {
           {/* Upload area */}
           <label className={cn(
             'flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 cursor-pointer transition-colors',
-            isExtracting ? 'border-blue-600/50 bg-blue-950/20 cursor-wait' : 'border-zinc-700 hover:border-blue-600/60 hover:bg-zinc-800/40'
+            isExtracting ? 'border-[#D4853A]/50 bg-zinc-950/20 cursor-wait' : 'border-zinc-700 hover:border-[#D4853A]/60 hover:bg-zinc-800/40'
           )}>
             <input
               type="file"
@@ -847,8 +847,8 @@ export default function EvolucaoPage() {
             />
             {isExtracting ? (
               <>
-                <Loader2 className="h-6 w-6 text-blue-400 animate-spin" />
-                <p className="text-xs text-blue-400 font-medium">Extraindo dados da imagem…</p>
+                <Loader2 className="h-6 w-6 text-[#D4853A] animate-spin" />
+                <p className="text-xs text-[#D4853A] font-medium">Extraindo dados da imagem…</p>
               </>
             ) : (
               <>
@@ -867,7 +867,7 @@ export default function EvolucaoPage() {
             <input type="text" placeholder="Zepp Life, InBody 270..."
               value={bioForm.source}
               onChange={(e) => setBioForm((f) => ({ ...f, source: e.target.value }))}
-              className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
+              className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors"
             />
           </div>
 
@@ -878,7 +878,7 @@ export default function EvolucaoPage() {
               <input type="text" placeholder="Grosso-conjunto, Padrão..."
                 value={bioForm.body_type}
                 onChange={(e) => setBioForm((f) => ({ ...f, body_type: e.target.value }))}
-                className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
+                className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors"
               />
             </div>
           </div>

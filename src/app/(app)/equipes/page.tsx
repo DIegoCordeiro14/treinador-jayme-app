@@ -245,7 +245,7 @@ export default function EquipesPage() {
             <div className="flex items-center justify-between mb-3"><h2 className="font-semibold text-zinc-100">Equipes Públicas</h2></div>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar equipe…" className="w-full h-9 rounded-lg border border-zinc-800 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar equipe…" className="w-full h-9 rounded-lg border border-zinc-800 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
             </div>
             {loading ? (
               <div className="grid sm:grid-cols-2 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-xl bg-zinc-800 animate-pulse" />)}</div>
@@ -267,11 +267,11 @@ export default function EquipesPage() {
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label>Nome da equipe</Label>
-              <input value={createForm.name} onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex: Naturais do Rio" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <input value={createForm.name} onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex: Naturais do Rio" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
             </div>
             <div className="space-y-1.5">
               <Label>Descrição (opcional)</Label>
-              <textarea value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descreva sua equipe…" rows={2} className="flex w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none" />
+              <textarea value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descreva sua equipe…" rows={2} className="flex w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] resize-none" />
             </div>
             <Button className="w-full" onClick={createTeam}>Criar Equipe</Button>
           </div>
@@ -281,7 +281,7 @@ export default function EquipesPage() {
         <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-sm">
           <DialogHeader><DialogTitle>Entrar com Código</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
-            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="Código de convite" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono text-center tracking-widest" maxLength={8} />
+            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="Código de convite" className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] font-mono text-center tracking-widest" maxLength={8} />
             <Button className="w-full" onClick={joinByCode}>Entrar</Button>
           </div>
         </DialogContent>
@@ -307,7 +307,7 @@ function ActivityCard({ item, currentUserId, onReact, onToggleComments, comments
         return (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Dumbbell className="h-4 w-4 text-blue-400 shrink-0" />
+              <Dumbbell className="h-4 w-4 text-[#D4853A] shrink-0" />
               <p className="font-semibold text-zinc-100 text-sm">
                 {d.workout_name as string ?? 'Treino'} concluído
               </p>
@@ -380,7 +380,7 @@ function ActivityCard({ item, currentUserId, onReact, onToggleComments, comments
           <Heart className={cn('h-3.5 w-3.5', item.user_reacted && 'fill-current')} />
           {item.reaction_count > 0 && item.reaction_count}
         </button>
-        <button onClick={onToggleComments} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors', commentsOpen ? 'text-blue-400 bg-blue-600/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}>
+        <button onClick={onToggleComments} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors', commentsOpen ? 'text-[#D4853A] bg-[#D4853A]/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}>
           <MessageCircle className="h-3.5 w-3.5" />
           {item.comment_count > 0 && item.comment_count}
         </button>
@@ -405,7 +405,7 @@ function ActivityCard({ item, currentUserId, onReact, onToggleComments, comments
               value={commentInput} onChange={(e) => onCommentChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onCommentSend()}
               placeholder="Comentar…"
-              className="flex-1 h-8 rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+              className="flex-1 h-8 rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-[#D4853A]"
             />
             <Button size="sm" className="h-8 w-8 p-0 shrink-0" onClick={onCommentSend} disabled={!commentInput.trim()}>
               <Send className="h-3.5 w-3.5" />
@@ -422,7 +422,7 @@ function TeamCard({ team, isMember, onJoin, onLeave, onCopyCode, copied }: {
   team: Team; isMember?: boolean; onJoin?: () => void; onLeave?: () => void; onCopyCode?: () => void; copied?: boolean;
 }) {
   return (
-    <div className={cn('rounded-xl border p-4 transition-all', isMember ? 'border-blue-600/30 bg-blue-600/5' : 'border-zinc-800 bg-zinc-900')}>
+    <div className={cn('rounded-xl border p-4 transition-all', isMember ? 'border-[#D4853A]/30 bg-[#D4853A]/5' : 'border-zinc-800 bg-zinc-900')}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-lg font-bold text-zinc-100">{team.name[0]?.toUpperCase()}</div>

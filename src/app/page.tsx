@@ -9,7 +9,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm">
         <div className="container mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shadow-glow-blue-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#D4853A] shadow-glow-blue-sm">
               <Zap className="h-4 w-4 text-white" />
             </div>
             <span className="font-bold text-zinc-100">Coach EDN</span>
@@ -34,12 +34,12 @@ export default function LandingPage() {
         <section className="relative overflow-hidden py-24 md:py-36">
           {/* Background gradient */}
           <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#D4853A]/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-[#D4853A]/5 rounded-full blur-3xl" />
 
           <div className="container relative mx-auto max-w-5xl px-4 text-center">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-600/30 bg-blue-600/10 px-4 py-1.5 text-xs font-semibold text-blue-400 mb-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#D4853A]/30 bg-[#D4853A]/10 px-4 py-1.5 text-xs font-semibold text-[#D4853A] mb-6">
               <Star className="h-3 w-3" />
               Metodologia Escola dos Naturais (EDN)
             </div>
@@ -48,7 +48,7 @@ export default function LandingPage() {
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-zinc-100 leading-tight mb-6">
               Treine como um
               <br />
-              <span className="text-blue-400">natural de elite</span>
+              <span className="text-[#D4853A]">natural de elite</span>
             </h1>
 
             {/* Subtext */}
@@ -111,8 +111,8 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-3 gap-6">
               {/* Feature 1 */}
               <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 hover:border-zinc-700 transition-all group">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600/15 border border-blue-600/30 mb-5 group-hover:bg-blue-600/20 transition-colors">
-                  <Bot className="h-6 w-6 text-blue-400" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D4853A]/15 border border-[#D4853A]/30 mb-5 group-hover:bg-[#D4853A]/20 transition-colors">
+                  <Bot className="h-6 w-6 text-[#D4853A]" />
                 </div>
                 <h3 className="text-lg font-semibold text-zinc-100 mb-3">
                   Coach EDN
@@ -163,7 +163,7 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800/50 px-3 py-1 text-xs font-medium text-zinc-400 mb-4">
-                  <Zap className="h-3 w-3 text-blue-400" />
+                  <Zap className="h-3 w-3 text-[#D4853A]" />
                   Metodologia EDN
                 </div>
                 <h2 className="text-3xl font-bold text-zinc-100 mb-4">
@@ -183,7 +183,7 @@ export default function LandingPage() {
                     "Frequência baseada em recuperação, não em regras",
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-zinc-300">
-                      <span className="text-blue-400 mt-0.5 shrink-0 font-bold">✓</span>
+                      <span className="text-[#D4853A] mt-0.5 shrink-0 font-bold">✓</span>
                       {item}
                     </li>
                   ))}
@@ -202,7 +202,7 @@ export default function LandingPage() {
                     className="rounded-xl border border-zinc-800 bg-zinc-900 p-4"
                   >
                     <p className="text-xs text-zinc-500 mb-1">{item.label}</p>
-                    <p className="text-lg font-bold text-blue-400">{item.value}</p>
+                    <p className="text-lg font-bold text-[#D4853A]">{item.value}</p>
                     <p className="text-xs text-zinc-500 mt-1">{item.desc}</p>
                   </div>
                 ))}
@@ -234,7 +234,7 @@ export default function LandingPage() {
       <footer className="border-t border-zinc-800 py-8">
         <div className="container mx-auto max-w-6xl px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-[#D4853A]">
               <Zap className="h-3 w-3 text-white" />
             </div>
             <span className="text-sm font-semibold text-zinc-400">Coach EDN</span>

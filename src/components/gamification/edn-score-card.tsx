@@ -79,7 +79,7 @@ export function EdnScoreCard({ breakdown, compact = false }: EdnScoreCardProps) 
               </div>
               <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-blue-500/70 transition-all duration-500"
+                  className="h-full rounded-full bg-[#D4853A]/70 transition-all duration-500"
                   style={{ width: `${c.score}%` }}
                 />
               </div>
@@ -97,9 +97,9 @@ function getProgressBarColor(league: string): string {
     case 'prata':    return 'bg-zinc-400';
     case 'ouro':     return 'bg-yellow-400';
     case 'platina':  return 'bg-cyan-400';
-    case 'diamante': return 'bg-blue-400';
+    case 'diamante': return 'bg-[#D4853A]';
     case 'elite':    return 'bg-violet-400';
-    default:         return 'bg-blue-500';
+    default:         return 'bg-[#D4853A]';
   }
 }
 

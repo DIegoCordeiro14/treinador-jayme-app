@@ -68,7 +68,7 @@ function MacroRing({ pct, color, label, value }: { pct: number; color: string; l
 
 const STATUS_CONFIG = {
   otimo: { color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/20', icon: <CheckCircle2 className="h-4 w-4" /> },
-  bom: { color: 'text-blue-400', bg: 'bg-blue-400/10 border-blue-400/20', icon: <Info className="h-4 w-4" /> },
+  bom: { color: 'text-[#D4853A]', bg: 'bg-[#D4853A]/10 border-[#D4853A]/60/20', icon: <Info className="h-4 w-4" /> },
   atencao: { color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20', icon: <AlertTriangle className="h-4 w-4" /> },
   critico: { color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20', icon: <AlertTriangle className="h-4 w-4" /> },
 };
@@ -198,7 +198,7 @@ export default function NutricaoPage() {
   }
 
   const goalColors: Record<string, string> = {
-    weight_loss: 'from-orange-600 to-red-500', definition: 'from-blue-600 to-cyan-500',
+    weight_loss: 'from-orange-600 to-red-500', definition: 'from-[#D4853A] to-cyan-500',
     hypertrophy: 'from-green-600 to-emerald-500', strength: 'from-purple-600 to-violet-500',
   };
   const gradientClass = goalColors[activeGoal] ?? 'from-green-600 to-emerald-500';
@@ -264,10 +264,10 @@ export default function NutricaoPage() {
       {/* ── Macro hero card ──────────────────────────────────────── */}
       {/* Banner de fonte de dados corporais */}
       {hasBodyMetrics && !metricsStale && (
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 flex items-start gap-3">
+        <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-3 flex items-start gap-3">
           <span className="shrink-0 mt-0.5 text-base">📊</span>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-blue-300">Dados corporais obtidos automaticamente</p>
+            <p className="text-xs font-semibold text-[#E09B5A]">Dados corporais obtidos automaticamente</p>
             <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
               {bodyMetrics.source === 'bioimpedance' ? 'Última bioimpedância' : 'Última medição'}:{' '}
               <span className="text-zinc-200">{metricsDate}</span>
@@ -276,7 +276,7 @@ export default function NutricaoPage() {
               {bodyMetrics.basal_metabolic_rate_kcal ? <> · TMB <span className="text-zinc-200">{bodyMetrics.basal_metabolic_rate_kcal}kcal</span></> : null}
             </p>
           </div>
-          <a href="/app/evolucao" className="shrink-0 text-[10px] text-blue-400 hover:text-blue-300 underline whitespace-nowrap mt-0.5">Atualizar</a>
+          <a href="/app/evolucao" className="shrink-0 text-[10px] text-[#D4853A] hover:text-[#E09B5A] underline whitespace-nowrap mt-0.5">Atualizar</a>
         </div>
       )}
       {metricsStale && (
@@ -296,7 +296,7 @@ export default function NutricaoPage() {
             <p className="text-xs font-semibold text-zinc-300">Sem avaliação corporal registrada</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">Registre sua bioimpedância em Evolução para personalizar seus macros automaticamente.</p>
           </div>
-          <a href="/app/evolucao" className="shrink-0 text-xs font-semibold text-blue-400 border border-blue-500/30 rounded-lg px-2.5 py-1.5">Registrar</a>
+          <a href="/app/evolucao" className="shrink-0 text-xs font-semibold text-[#D4853A] border border-[#D4853A]/30 rounded-lg px-2.5 py-1.5">Registrar</a>
         </div>
       )}
 
@@ -309,7 +309,7 @@ export default function NutricaoPage() {
         {plan ? (
           <div className="flex justify-around mt-2">
             <MacroRing pct={plan.carbs_pct} color="text-yellow-300" label="Carbs" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
-            <MacroRing pct={(plan as any).protein_pct ?? Math.min(Math.round((plan.protein_g_per_kg ?? 0) * 15), 100)} color="text-blue-300" label="Proteína" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
+            <MacroRing pct={(plan as any).protein_pct ?? Math.min(Math.round((plan.protein_g_per_kg ?? 0) * 15), 100)} color="text-[#E09B5A]" label="Proteína" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
             <MacroRing pct={plan.fat_pct} color="text-pink-300" label="Gordura" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
           </div>
         ) : (
@@ -365,7 +365,7 @@ export default function NutricaoPage() {
       {/* Spinner enquanto gera automaticamente (sem plano ainda) */}
       {!plan && generating && (
         <div className="flex items-center justify-center gap-3 py-4 text-zinc-400 rounded-xl border border-zinc-800 bg-zinc-900">
-          <RefreshCw className="h-4 w-4 animate-spin text-blue-400" />
+          <RefreshCw className="h-4 w-4 animate-spin text-[#D4853A]" />
           <span className="text-sm">Gerando plano nutricional...</span>
         </div>
       )}
@@ -386,7 +386,7 @@ export default function NutricaoPage() {
           {/* Loading state — exibido enquanto a análise automática roda */}
           {analyzing && (
             <div className="flex items-center justify-center gap-3 py-6 text-zinc-400">
-              <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+              <RefreshCw className="h-5 w-5 animate-spin text-[#D4853A]" />
               <span className="text-sm">Analisando com Nutricionista IA EDN...</span>
             </div>
           )}
@@ -428,11 +428,11 @@ export default function NutricaoPage() {
                     <div key={i} className={cn('flex items-start gap-2.5 rounded-xl border p-3.5',
                       alert.type === 'danger' ? 'border-red-500/30 bg-red-500/5' :
                       alert.type === 'warning' ? 'border-yellow-500/30 bg-yellow-500/5' :
-                      'border-blue-500/30 bg-blue-500/5'
+                      'border-[#D4853A]/30 bg-[#D4853A]/5'
                     )}>
                       <AlertTriangle className={cn('h-4 w-4 shrink-0 mt-0.5',
                         alert.type === 'danger' ? 'text-red-400' :
-                        alert.type === 'warning' ? 'text-yellow-400' : 'text-blue-400'
+                        alert.type === 'warning' ? 'text-yellow-400' : 'text-[#D4853A]'
                       )} />
                       <p className="text-xs text-zinc-300">{alert.message}</p>
                     </div>
@@ -457,7 +457,7 @@ export default function NutricaoPage() {
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {[
                     { label: 'Calorias', value: analysis.calorie_recommendation.target, unit: 'kcal', color: 'text-orange-400' },
-                    { label: 'Proteina', value: analysis.macro_targets.protein_g, unit: 'g', color: 'text-blue-400' },
+                    { label: 'Proteina', value: analysis.macro_targets.protein_g, unit: 'g', color: 'text-[#D4853A]' },
                     { label: 'Carbs', value: analysis.macro_targets.carbs_g, unit: 'g', color: 'text-yellow-400' },
                     { label: 'Gordura', value: analysis.macro_targets.fat_g, unit: 'g', color: 'text-pink-400' },
                   ].map(m => (
@@ -488,7 +488,7 @@ export default function NutricaoPage() {
                   {[
                     { label: 'Treino Pesado', value: analysis.carb_cycling.heavy_training, color: 'text-green-400' },
                     { label: 'Treino Leve', value: analysis.carb_cycling.light_training, color: 'text-yellow-400' },
-                    { label: 'Descanso', value: analysis.carb_cycling.rest_day, color: 'text-blue-400' },
+                    { label: 'Descanso', value: analysis.carb_cycling.rest_day, color: 'text-[#D4853A]' },
                   ].map(c => (
                     <div key={c.label} className="bg-zinc-800 rounded-lg p-2.5">
                       <p className={cn('text-xl font-black', c.color)}>{c.value}<span className="text-xs font-normal text-zinc-500">g</span></p>
@@ -569,7 +569,7 @@ export default function NutricaoPage() {
                 </div>
                 {[
                   { label: 'Carboidratos', pct: plan.carbs_pct, color: 'bg-yellow-500' },
-                  { label: 'Proteínas', pct: (plan as any).protein_pct ?? Math.min(Math.round((plan.protein_g_per_kg ?? 0) * 15), 100), color: 'bg-blue-500' },
+                  { label: 'Proteínas', pct: (plan as any).protein_pct ?? Math.min(Math.round((plan.protein_g_per_kg ?? 0) * 15), 100), color: 'bg-[#D4853A]' },
                   { label: 'Gorduras', pct: plan.fat_pct, color: 'bg-pink-500' },
                 ].map(m => (
                   <div key={m.label} className="space-y-1">
@@ -588,8 +588,8 @@ export default function NutricaoPage() {
               <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
                 <p className="text-sm font-semibold text-zinc-200 mb-1">📊 Ciclagem de Carboidratos</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3">
-                    <p className="text-xs font-bold text-blue-300 mb-2">🏋️ Dia de Treino</p>
+                  <div className="rounded-lg bg-[#D4853A]/10 border border-[#D4853A]/20 p-3">
+                    <p className="text-xs font-bold text-[#E09B5A] mb-2">🏋️ Dia de Treino</p>
                     <p className="text-xs text-zinc-400">Carbs <span className="text-zinc-100 font-bold">{Math.min(plan.carbs_pct + 10, 65)}%</span></p>
                     <p className="text-xs text-zinc-400">Proteína <span className="text-zinc-100 font-bold">{(plan as any).protein_pct ?? 35}%</span></p>
                     <p className="text-[10px] text-zinc-600 mt-2 leading-relaxed">{plan.pre_workout ?? 'Carbs complexos + proteína 1-2h antes'}</p>
@@ -642,7 +642,7 @@ export default function NutricaoPage() {
           <button onClick={() => setShowWeightModal(true)}
             className="w-full flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700 transition-colors">
             <div className="flex items-center gap-3">
-              <Scale className="h-5 w-5 text-blue-400" />
+              <Scale className="h-5 w-5 text-[#D4853A]" />
               <div className="text-left">
                 <p className="text-sm font-semibold text-zinc-100">Registrar Peso de Hoje</p>
                 <p className="text-xs text-zinc-500">Peso + % gordura corporal</p>
@@ -655,7 +655,7 @@ export default function NutricaoPage() {
           {weightLogs.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Peso Atual', value: weightLogs[0].weight_kg + ' kg', icon: <Scale className="h-4 w-4" />, color: 'text-blue-400' },
+                { label: 'Peso Atual', value: weightLogs[0].weight_kg + ' kg', icon: <Scale className="h-4 w-4" />, color: 'text-[#D4853A]' },
                 { label: 'BF Atual', value: weightLogs[0].body_fat_pct ? weightLogs[0].body_fat_pct + '%' : '—', icon: <Activity className="h-4 w-4" />, color: 'text-orange-400' },
                 { label: 'Peso Meta', value: coachData?.target_weight ? coachData.target_weight + ' kg' : '—', icon: <Target className="h-4 w-4" />, color: 'text-green-400' },
                 { label: 'Tendencia 14d', value: coachData?.weight_trend != null ? (coachData.weight_trend > 0 ? '+' : '') + coachData.weight_trend.toFixed(1) + ' kg' : '—', icon: coachData?.weight_trend != null && coachData.weight_trend < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />, color: coachData?.weight_trend != null && coachData.weight_trend < 0 ? 'text-orange-400' : 'text-green-400' },
@@ -679,8 +679,8 @@ export default function NutricaoPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                   <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 10 }} />
                   <YAxis tick={{ fill: '#71717a', fontSize: 10 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }} labelStyle={{ color: '#e4e4e7' }} itemStyle={{ color: '#60a5fa' }} formatter={(v: number) => [v + ' kg', 'Peso']} />
-                  <Line type="monotone" dataKey="peso" stroke="#60a5fa" strokeWidth={2} dot={{ fill: '#60a5fa', r: 3 }} />
+                  <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }} labelStyle={{ color: '#e4e4e7' }} itemStyle={{ color: '#E09B5A' }} formatter={(v: number) => [v + ' kg', 'Peso']} />
+                  <Line type="monotone" dataKey="peso" stroke="#E09B5A" strokeWidth={2} dot={{ fill: '#E09B5A', r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -723,7 +723,7 @@ export default function NutricaoPage() {
               {[
                 { label: 'Pre-treino', value: analysis.nutrient_timing.pre_workout, icon: <Zap className="h-4 w-4 text-yellow-400" />, accent: 'border-l-yellow-500' },
                 { label: 'Pos-treino', value: analysis.nutrient_timing.post_workout, icon: <CheckCircle2 className="h-4 w-4 text-green-400" />, accent: 'border-l-green-500' },
-                { label: 'Dia de descanso', value: analysis.nutrient_timing.rest_day, icon: <Apple className="h-4 w-4 text-blue-400" />, accent: 'border-l-blue-500' },
+                { label: 'Dia de descanso', value: analysis.nutrient_timing.rest_day, icon: <Apple className="h-4 w-4 text-[#D4853A]" />, accent: 'border-l-[#D4853A]' },
                 { label: 'Antes de dormir', value: analysis.nutrient_timing.before_bed, icon: <Clock className="h-4 w-4 text-purple-400" />, accent: 'border-l-purple-500' },
               ].map(item => (
                 <div key={item.label} className={cn('flex gap-3 px-4 py-4 border-l-2', item.accent)}>
@@ -740,7 +740,7 @@ export default function NutricaoPage() {
               {[
                 { label: 'Pre-treino', value: plan.pre_workout, icon: <Zap className="h-4 w-4 text-yellow-400" />, accent: 'border-l-yellow-500' },
                 { label: 'Pos-treino', value: plan.post_workout, icon: <CheckCircle2 className="h-4 w-4 text-green-400" />, accent: 'border-l-green-500' },
-                { label: 'Dia de descanso', value: plan.rest_day_strategy, icon: <Apple className="h-4 w-4 text-blue-400" />, accent: 'border-l-blue-500' },
+                { label: 'Dia de descanso', value: plan.rest_day_strategy, icon: <Apple className="h-4 w-4 text-[#D4853A]" />, accent: 'border-l-[#D4853A]' },
               ].map(item => (
                 <div key={item.label} className={cn('flex gap-3 px-4 py-4 border-l-2', item.accent)}>
                   <div className="shrink-0 mt-0.5">{item.icon}</div>
@@ -804,13 +804,13 @@ export default function NutricaoPage() {
                 <label className="text-xs text-zinc-400 block mb-1.5">Peso (kg) *</label>
                 <input type="number" step="0.1" placeholder="85.5" value={weightForm.weight_kg}
                   onChange={e => setWeightForm(f => ({ ...f, weight_kg: e.target.value }))}
-                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
               </div>
               <div>
                 <label className="text-xs text-zinc-400 block mb-1.5">Gordura Corporal (%) — opcional</label>
                 <input type="number" step="0.1" placeholder="18.5" value={weightForm.body_fat_pct}
                   onChange={e => setWeightForm(f => ({ ...f, body_fat_pct: e.target.value }))}
-                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
               </div>
               <div className="flex gap-3 pt-1">
                 <Button variant="outline" className="flex-1" onClick={() => setShowWeightModal(false)}>Cancelar</Button>

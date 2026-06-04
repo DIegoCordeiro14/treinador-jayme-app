@@ -102,12 +102,12 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4853A]">
               <Zap className="h-5 w-5 text-white" />
             </div>
             <div>
               <p className="text-sm font-bold text-zinc-100 leading-none">Treinador</p>
-              <p className="text-xs text-blue-400 font-semibold mt-0.5">Coach EDN</p>
+              <p className="text-xs text-[#D4853A] font-semibold mt-0.5">Coach EDN</p>
             </div>
           </div>
           <button
@@ -138,7 +138,7 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                         isActive
-                          ? "bg-blue-600 text-white"
+                          ? "bg-[#D4853A]/10 text-[#D4853A] border-l-2 border-[#D4853A] font-semibold"
                           : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
                       )}
                     >

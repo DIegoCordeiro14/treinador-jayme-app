@@ -297,9 +297,9 @@ export default function PerfilPage() {
 
   const exName = (id: string) => exercises.find((e) => e.id === id)?.name ?? '—';
 
-  const inputCls = 'flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600';
+  const inputCls = 'flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A]';
   const chipCls = (active: boolean) =>
-    `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'}`;
+    `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#D4853A]/20 text-[#E09B5A] border-[#D4853A]/40' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'}`;
 
   function SelectField({ label, value, onChange, options, placeholder }: { label: string; value: string; onChange: (v: string) => void; options: Record<string, string>; placeholder?: string }) {
     return (
@@ -344,14 +344,14 @@ export default function PerfilPage() {
             <p className="font-bold text-zinc-100 text-lg">{form.name || 'Atleta'}</p>
             <p className="text-sm text-zinc-500">{email}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge className="bg-blue-600/15 text-blue-400 border-blue-600/30">
+              <Badge className="bg-[#D4853A]/15 text-[#D4853A] border-[#D4853A]/30">
                 <Zap className="h-3 w-3 mr-1" />
                 Nível {progress.level}
               </Badge>
               <span className="text-xs text-zinc-500">{xp.xp_total} XP total</span>
             </div>
             <div className="mt-2 h-1.5 w-48 rounded-full bg-zinc-800">
-              <div className="h-full rounded-full bg-blue-600" style={{ width: `${progress.pct}%` }} />
+              <div className="h-full rounded-full bg-[#D4853A]" style={{ width: `${progress.pct}%` }} />
             </div>
             <p className="text-[10px] text-zinc-600 mt-0.5">{progress.current}/{progress.needed} XP para nível {progress.level + 1}</p>
           </div>
@@ -376,7 +376,7 @@ export default function PerfilPage() {
         </div>
         {evaluation?.phase && (
           <div className="flex flex-wrap gap-2 mt-3">
-            <Badge className="bg-blue-600/15 text-blue-400 border-blue-600/30">
+            <Badge className="bg-[#D4853A]/15 text-[#D4853A] border-[#D4853A]/30">
               <Activity className="h-3 w-3 mr-1" /> Fase: {EDN_PHASE_LABELS[evaluation.phase as keyof typeof EDN_PHASE_LABELS] ?? evaluation.phase}
             </Badge>
             {typeof evaluation.recovery_score === 'number' && (
@@ -401,7 +401,7 @@ export default function PerfilPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${tab === t.key ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${tab === t.key ? 'bg-[#D4853A] text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
             >
               {t.icon} {t.label}
             </button>
@@ -550,7 +550,7 @@ export default function PerfilPage() {
                 onChange={(e) => setForm((f) => ({ ...f, limitation_description: e.target.value }))}
                 placeholder="Ex: dor no ombro direito ao elevar acima de 90°"
                 rows={2}
-                className="flex w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"
+                className="flex w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] resize-none"
               />
             </div>
 
@@ -611,7 +611,7 @@ export default function PerfilPage() {
           </div>
           <button
             onClick={() => setShowInRanking(v => !v)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showInRanking ? 'bg-blue-600' : 'bg-zinc-700'}`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showInRanking ? 'bg-[#D4853A]' : 'bg-zinc-700'}`}
           >
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showInRanking ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
@@ -636,7 +636,7 @@ export default function PerfilPage() {
               </div>
               <button
                 onClick={() => n.set(v => !v)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${n.state ? 'bg-blue-600' : 'bg-zinc-700'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${n.state ? 'bg-[#D4853A]' : 'bg-zinc-700'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${n.state ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>

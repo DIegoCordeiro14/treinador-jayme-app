@@ -409,7 +409,7 @@ export default function PlanDetailPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button onClick={handleAutoPopulate} loading={isGenerating} className="gap-2" variant="outline">
-              <Sparkles className="h-4 w-4 text-blue-400" />Montar com Coach EDN
+              <Sparkles className="h-4 w-4 text-[#D4853A]" />Montar com Coach EDN
             </Button>
             <Button onClick={()=>setShowDeleteDialog(true)} variant="outline" size="icon" className="text-zinc-500 hover:text-red-400 hover:border-red-500/30">
               <Trash2 className="h-4 w-4" />
@@ -444,7 +444,7 @@ export default function PlanDetailPage() {
                     <Dumbbell className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
                     <p className="text-sm text-zinc-400 mb-3">Nenhum exercício neste treino ainda</p>
                     <Button variant="outline" size="sm" className="gap-2" onClick={handleAutoPopulate} loading={isGenerating}>
-                      <Sparkles className="h-3.5 w-3.5 text-blue-400" />Montar com Coach EDN
+                      <Sparkles className="h-3.5 w-3.5 text-[#D4853A]" />Montar com Coach EDN
                     </Button>
                   </div>
                 ) : (
@@ -585,7 +585,7 @@ export default function PlanDetailPage() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-blue-400" />Treino Coach EDN
+              <Sparkles className="h-5 w-5 text-[#D4853A]" />Treino Coach EDN
             </DialogTitle>
             <DialogDescription>
               Divisão {plan.days_per_week}x/semana · <span>{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</span>
@@ -622,16 +622,16 @@ export default function PlanDetailPage() {
                 </ul>
               )}
               {builderResult.adaptation_hint && (
-                <div className="flex items-start gap-2 rounded-lg bg-blue-600/10 border border-blue-500/20 p-2.5">
-                  <span className="text-blue-400 text-[11px] shrink-0">📈</span>
-                  <p className="text-[11px] text-blue-300">{builderResult.adaptation_hint}</p>
+                <div className="flex items-start gap-2 rounded-lg bg-[#D4853A]/10 border border-[#D4853A]/20 p-2.5">
+                  <span className="text-[#D4853A] text-[11px] shrink-0">📈</span>
+                  <p className="text-[11px] text-[#E09B5A]">{builderResult.adaptation_hint}</p>
                 </div>
               )}
             </div>
           )}
 
           {biometricNote && (
-            <div className="flex items-start gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-xs text-blue-300">
+            <div className="flex items-start gap-2 rounded-lg bg-[#D4853A]/10 border border-[#D4853A]/20 p-3 text-xs text-[#E09B5A]">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" /><span>{biometricNote}</span>
             </div>
           )}
@@ -662,7 +662,7 @@ export default function PlanDetailPage() {
 
           {hasAnyExercise && (
             <div className="flex items-center gap-3 rounded-lg bg-zinc-800/50 border border-zinc-700 p-3">
-              <input type="checkbox" id="replace" checked={replaceExisting} onChange={e=>setReplaceExisting(e.target.checked)} className="h-4 w-4 accent-blue-500"/>
+              <input type="checkbox" id="replace" checked={replaceExisting} onChange={e=>setReplaceExisting(e.target.checked)} className="h-4 w-4 accent-[#D4853A]"/>
               <label htmlFor="replace" className="text-xs text-zinc-400 cursor-pointer">
                 Substituir exercícios existentes
               </label>

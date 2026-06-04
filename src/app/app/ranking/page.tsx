@@ -101,25 +101,25 @@ export default function RankingPage() {
 
       {/* My score */}
       {myEntry && (
-        <div className="rounded-xl border border-blue-600/30 bg-blue-600/5 p-5">
+        <div className="rounded-xl border border-[#D4853A]/30 bg-[#D4853A]/5 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="font-semibold text-zinc-100 flex items-center gap-2">
-              <Star className="h-4 w-4 text-blue-400" /> Seu Score
+              <Star className="h-4 w-4 text-[#D4853A]" /> Seu Score
             </p>
-            <Badge variant="secondary" className="text-blue-400">
+            <Badge variant="secondary" className="text-[#D4853A]">
               #{myEntry.rank_position ?? '—'}
             </Badge>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-3xl font-bold text-blue-400">{myEntry.score_total.toFixed(1)}</p>
+              <p className="text-3xl font-bold text-[#D4853A]">{myEntry.score_total.toFixed(1)}</p>
               <p className="text-xs text-zinc-500 mt-0.5">Score Total (semana)</p>
             </div>
             <ResponsiveContainer width="100%" height={120}>
               <RadarChart data={radarData}>
                 <PolarGrid stroke="#3f3f46" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 9 }} />
-                <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                <Radar dataKey="value" stroke="#D4853A" fill="#D4853A" fillOpacity={0.2} />
                 <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', fontSize: 11 }} />
               </RadarChart>
             </ResponsiveContainer>
@@ -198,7 +198,7 @@ function LeaderboardList({ entries, loading }: { entries: LeaderboardEntry[]; lo
               <p className="text-xs text-zinc-500">{entry.workouts_count} treinos</p>
             </div>
             <div className="text-right shrink-0">
-              <p className="font-bold text-blue-400">{entry.score_total.toFixed(1)}</p>
+              <p className="font-bold text-[#D4853A]">{entry.score_total.toFixed(1)}</p>
               <p className="text-[10px] text-zinc-600">score</p>
             </div>
           </div>

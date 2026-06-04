@@ -20,7 +20,7 @@ interface PR {
 
 const PR_COLORS: Record<PRType, string> = {
   load:          'text-orange-400 bg-orange-400/10 border-orange-400/20',
-  reps:          'text-blue-400 bg-blue-400/10 border-blue-400/20',
+  reps:          'text-[#D4853A] bg-[#D4853A]/10 border-[#D4853A]/60/20',
   volume:        'text-green-400 bg-green-400/10 border-green-400/20',
   estimated_1rm: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
 };

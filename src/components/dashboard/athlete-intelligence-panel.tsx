@@ -37,7 +37,7 @@ function ProactiveBriefing({ name }: { name?: string }) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4 space-y-2">
+      <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-4 space-y-2">
         <div className="h-4 bg-zinc-800 rounded animate-pulse w-1/3" />
         <div className="h-3 bg-zinc-800 rounded animate-pulse w-full" />
         <div className="h-3 bg-zinc-800 rounded animate-pulse w-4/5" />
@@ -47,9 +47,9 @@ function ProactiveBriefing({ name }: { name?: string }) {
 
   if (!state) {
     return (
-      <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4">
+      <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Bot className="h-4 w-4 text-blue-400" />
+          <Bot className="h-4 w-4 text-[#D4853A]" />
           <p className="text-sm font-semibold text-zinc-100">Recomendação do dia</p>
         </div>
         <p className="text-sm text-zinc-400">
@@ -105,18 +105,18 @@ function ProactiveBriefing({ name }: { name?: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4 space-y-3">
+    <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20">
-            <Brain className="h-4 w-4 text-blue-400" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#D4853A]/20">
+            <Brain className="h-4 w-4 text-[#D4853A]" />
           </div>
           <div>
             <p className="text-sm font-semibold text-zinc-100">Coach EDN</p>
             <p className="text-[10px] text-zinc-500">Análise do dia</p>
           </div>
         </div>
-        <Link href="/app/ia" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        <Link href="/app/ia" className="text-xs text-[#D4853A] hover:text-[#E09B5A] transition-colors">
           Conversar →
         </Link>
       </div>
@@ -162,7 +162,7 @@ function EdnScore360() {
 
   const SCORE_ITEMS = [
     { key: 'consistency' as const, icon: <Zap className="h-3 w-3" />,       color: 'text-yellow-400' },
-    { key: 'progression' as const, icon: <TrendingUp className="h-3 w-3" />, color: 'text-blue-400' },
+    { key: 'progression' as const, icon: <TrendingUp className="h-3 w-3" />, color: 'text-[#D4853A]' },
     { key: 'nutrition'   as const, icon: <Utensils className="h-3 w-3" />,   color: 'text-green-400' },
     { key: 'cardio'      as const, icon: <Activity className="h-3 w-3" />,    color: 'text-orange-400' },
     { key: 'recovery'    as const, icon: <Heart className="h-3 w-3" />,       color: 'text-red-400' },
@@ -174,7 +174,7 @@ function EdnScore360() {
 
   const trendIcon = state.raw.weight_trend_14d !== null
     ? (state.raw.weight_trend_14d < -0.2 ? <TrendingDown className="h-3.5 w-3.5 text-green-400" />
-       : state.raw.weight_trend_14d > 0.2 ? <TrendingUp className="h-3.5 w-3.5 text-blue-400" />
+       : state.raw.weight_trend_14d > 0.2 ? <TrendingUp className="h-3.5 w-3.5 text-[#D4853A]" />
        : <Minus className="h-3.5 w-3.5 text-zinc-500" />)
     : null;
 

@@ -47,14 +47,14 @@ export function BottomNav({ onOpenDrawer }: BottomNavProps) {
               href={item.href}
               className={cn(
                 "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all min-w-0",
-                isActive ? "text-blue-400" : "text-zinc-500 hover:text-zinc-300"
+                isActive ? "text-[#D4853A]" : "text-zinc-500 hover:text-zinc-300"
               )}
             >
               <Icon
                 size={19}
                 className={cn(
                   "transition-all shrink-0",
-                  isActive && "drop-shadow-[0_0_6px_rgba(96,165,250,0.8)]"
+                  isActive && "drop-shadow-[0_0_6px_rgba(212,133,58,0.8)]"
                 )}
               />
               <span className="text-[9px] font-medium leading-none">{item.label}</span>
@@ -66,14 +66,14 @@ export function BottomNav({ onOpenDrawer }: BottomNavProps) {
           onClick={onOpenDrawer}
           className={cn(
             "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all min-w-0",
-            !inPrimary ? "text-blue-400" : "text-zinc-500 hover:text-zinc-300"
+            !inPrimary ? "text-[#D4853A]" : "text-zinc-500 hover:text-zinc-300"
           )}
         >
           <MoreHorizontal
             size={19}
             className={cn(
               "shrink-0",
-              !inPrimary && "drop-shadow-[0_0_6px_rgba(96,165,250,0.8)]"
+              !inPrimary && "drop-shadow-[0_0_6px_rgba(212,133,58,0.8)]"
             )}
           />
           <span className="text-[9px] font-medium leading-none">Mais</span>

@@ -23,7 +23,7 @@ const LEAGUE_EMOJI: Record<string, string> = {
 };
 const LEAGUE_COLOR: Record<string, string> = {
   bronze: 'text-amber-600', prata: 'text-zinc-400', ouro: 'text-yellow-400',
-  platina: 'text-cyan-400', diamante: 'text-blue-400', elite: 'text-violet-400',
+  platina: 'text-cyan-400', diamante: 'text-[#D4853A]', elite: 'text-violet-400',
 };
 
 export function DailyBriefingPanel() {
@@ -48,9 +48,9 @@ export function DailyBriefingPanel() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-5 space-y-3">
+      <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-blue-600/20 animate-pulse" />
+          <div className="h-7 w-7 rounded-lg bg-[#D4853A]/20 animate-pulse" />
           <div className="h-4 w-32 rounded bg-zinc-800 animate-pulse" />
         </div>
         {[...Array(3)].map((_, i) => <div key={i} className="h-3 rounded bg-zinc-800 animate-pulse" style={{ width: `${90 - i * 10}%` }} />)}
@@ -61,12 +61,12 @@ export function DailyBriefingPanel() {
   if (!briefing) return null;
 
   return (
-    <div className="rounded-xl border border-blue-600/20 bg-gradient-to-br from-blue-600/5 to-zinc-900 p-5 space-y-4">
+    <div className="rounded-xl border border-[#D4853A]/20 bg-gradient-to-br from-[#D4853A]/5 to-zinc-900 p-5 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/15 border border-blue-600/30 shrink-0">
-            <Brain className="h-5 w-5 text-blue-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4853A]/15 border border-[#D4853A]/30 shrink-0">
+            <Brain className="h-5 w-5 text-[#D4853A]" />
           </div>
           <div>
             <p className="font-semibold text-zinc-100 text-base leading-tight">{briefing.greeting}</p>
@@ -105,13 +105,13 @@ export function DailyBriefingPanel() {
 
       {/* Today's action */}
       <div className="rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-3 py-2.5 flex items-start gap-2">
-        <Zap className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5" />
+        <Zap className="h-3.5 w-3.5 text-[#D4853A] shrink-0 mt-0.5" />
         <p className="text-sm text-zinc-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: briefing.todayAction.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-1">
-        <Link href="/app/ia" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+        <Link href="/app/ia" className="text-xs text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1 transition-colors">
           Conversar com Coach EDN <ChevronRight className="h-3 w-3" />
         </Link>
         <Link href="/app/evolucao" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">

@@ -50,13 +50,13 @@ export function WorkoutTodayCard({
   const exerciseCount = workoutDay.workout_exercises?.length ?? 0;
 
   return (
-    <div className="rounded-xl border border-blue-600/30 bg-gradient-card p-6 relative overflow-hidden">
+    <div className="rounded-xl border border-[#D4853A]/30 bg-gradient-card p-6 relative overflow-hidden">
       {/* Glow effect */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-2xl" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4853A]/5 rounded-full blur-2xl" />
 
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/20 border border-blue-600/30">
-          <Dumbbell className="h-5 w-5 text-blue-400" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#D4853A]/20 border border-[#D4853A]/30">
+          <Dumbbell className="h-5 w-5 text-[#D4853A]" />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-zinc-100">Treino de Hoje</h3>

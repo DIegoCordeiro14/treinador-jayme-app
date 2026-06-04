@@ -43,7 +43,7 @@ export function ProjectionCompare({ currentWeightKg, currentBfPct, weeklyWeightD
     <div className="space-y-4">
       <div className="flex gap-2">
         {HORIZONS.map(h => (
-          <button key={h} onClick={() => setHz(h)} className={cn('flex-1 text-xs py-1.5 rounded-lg border transition-colors font-medium', hz === h ? 'border-blue-600/50 bg-blue-600/15 text-blue-300' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700')}>{HORIZON_LABELS[h]}</button>
+          <button key={h} onClick={() => setHz(h)} className={cn('flex-1 text-xs py-1.5 rounded-lg border transition-colors font-medium', hz === h ? 'border-[#D4853A]/50 bg-[#D4853A]/15 text-[#E09B5A]' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700')}>{HORIZON_LABELS[h]}</button>
         ))}
       </div>
 
@@ -52,7 +52,7 @@ export function ProjectionCompare({ currentWeightKg, currentBfPct, weeklyWeightD
         <div className="flex items-end gap-2">
           <span className="text-2xl font-black text-zinc-100">{current}kg</span>
           <span className="text-sm text-zinc-500 mb-0.5">em {hz} dias</span>
-          {weekly < -0.05 ? <TrendingDown className="h-4 w-4 text-green-400 mb-0.5" /> : weekly > 0.05 ? <TrendingUp className="h-4 w-4 text-blue-400 mb-0.5" /> : <Minus className="h-4 w-4 text-zinc-500 mb-0.5" />}
+          {weekly < -0.05 ? <TrendingDown className="h-4 w-4 text-green-400 mb-0.5" /> : weekly > 0.05 ? <TrendingUp className="h-4 w-4 text-[#D4853A] mb-0.5" /> : <Minus className="h-4 w-4 text-zinc-500 mb-0.5" />}
         </div>
         {currentBfPct && <p className="text-xs text-zinc-500 mt-0.5">BF estimado: ~{Math.max(5, currentBfPct + (weekly < 0 ? weekly * weeks * 0.6 : weekly * weeks * 0.4)).toFixed(1)}%</p>}
       </div>
@@ -65,10 +65,10 @@ export function ProjectionCompare({ currentWeightKg, currentBfPct, weeklyWeightD
             const better = delta < 0;
             if (applied === sc.type) return <div key={i} className="rounded-xl border border-green-600/30 bg-green-600/5 p-4"><p className="text-sm text-green-300">✅ {sc.label} — ação aplicada.</p></div>;
             return (
-              <div key={i} className={cn('rounded-xl border p-4 space-y-3', better ? 'border-green-600/25 bg-green-600/5' : 'border-blue-600/20 bg-blue-600/5')}>
+              <div key={i} className={cn('rounded-xl border p-4 space-y-3', better ? 'border-green-600/25 bg-green-600/5' : 'border-[#D4853A]/20 bg-[#D4853A]/5')}>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-zinc-100">{sc.label}</p>
-                  <span className={cn('text-sm font-bold', better ? 'text-green-400' : 'text-blue-400')}>{sc.projected}kg</span>
+                  <span className={cn('text-sm font-bold', better ? 'text-green-400' : 'text-[#D4853A]')}>{sc.projected}kg</span>
                 </div>
                 {better && <p className="text-xs text-green-300">{Math.abs(delta).toFixed(1)}kg a menos vs trajetória atual em {hz} dias</p>}
                 <p className="text-xs text-zinc-400">{sc.desc}</p>

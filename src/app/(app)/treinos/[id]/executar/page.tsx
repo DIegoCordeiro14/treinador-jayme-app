@@ -295,7 +295,7 @@ export default function ExecutarPage() {
   const doneEx = exStates.filter(s => s.sets.length > 0 && s.sets.every(s => s.completed)).length;
   const thumbnail = ex ? getYoutubeThumbnail(ex.exercise.youtube_url ?? null) : null;
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-7 w-7 text-blue-400 animate-spin" /></div>;
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-7 w-7 text-[#D4853A] animate-spin" /></div>;
 
   // WARMUP
   if (phase === 'warmup') return (
@@ -354,7 +354,7 @@ export default function ExecutarPage() {
         ))}
       </div>
 
-      <button onClick={startWorkout} className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-600/20">
+      <button onClick={startWorkout} className="w-full py-4 rounded-2xl bg-[#D4853A] hover:bg-[#D4853A] text-white font-black text-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#D4853A]/20">
         <Play className="h-5 w-5 fill-current" /> Iniciar Treino
       </button>
     </div>
@@ -369,7 +369,7 @@ export default function ExecutarPage() {
       </div>
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Duracao', value: fmtTime(elapsed), icon: <Clock className="h-4 w-4" />, color: 'text-blue-400' },
+          { label: 'Duracao', value: fmtTime(elapsed), icon: <Clock className="h-4 w-4" />, color: 'text-[#D4853A]' },
           { label: 'Volume', value: `${Math.round(totalVol)} kg`, icon: <BarChart2 className="h-4 w-4" />, color: 'text-green-400' },
           { label: 'Exercicios', value: `${doneEx}/${exercises.length}`, icon: <Zap className="h-4 w-4" />, color: 'text-orange-400' },
         ].map(s => (
@@ -400,7 +400,7 @@ export default function ExecutarPage() {
       </div>
       <div className="flex gap-3">
         <button onClick={() => router.back()} className="flex-1 py-3.5 rounded-xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Descartar</button>
-        <button onClick={saveSession} disabled={saving} className="flex-1 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold flex items-center justify-center gap-2 transition-colors">
+        <button onClick={saveSession} disabled={saving} className="flex-1 py-3.5 rounded-xl bg-[#D4853A] hover:bg-[#D4853A] disabled:opacity-60 text-white font-bold flex items-center justify-center gap-2 transition-colors">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Salvar treino</>}
         </button>
       </div>
@@ -447,7 +447,7 @@ export default function ExecutarPage() {
             const isDone = exStates[i]?.sets.length > 0 && exStates[i]?.sets.every(s => s.completed);
             return (
               <button key={i} onClick={() => goTo(i)} className={cn('flex-1 h-1.5 rounded-full transition-all', {
-                'bg-blue-500': i === currentIdx,
+                'bg-[#D4853A]': i === currentIdx,
                 'bg-green-500': isDone && i !== currentIdx,
                 'bg-zinc-700 hover:bg-zinc-600': !isDone && i !== currentIdx,
               })} />
@@ -491,10 +491,10 @@ export default function ExecutarPage() {
           {ex && ednSuggestions[ex.exercise_id] && (() => {
             const sg = ednSuggestions[ex.exercise_id];
             return (
-              <div className={cn('rounded-lg border px-3 py-2.5 flex items-center gap-3', sg.stagnant ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-blue-500/20 bg-blue-500/5')}>
-                <TrendingUp className={cn('h-4 w-4 shrink-0', sg.stagnant ? 'text-yellow-400' : 'text-blue-400')} />
+              <div className={cn('rounded-lg border px-3 py-2.5 flex items-center gap-3', sg.stagnant ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-[#D4853A]/20 bg-[#D4853A]/5')}>
+                <TrendingUp className={cn('h-4 w-4 shrink-0', sg.stagnant ? 'text-yellow-400' : 'text-[#D4853A]')} />
                 <div>
-                  <p className={cn('text-xs font-bold', sg.stagnant ? 'text-yellow-300' : 'text-blue-300')}>
+                  <p className={cn('text-xs font-bold', sg.stagnant ? 'text-yellow-300' : 'text-[#E09B5A]')}>
                     {sg.stagnant ? '⚠ Estagnação detectada — aumente volume ou mude progressão' : `Sugestão EDN: ${sg.suggestedWeight}kg (Top Set)`}
                   </p>
                   <p className="text-[10px] text-zinc-500">{sg.model}</p>
@@ -533,12 +533,12 @@ export default function ExecutarPage() {
 
           {/* AI Tip card */}
           {st && (
-            <div className="rounded-xl border border-blue-600/20 bg-blue-600/5 p-4">
+            <div className="rounded-xl border border-[#D4853A]/20 bg-[#D4853A]/5 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600/15">
-                  <Bot className="h-3.5 w-3.5 text-blue-400" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#D4853A]/15">
+                  <Bot className="h-3.5 w-3.5 text-[#D4853A]" />
                 </div>
-                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-widest">Coach EDN diz</span>
+                <span className="text-[11px] font-bold text-[#D4853A] uppercase tracking-widest">Coach EDN diz</span>
               </div>
               {st.tipLoading ? (
                 <div className="flex items-center gap-2 text-zinc-500">
@@ -576,11 +576,11 @@ export default function ExecutarPage() {
                     {typeConf.label}
                   </button>
                   <input type="number" step="0.5" placeholder="--" value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   <input type="number" step="1" min="0" placeholder="--" value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   <select value={s.rir} onChange={e => updateSet(currentIdx, si, 'rir', e.target.value)} disabled={s.completed}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                     {RIR_OPTS.map(r => <option key={r} value={r}>RIR {r}</option>)}
                   </select>
                   <button onClick={() => toggleComplete(currentIdx, si)} className="flex h-9 w-9 items-center justify-center rounded-lg mx-auto transition-colors hover:bg-zinc-800">
@@ -619,7 +619,7 @@ export default function ExecutarPage() {
                 <ChevronLeft className="h-4 w-4" /> Anterior
               </button>
             )}
-            <button onClick={nextExercise} className="flex-1 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-600/15">
+            <button onClick={nextExercise} className="flex-1 py-3.5 rounded-xl bg-[#D4853A] hover:bg-[#D4853A] text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#D4853A]/15">
               {currentIdx < exercises.length - 1
                 ? <><span>Proximo exercicio</span><ChevronRight className="h-4 w-4" /></>
                 : <><Trophy className="h-4 w-4" /><span>Finalizar treino</span></>}

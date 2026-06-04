@@ -97,7 +97,7 @@ export function VolumeChart({ sessions, weeks = 8 }: VolumeChartProps) {
         <Tooltip content={<CustomTooltip />} />
         <Bar
           dataKey="volume"
-          fill="#2563eb"
+          fill="#D4853A"
           radius={[4, 4, 0, 0]}
           opacity={0.85}
         />
