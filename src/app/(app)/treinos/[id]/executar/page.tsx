@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
-  Pause, Square, PlayCircle, Info,
+  Pause, Square, PlayCircle, Info, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
@@ -39,6 +39,22 @@ interface ExState {
   tip: string | null; tipLoading: boolean;
   feedback: string | null; feedbackLoading: boolean;
 }
+
+// V6.5 — Pilar 5: análise pré-treino do Coach EDN
+type PreCheckAdjustment = 'progress' | 'maintain' | 'reduce_10' | 'reduce_25' | 'rest';
+interface PreCheck {
+  adjustment: PreCheckAdjustment;
+  message: string;
+  recovery: { score: number; category: string };
+}
+
+const PRECHECK_STYLE: Record<PreCheckAdjustment, { title: string; border: string; bg: string; text: string }> = {
+  progress:  { title: 'Dia de progressão',         border: 'border-emerald-600/30', bg: 'bg-emerald-600/5', text: 'text-emerald-300' },
+  maintain:  { title: 'Treino conforme o plano',   border: 'border-blue-600/30',    bg: 'bg-blue-600/5',    text: 'text-blue-300' },
+  reduce_10: { title: 'Hoje sem intensificação',   border: 'border-yellow-600/30',  bg: 'bg-yellow-600/5',  text: 'text-yellow-300' },
+  reduce_25: { title: 'Volume reduzido em ~25%',   border: 'border-orange-600/30',  bg: 'bg-orange-600/5',  text: 'text-orange-300' },
+  rest:      { title: 'Descanso recomendado',      border: 'border-red-600/30',     bg: 'bg-red-600/5',     text: 'text-red-300' },
+};
 
 function fmtTime(s: number) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -103,10 +119,19 @@ export default function ExecutarPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [preCheck, setPreCheck] = useState<PreCheck | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAt = useRef<Date>(new Date());
   const elapsedRef = useRef(0);
+
+  // V6.5 — Pilar 5: consulta o Coach EDN antes do treino
+  useEffect(() => {
+    fetch('/api/pre-workout-check')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.adjustment) setPreCheck(d as PreCheck); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!dayId) return;
@@ -309,6 +334,35 @@ export default function ExecutarPage() {
           <p className="text-sm text-zinc-500">{exercises.length} exercicios · {exercises.reduce((a, e) => a + e.sets, 0)} series</p>
         </div>
       </div>
+
+      {/* V6.5 — Pilar 5: análise pré-treino do Coach EDN */}
+      {preCheck && (() => {
+        const sty = PRECHECK_STYLE[preCheck.adjustment];
+        return (
+          <div className={cn('rounded-xl border p-4 space-y-2', sty.border, sty.bg)}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Activity className={cn('h-4 w-4 shrink-0', sty.text)} />
+                <p className={cn('text-sm font-bold', sty.text)}>Coach EDN — {sty.title}</p>
+              </div>
+              <span className="text-[11px] font-semibold text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-full shrink-0">
+                Prontidão {preCheck.recovery.score}/100
+              </span>
+            </div>
+            <p className="text-xs text-zinc-300 leading-relaxed">{preCheck.message}</p>
+            <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+              <div
+                className={cn('h-full rounded-full transition-all',
+                  preCheck.recovery.score >= 85 ? 'bg-emerald-500' :
+                  preCheck.recovery.score >= 70 ? 'bg-blue-500' :
+                  preCheck.recovery.score >= 55 ? 'bg-yellow-500' :
+                  preCheck.recovery.score >= 40 ? 'bg-orange-500' : 'bg-red-500')}
+                style={{ width: `${preCheck.recovery.score}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* RIR reminder */}
       <div className="rounded-xl border border-yellow-600/25 bg-yellow-600/5 p-4 space-y-3">
