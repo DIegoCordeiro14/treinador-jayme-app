@@ -2,24 +2,56 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Dumbbell,
-  Bot,
-  Utensils,
-  User,
-  Flame,
-  MoreHorizontal,
-} from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+
+// ── Ícones idênticos aos do mockup mobile ──
+type IconProps = { size?: number; className?: string };
+const svgProps = (size: number, className?: string) => ({
+  width: size, height: size, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const, className,
+});
+const InicioIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+const TreinosIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <path d="M6 5v14M18 5v14M3 8h4M17 8h4M3 16h4M17 16h4" />
+  </svg>
+);
+const CardioIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
+const NutricaoIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z" />
+    <path d="M12 6v6l4 2" />
+  </svg>
+);
+const CoachIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+const PerfilIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+  </svg>
+);
 import { cn } from "@/lib/utils";
 
 const PRIMARY_ITEMS = [
-  { href: "/app/dashboard", label: "Inicio", icon: LayoutDashboard },
-  { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
-  { href: "/app/cardio", label: "Cardio", icon: Flame },
-  { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
-  { href: "/app/ia", label: "Coach", icon: Bot },
-  { href: "/app/perfil", label: "Perfil", icon: User },
+  { href: "/app/dashboard", label: "Inicio", icon: InicioIcon },
+  { href: "/app/treinos", label: "Treinos", icon: TreinosIcon },
+  { href: "/app/cardio", label: "Cardio", icon: CardioIcon },
+  { href: "/app/nutricao", label: "Nutricao", icon: NutricaoIcon },
+  { href: "/app/ia", label: "Coach", icon: CoachIcon },
+  { href: "/app/perfil", label: "Perfil", icon: PerfilIcon },
 ];
 
 interface BottomNavProps {
