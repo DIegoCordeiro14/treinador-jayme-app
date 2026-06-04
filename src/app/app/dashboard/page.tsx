@@ -70,7 +70,9 @@ export default async function DashboardPage() {
       )
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .single(),
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("bioimpedance_data")
       .select("weight_kg, bmi, body_fat_pct, skeletal_muscle_mass_kg, lean_mass_kg")
@@ -146,7 +148,7 @@ export default async function DashboardPage() {
     return bioW ?? measW;
   })();
 
-  // Today's workout day (based on day of week or sequential)
+  // Today's workout day — fonte de verdade: schedule_config (mesma agenda do Calendário)
   const todayDayOfWeek = today.getDay();
   let todayWorkoutDay: WorkoutDay | null = null;
 
@@ -154,13 +156,51 @@ export default async function DashboardPage() {
     const sortedDays = [...typedPlan.workout_days].sort(
       (a, b) => a.order_index - b.order_index
     );
-    // Match by day_of_week if set
-    const matched = sortedDays.find((d) => d.day_of_week === todayDayOfWeek);
-    todayWorkoutDay = matched ?? null;
 
-    // If no explicit day_of_week, use sequential based on how many workouts done this week
-    if (!todayWorkoutDay && weeklySessions.length < sortedDays.length) {
-      todayWorkoutDay = sortedDays[weeklySessions.length] ?? null;
+    const schedule = (typedPlan as unknown as {
+      schedule_config?: { start_date?: string; pattern?: number[]; day_assignments?: Record<string, string> } | null;
+    }).schedule_config;
+
+    const ednDay = todayDayOfWeek === 0 ? 7 : todayDayOfWeek; // 1=Seg … 7=Dom (padrão do Calendário)
+
+    if (schedule?.pattern?.length) {
+      // Segue exatamente a distribuição do Calendário
+      if (schedule.pattern.includes(ednDay)) {
+        const label = schedule.day_assignments?.[String(ednDay)] ?? null;
+        const norm = (x: string) => x.toLowerCase().trim();
+        // 1º: nome do treino igual/contém o rótulo
+        let matchedDay = label
+          ? sortedDays.find(
+              (d) => norm(d.name) === norm(label) || norm(d.name).includes(norm(label)) || norm(label).includes(norm(d.name))
+            ) ?? null
+          : null;
+        // 2º: rótulo é grupo muscular (ex. "legs/abs") — escolhe o treino com mais exercícios desses grupos
+        if (!matchedDay && label) {
+          const tokens = norm(label).split(/[\/+,&\s]+/).filter(Boolean);
+          let best: { day: WorkoutDay; score: number } | null = null;
+          for (const d of sortedDays) {
+            const exs = (d as unknown as { workout_exercises?: { exercise?: { muscle_group?: string } }[] }).workout_exercises ?? [];
+            const score = exs.filter((we) => tokens.some((t) => (we.exercise?.muscle_group ?? "").startsWith(t.slice(0, 4)))).length;
+            if (score > 0 && (!best || score > best.score)) best = { day: d, score };
+          }
+          matchedDay = best?.day ?? null;
+        }
+        // 3º: posição do dia no padrão semanal → enésimo treino do plano
+        if (!matchedDay) {
+          const idx = [...schedule.pattern].sort((a, b) => a - b).indexOf(ednDay);
+          matchedDay = sortedDays[idx % sortedDays.length] ?? null;
+        }
+        todayWorkoutDay = matchedDay;
+      } else {
+        todayWorkoutDay = null; // dia de descanso conforme o Calendário
+      }
+    } else {
+      // Sem agenda: comportamento anterior (day_of_week ou sequencial)
+      const matched = sortedDays.find((d) => d.day_of_week === todayDayOfWeek);
+      todayWorkoutDay = matched ?? null;
+      if (!todayWorkoutDay && weeklySessions.length < sortedDays.length) {
+        todayWorkoutDay = sortedDays[weeklySessions.length] ?? null;
+      }
     }
   }
 
