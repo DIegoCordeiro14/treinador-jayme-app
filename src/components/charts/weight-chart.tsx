@@ -66,17 +66,17 @@ export function WeightChart({ measurements }: WeightChartProps) {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" vertical={false} />
         <XAxis
           dataKey="date"
-          tick={{ fill: "#71717a", fontSize: 11 }}
-          axisLine={{ stroke: "#27272a" }}
+          tick={{ fill: "#607D8B", fontSize: 11 }}
+          axisLine={{ stroke: "#1C2933" }}
           tickLine={false}
           interval="preserveStartEnd"
         />
         <YAxis
           domain={[minVal, maxVal]}
-          tick={{ fill: "#71717a", fontSize: 11 }}
+          tick={{ fill: "#607D8B", fontSize: 11 }}
           axisLine={false}
           tickLine={false}
         />

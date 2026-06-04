@@ -550,14 +550,14 @@ export default function EvolucaoPage() {
                     <p className="text-xs text-zinc-500 mb-2">Gordura (%) e Músculo (kg)</p>
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={bioChartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
-                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} domain={['auto', 'auto']} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
-                        <Line type="monotone" dataKey="gordura" name="Gordura%" stroke="#f97316" strokeWidth={2} dot={{ r: 3, fill: '#f97316' }} connectNulls />
-                        <Line type="monotone" dataKey="musculo" name="Músculo kg" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} connectNulls />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                        <XAxis dataKey="date" tick={{ fill: '#607D8B', fontSize: 11 }} />
+                        <YAxis tick={{ fill: '#607D8B', fontSize: 11 }} domain={['auto', 'auto']} />
+                        <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', color: '#F0F4F6', fontSize: 12 }} />
+                        <Line type="monotone" dataKey="gordura" name="Gordura%" stroke="#D4853A" strokeWidth={2} dot={{ r: 3, fill: '#D4853A' }} connectNulls />
+                        <Line type="monotone" dataKey="musculo" name="Músculo kg" stroke="#5A8A6A" strokeWidth={2} dot={{ r: 3, fill: '#5A8A6A' }} connectNulls />
                         {gorduraMeta !== null && (
-                          <ReferenceLine y={gorduraMeta} stroke="#f97316" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: `Meta ${gorduraMeta?.toFixed(1)}%`, fill: '#f97316', fontSize: 10, position: 'insideTopRight' }} />
+                          <ReferenceLine y={gorduraMeta} stroke="#D4853A" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: `Meta ${gorduraMeta?.toFixed(1)}%`, fill: '#D4853A', fontSize: 10, position: 'insideTopRight' }} />
                         )}
                       </LineChart>
                     </ResponsiveContainer>
@@ -566,10 +566,10 @@ export default function EvolucaoPage() {
                     <p className="text-xs text-zinc-500 mb-2">Peso (kg)</p>
                     <ResponsiveContainer width="100%" height={160}>
                       <LineChart data={bioChartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
-                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} domain={['auto', 'auto']} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                        <XAxis dataKey="date" tick={{ fill: '#607D8B', fontSize: 11 }} />
+                        <YAxis tick={{ fill: '#607D8B', fontSize: 11 }} domain={['auto', 'auto']} />
+                        <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', color: '#F0F4F6', fontSize: 12 }} />
                         <Line type="monotone" dataKey="peso" name="Peso kg" stroke="#D4853A" strokeWidth={2} dot={{ r: 3, fill: '#D4853A' }} connectNulls />
                       </LineChart>
                     </ResponsiveContainer>
@@ -599,10 +599,10 @@ export default function EvolucaoPage() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={weightData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 11 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                  <XAxis dataKey="date" tick={{ fill: '#607D8B', fontSize: 11 }} />
+                  <YAxis tick={{ fill: '#607D8B', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', color: '#F0F4F6', fontSize: 12 }} />
                   <Line type="monotone" dataKey="peso" stroke="#D4853A" strokeWidth={2} dot={{ r: 3, fill: '#D4853A' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -619,10 +619,10 @@ export default function EvolucaoPage() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={volumeData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 11 }} />
-                  <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                  <XAxis dataKey="date" tick={{ fill: '#607D8B', fontSize: 11 }} />
+                  <YAxis tick={{ fill: '#607D8B', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', color: '#F0F4F6', fontSize: 12 }} />
                   <Bar dataKey="volume" fill="#D4853A" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

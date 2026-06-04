@@ -34,9 +34,9 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
 
   const urgencyColor =
     remaining <= 10
-      ? "#ef4444"
+      ? "#8B5A5A"
       : remaining <= 30
-      ? "#f59e0b"
+      ? "#A67C3A"
       : "#D4853A";
 
   return (
@@ -55,7 +55,7 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
             cy="70"
             r="54"
             fill="none"
-            stroke="#27272a"
+            stroke="#1C2933"
             strokeWidth="8"
           />
           {/* Progress circle */}

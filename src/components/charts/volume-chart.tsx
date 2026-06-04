@@ -81,15 +81,15 @@ export function VolumeChart({ sessions, weeks = 8 }: VolumeChartProps) {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" vertical={false} />
         <XAxis
           dataKey="label"
-          tick={{ fill: "#71717a", fontSize: 11 }}
-          axisLine={{ stroke: "#27272a" }}
+          tick={{ fill: "#607D8B", fontSize: 11 }}
+          axisLine={{ stroke: "#1C2933" }}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: "#71717a", fontSize: 11 }}
+          tick={{ fill: "#607D8B", fontSize: 11 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) => `${(v / 1000).toFixed(0)}t`}

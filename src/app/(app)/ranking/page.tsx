@@ -134,10 +134,10 @@ export default function RankingPage() {
             </div>
             <ResponsiveContainer width="100%" height={160}>
               <RadarChart data={radarData}>
-                <PolarGrid stroke="#3f3f46" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 8 }} />
+                <PolarGrid stroke="#2C3E4A" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#607D8B', fontSize: 8 }} />
                 <Radar dataKey="value" stroke="#D4853A" fill="#D4853A" fillOpacity={0.2} />
-                <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', fontSize: 10 }} />
+                <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', fontSize: 10 }} />
               </RadarChart>
             </ResponsiveContainer>
           </div>

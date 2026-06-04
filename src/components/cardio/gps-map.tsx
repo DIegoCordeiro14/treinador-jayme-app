@@ -44,11 +44,11 @@ export function GPSMap({ coordinates, className }: Props) {
 
       // Start/end markers
       const startIcon = L.divIcon({
-        html: '<div style="background:#22c55e;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.4)"></div>',
+        html: '<div style="background:#5A8A6A;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.4)"></div>',
         className: '', iconAnchor: [6, 6],
       });
       const endIcon = L.divIcon({
-        html: '<div style="background:#ef4444;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.4)"></div>',
+        html: '<div style="background:#8B5A5A;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.4)"></div>',
         className: '', iconAnchor: [6, 6],
       });
 

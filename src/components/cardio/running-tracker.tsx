@@ -96,7 +96,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
             0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.5); }
             50%       { box-shadow: 0 0 0 8px rgba(34,197,94,0.1); }
           }
-          .leaflet-container { background: #18181b; }
+          .leaflet-container { background: #0D1117; }
         `;
         document.head.appendChild(style);
       }
@@ -184,7 +184,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         // ── Polyline: use addLatLng for incremental updates ──────────────────
         if (!polylineRef.current) {
           polylineRef.current = L.polyline([latLng], {
-            color: '#f97316',
+            color: '#D4853A',
             weight: 6,
             opacity: 1,
             lineCap: 'round',
@@ -193,7 +193,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
           // Shadow/glow layer under the main line
           L.polyline([latLng], {
-            color: '#7c2d12',
+            color: '#3D2010',
             weight: 10,
             opacity: 0.3,
             lineCap: 'round',
@@ -209,7 +209,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
           const startIcon = L.divIcon({
             html: `<div style="
               width:14px;height:14px;border-radius:50%;
-              background:#22c55e;border:2px solid white;
+              background:#5A8A6A;border:2px solid white;
               animation:pulse-start 2s ease-in-out infinite;
             "></div>`,
             className: '',
@@ -223,7 +223,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         const currentIcon = L.divIcon({
           html: `<div style="
             width:20px;height:20px;border-radius:50%;
-            background:#f97316;border:3px solid white;
+            background:#D4853A;border:3px solid white;
             animation:pulse-dot 1.2s ease-in-out infinite;
           "></div>`,
           className: '',

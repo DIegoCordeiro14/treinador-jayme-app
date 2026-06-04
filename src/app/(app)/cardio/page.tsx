@@ -449,16 +449,16 @@ export default function CardioPage() {
             {weeklyData.some(d => d.km > 0) ? (
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={weeklyData} margin={{ left: -20, right: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="week" tick={{ fill: '#71717a', fontSize: 10 }} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 10 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                  <XAxis dataKey="week" tick={{ fill: '#607D8B', fontSize: 10 }} />
+                  <YAxis tick={{ fill: '#607D8B', fontSize: 10 }} />
                   <Tooltip
-                    contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }}
-                    labelStyle={{ color: '#e4e4e7' }}
-                    itemStyle={{ color: '#f97316' }}
+                    contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', borderRadius: 8 }}
+                    labelStyle={{ color: '#D7E0E5' }}
+                    itemStyle={{ color: '#D4853A' }}
                     formatter={(v: number) => [`${v} km`, 'Distancia']}
                   />
-                  <Bar dataKey="km" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="km" fill="#D4853A" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -475,15 +475,15 @@ export default function CardioPage() {
             {paceData.length >= 2 ? (
               <ResponsiveContainer width="100%" height={160}>
                 <LineChart data={paceData} margin={{ left: -20, right: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 10 }} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={(v: number) => formatPace(v)} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                  <XAxis dataKey="date" tick={{ fill: '#607D8B', fontSize: 10 }} />
+                  <YAxis tick={{ fill: '#607D8B', fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={(v: number) => formatPace(v)} />
                   <Tooltip
-                    contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }}
-                    labelStyle={{ color: '#e4e4e7' }}
+                    contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', borderRadius: 8 }}
+                    labelStyle={{ color: '#D7E0E5' }}
                     formatter={(v: number) => [formatPace(v), 'Pace']}
                   />
-                  <Line type="monotone" dataKey="pace" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316', r: 3 }} />
+                  <Line type="monotone" dataKey="pace" stroke="#D4853A" strokeWidth={2} dot={{ fill: '#D4853A', r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (

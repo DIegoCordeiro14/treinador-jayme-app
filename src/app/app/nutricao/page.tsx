@@ -53,7 +53,7 @@ function MacroRing({ pct, color, label, value }: { pct: number; color: string; l
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative w-16 h-16">
         <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r={r} fill="none" stroke="#27272a" strokeWidth="6" />
+          <circle cx="32" cy="32" r={r} fill="none" stroke="#1C2933" strokeWidth="6" />
           <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeWidth="6"
             strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" className={color} />
         </svg>
@@ -501,10 +501,10 @@ export default function NutricaoPage() {
               <p className="text-xs text-zinc-500 mb-4">Ultimas {weightChartData.length} medicoes</p>
               <ResponsiveContainer width="100%" height={160}>
                 <LineChart data={weightChartData} margin={{ left: -20, right: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 10 }} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 10 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }} labelStyle={{ color: '#e4e4e7' }} itemStyle={{ color: '#E09B5A' }} formatter={(v: number) => [v + ' kg', 'Peso']} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                  <XAxis dataKey="date" tick={{ fill: '#607D8B', fontSize: 10 }} />
+                  <YAxis tick={{ fill: '#607D8B', fontSize: 10 }} domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', borderRadius: 8 }} labelStyle={{ color: '#D7E0E5' }} itemStyle={{ color: '#E09B5A' }} formatter={(v: number) => [v + ' kg', 'Peso']} />
                   <Line type="monotone" dataKey="peso" stroke="#E09B5A" strokeWidth={2} dot={{ fill: '#E09B5A', r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
