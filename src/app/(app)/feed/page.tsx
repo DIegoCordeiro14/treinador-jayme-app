@@ -1,10 +1,12 @@
 'use client';
 /**
- * Feed Social EDN — V5.0 Pillar 8
- * Strava dos naturais: treinos, PRs, conquistas, evolução corporal, desafios.
+ * Feed Social EDN — V6.5 Pilar 12
+ * Strava dos Naturais: treinos, PRs, conquistas, evolução corporal, desafios.
+ * Eventos publicados AUTOMATICAMENTE por triggers no Supabase.
+ * Curtidas e comentários 100% persistidos no Supabase (sem localStorage).
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Dumbbell, TrendingUp, Trophy, Star, Zap, Heart, MessageCircle, Users, Plus, ChevronRight, Flame } from 'lucide-react';
+import { Dumbbell, TrendingUp, Trophy, Star, Zap, Heart, MessageCircle, Users, ChevronRight, Flame, Send, Crown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,6 +15,14 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
+interface FeedComment {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles?: { name: string } | null;
+}
+
 interface FeedItem {
   id: string;
   user_id: string;
@@ -20,12 +30,17 @@ interface FeedItem {
   data: Record<string, any>;
   created_at: string;
   profiles?: { name: string; avatar_url: string | null };
-  likes?: number;
-  userLiked?: boolean;
+  likes: number;
+  userLiked: boolean;
+  commentsCount: number;
+  comments: FeedComment[];
+  commentsOpen: boolean;
 }
 
+interface RankEntry { user_id: string; xp_total: number; name: string; }
+
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
-  workout_complete: { icon: <Dumbbell className="h-4 w-4" />, color: 'text-[#D4853A]',   bg: 'bg-[#D4853A]/10',   label: 'Treino concluído' },
+  workout_complete: { icon: <Dumbbell className="h-4 w-4" />, color: 'text-blue-400',   bg: 'bg-blue-400/10',   label: 'Treino concluído' },
   new_pr:          { icon: <TrendingUp className="h-4 w-4" />, color: 'text-green-400', bg: 'bg-green-400/10', label: 'Novo PR' },
   achievement:     { icon: <Trophy className="h-4 w-4" />,     color: 'text-yellow-400',bg: 'bg-yellow-400/10',label: 'Conquista' },
   body_update:     { icon: <Star className="h-4 w-4" />,       color: 'text-purple-400',bg: 'bg-purple-400/10',label: 'Evolução corporal' },
@@ -34,94 +49,38 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: st
   streak:          { icon: <Flame className="h-4 w-4" />,      color: 'text-red-400',   bg: 'bg-red-400/10',   label: 'Sequência' },
 };
 
-function FeedCard({ item, onLike }: { item: FeedItem; onLike: (id: string) => void }) {
-  const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.workout_complete;
+const LIKE_EMOJI = '❤️';
+
+function headlineFor(item: FeedItem): { headline: string; detail: string } {
   const name = item.profiles?.name?.split(' ')[0] ?? 'Atleta';
   const d = item.data ?? {};
-  const timeAgo = formatDistanceToNow(parseISO(item.created_at), { locale: ptBR, addSuffix: true });
-
-  let headline = '';
-  let detail = '';
-
   switch (item.type) {
     case 'workout_complete':
-      headline = `${name} concluiu ${d.workout_name ?? 'um treino'}`;
-      detail = [d.volume_kg && `Volume: ${Math.round(d.volume_kg).toLocaleString('pt-BR')}kg`, d.duration_min && `${d.duration_min}min`, d.volume_delta && `${d.volume_delta > 0 ? '+' : ''}${d.volume_delta}% vs semana passada`].filter(Boolean).join(' · ');
-      break;
+      return {
+        headline: `${name} concluiu ${d.workout_name ?? 'um treino'}`,
+        detail: [d.volume_kg && `Volume: ${Math.round(d.volume_kg).toLocaleString('pt-BR')}kg`, d.duration_min && `${d.duration_min}min`].filter(Boolean).join(' · '),
+      };
     case 'new_pr':
-      headline = `${name} bateu um PR em ${d.exercise_name ?? 'um exercício'}`;
-      detail = d.weight_kg ? `${d.weight_kg}kg × ${d.reps ?? '?'} reps` : '';
-      break;
+      return {
+        headline: `${name} bateu um PR em ${d.exercise_name ?? 'um exercício'}`,
+        detail: [d.weight_kg && `${d.weight_kg}kg`, d.improvement_pct && `+${d.improvement_pct}%`].filter(Boolean).join(' · '),
+      };
     case 'achievement':
-      headline = `${name} desbloqueou: ${d.title ?? 'Conquista'}`;
-      detail = d.description ?? '';
-      break;
+      return { headline: `${name} desbloqueou: ${d.icon ?? '🏆'} ${d.title ?? 'Conquista'}`, detail: d.description ?? '' };
     case 'body_update':
-      headline = `${name} registrou evolução corporal`;
-      detail = [d.weight_kg && `Peso: ${d.weight_kg}kg`, d.body_fat_pct && `BF: ${d.body_fat_pct}%`, d.muscle_kg && `Músculo: ${d.muscle_kg}kg`].filter(Boolean).join(' · ');
-      break;
+      return {
+        headline: `${name} registrou evolução corporal`,
+        detail: [d.weight_kg && `Peso: ${d.weight_kg}kg`, d.body_fat_pct && `BF: ${d.body_fat_pct}%`, d.muscle_kg && `Músculo: ${d.muscle_kg}kg`].filter(Boolean).join(' · '),
+      };
     case 'challenge_done':
-      headline = `${name} completou o desafio: ${d.challenge_title ?? ''}`;
-      detail = d.xp_reward ? `+${d.xp_reward} XP ganhos` : '';
-      break;
+      return { headline: `${name} completou o desafio: ${d.challenge_title ?? ''}`, detail: d.xp_reward ? `+${d.xp_reward} XP ganhos` : '' };
     case 'join_team':
-      headline = `${name} entrou na equipe ${d.team_name ?? ''}`;
-      break;
+      return { headline: `${name} entrou na equipe ${d.team_name ?? ''}`, detail: '' };
     case 'streak':
-      headline = `${name} está em sequência de ${d.days ?? '?'} dias!`;
-      detail = `🔥 Consistência é o maior diferencial.`;
-      break;
+      return { headline: `${name} está em sequência de ${d.days ?? '?'} dias!`, detail: '🔥 Consistência é o maior diferencial.' };
     default:
-      headline = `${name} teve atividade`;
+      return { headline: `${name} teve atividade`, detail: '' };
   }
-
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', cfg.bg, cfg.color)}>
-          {cfg.icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-100 leading-tight">{headline}</p>
-          {detail && <p className="text-xs text-zinc-500 mt-0.5">{detail}</p>}
-        </div>
-        <span className="text-[10px] text-zinc-600 shrink-0">{timeAgo}</span>
-      </div>
-
-      {/* Type badge */}
-      <div className="flex items-center justify-between">
-        <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full', cfg.bg, cfg.color)}>
-          {cfg.label}
-        </span>
-
-        {/* Like button */}
-        <button
-          onClick={() => onLike(item.id)}
-          className={cn('flex items-center gap-1.5 text-xs rounded-full px-3 py-1 transition-colors', item.userLiked ? 'text-red-400 bg-red-400/10' : 'text-zinc-500 hover:text-red-400 hover:bg-red-400/10')}
-        >
-          <Heart className={cn('h-3.5 w-3.5', item.userLiked && 'fill-current')} />
-          {(item.likes ?? 0) > 0 && <span>{item.likes}</span>}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function EmptyFeed() {
-  return (
-    <div className="rounded-xl border border-dashed border-zinc-700 p-10 text-center space-y-3">
-      <Dumbbell className="h-10 w-10 text-zinc-600 mx-auto" />
-      <div>
-        <p className="font-semibold text-zinc-300">Nenhuma atividade ainda</p>
-        <p className="text-sm text-zinc-500 mt-1">Complete um treino, bata um PR ou entre em uma equipe para aparecer aqui.</p>
-      </div>
-      <div className="flex gap-2 justify-center">
-        <Link href="/app/treinos"><Button size="sm" variant="outline" className="gap-1.5 text-xs"><Dumbbell className="h-3.5 w-3.5" />Treinos</Button></Link>
-        <Link href="/app/equipes"><Button size="sm" variant="outline" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Equipes</Button></Link>
-      </div>
-    </div>
-  );
 }
 
 export default function FeedPage() {
@@ -131,6 +90,8 @@ export default function FeedPage() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [ranking, setRanking] = useState<RankEntry[]>([]);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const PAGE_SIZE = 15;
 
   const loadFeed = useCallback(async (reset = false) => {
@@ -148,79 +109,104 @@ export default function FeedPage() {
 
     if (!items) { setLoading(false); return; }
 
-    // Get likes from localStorage (lightweight — no likes table in schema)
-    const liked = JSON.parse(localStorage.getItem('edn_liked_items') ?? '{}');
+    // Curtidas e comentários — persistidos no Supabase
+    const ids = items.map(i => i.id);
+    const [{ data: reactions }, { data: commentRows }] = await Promise.all([
+      ids.length ? supabase.from('activity_reactions').select('activity_id, user_id').in('activity_id', ids) : Promise.resolve({ data: [] as any[] }),
+      ids.length ? supabase.from('activity_comments').select('id, activity_id, user_id, content, created_at, profiles(name)').in('activity_id', ids).order('created_at', { ascending: true }) : Promise.resolve({ data: [] as any[] }),
+    ]);
 
-    // Count likes from localStorage across all users (simplified)
-    const feedWithMeta = items.map(item => ({
-      ...item,
-      profiles: Array.isArray(item.profiles) ? item.profiles[0] : item.profiles,
-      likes: parseInt(localStorage.getItem(`like_${item.id}`) ?? '0'),
-      userLiked: !!liked[item.id],
-    })) as FeedItem[];
+    const likesById = new Map<string, { count: number; mine: boolean }>();
+    (reactions ?? []).forEach((r: any) => {
+      const e = likesById.get(r.activity_id) ?? { count: 0, mine: false };
+      e.count += 1;
+      if (r.user_id === user.id) e.mine = true;
+      likesById.set(r.activity_id, e);
+    });
 
-    if (reset) {
-      setFeed(feedWithMeta);
-      setPage(1);
-    } else {
-      setFeed(prev => [...prev, ...feedWithMeta]);
-      setPage(p => p + 1);
-    }
+    const commentsById = new Map<string, FeedComment[]>();
+    (commentRows ?? []).forEach((c: any) => {
+      const list = commentsById.get(c.activity_id) ?? [];
+      list.push({ ...c, profiles: Array.isArray(c.profiles) ? c.profiles[0] : c.profiles });
+      commentsById.set(c.activity_id, list);
+    });
+
+    const feedWithMeta = items.map(item => {
+      const lk = likesById.get(item.id) ?? { count: 0, mine: false };
+      const cm = commentsById.get(item.id) ?? [];
+      return {
+        ...item,
+        profiles: Array.isArray(item.profiles) ? item.profiles[0] : item.profiles,
+        likes: lk.count,
+        userLiked: lk.mine,
+        commentsCount: cm.length,
+        comments: cm,
+        commentsOpen: false,
+      };
+    }) as FeedItem[];
+
+    if (reset) { setFeed(feedWithMeta); setPage(1); }
+    else { setFeed(prev => [...prev, ...feedWithMeta]); setPage(p => p + 1); }
     setHasMore(items.length === PAGE_SIZE);
     setLoading(false);
   }, [page]);
 
-  useEffect(() => { loadFeed(true); }, []);
-
-  function handleLike(itemId: string) {
-    const liked = JSON.parse(localStorage.getItem('edn_liked_items') ?? '{}');
-    const wasLiked = !!liked[itemId];
-    if (wasLiked) {
-      delete liked[itemId];
-    } else {
-      liked[itemId] = true;
+  const loadRanking = useCallback(async () => {
+    const { data } = await supabase
+      .from('user_xp')
+      .select('user_id, xp_total, profiles(name)')
+      .order('xp_total', { ascending: false })
+      .limit(3);
+    if (data) {
+      setRanking(data.map((r: any) => ({
+        user_id: r.user_id,
+        xp_total: r.xp_total ?? 0,
+        name: (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles)?.name?.split(' ')[0] ?? 'Atleta',
+      })));
     }
-    localStorage.setItem('edn_liked_items', JSON.stringify(liked));
+  }, []);
 
-    // Update count in storage
-    const currentCount = parseInt(localStorage.getItem(`like_${itemId}`) ?? '0');
-    localStorage.setItem(`like_${itemId}`, String(Math.max(0, currentCount + (wasLiked ? -1 : 1))));
+  useEffect(() => { loadFeed(true); loadRanking(); }, []);
 
-    setFeed(prev => prev.map(item =>
-      item.id === itemId
-        ? { ...item, userLiked: !wasLiked, likes: Math.max(0, (item.likes ?? 0) + (wasLiked ? -1 : 1)) }
-        : item
-    ));
+  // ── Curtir / descurtir — Supabase (activity_reactions) ─────────────────────
+  async function handleLike(itemId: string) {
+    if (!myUserId) return;
+    const item = feed.find(i => i.id === itemId);
+    if (!item) return;
+
+    // Otimista
+    setFeed(prev => prev.map(i => i.id === itemId
+      ? { ...i, userLiked: !i.userLiked, likes: Math.max(0, i.likes + (i.userLiked ? -1 : 1)) }
+      : i));
+
+    if (item.userLiked) {
+      const { error } = await supabase.from('activity_reactions').delete().eq('activity_id', itemId).eq('user_id', myUserId);
+      if (error) { toast.error('Erro ao remover curtida'); loadFeed(true); }
+    } else {
+      const { error } = await supabase.from('activity_reactions').insert({ activity_id: itemId, user_id: myUserId, emoji: LIKE_EMOJI });
+      if (error) { toast.error('Erro ao curtir'); loadFeed(true); }
+    }
   }
 
-  async function postActivity() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  // ── Comentários — Supabase (activity_comments) ─────────────────────────────
+  function toggleComments(itemId: string) {
+    setFeed(prev => prev.map(i => i.id === itemId ? { ...i, commentsOpen: !i.commentsOpen } : i));
+  }
 
-    // Auto-post based on recent data
-    const { data: lastSession } = await supabase
-      .from('workout_sessions')
-      .select('id, finished_at, total_volume_kg, workout_days(name)')
-      .eq('user_id', user.id)
-      .not('finished_at', 'is', null)
-      .order('finished_at', { ascending: false })
-      .limit(1)
+  async function submitComment(itemId: string) {
+    if (!myUserId) return;
+    const content = (commentDrafts[itemId] ?? '').trim();
+    if (!content) return;
+    const { data, error } = await supabase
+      .from('activity_comments')
+      .insert({ activity_id: itemId, user_id: myUserId, content })
+      .select('id, user_id, content, created_at')
       .single();
-
-    if (lastSession) {
-      await supabase.from('activity_feed').insert({
-        user_id: user.id,
-        type: 'workout_complete',
-        data: {
-          workout_name: (lastSession.workout_days as any)?.name ?? 'Treino',
-          volume_kg: lastSession.total_volume_kg,
-        },
-      });
-      toast.success('Atividade publicada no feed!');
-      loadFeed(true);
-    } else {
-      toast.error('Nenhum treino recente para publicar.');
-    }
+    if (error || !data) { toast.error('Erro ao comentar'); return; }
+    setCommentDrafts(p => ({ ...p, [itemId]: '' }));
+    setFeed(prev => prev.map(i => i.id === itemId
+      ? { ...i, comments: [...i.comments, { ...data, profiles: { name: 'Você' } }], commentsCount: i.commentsCount + 1, commentsOpen: true }
+      : i));
   }
 
   return (
@@ -229,27 +215,45 @@ export default function FeedPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Feed EDN</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Comunidade de atletas naturais</p>
+          <p className="text-sm text-zinc-500 mt-0.5">Comunidade de atletas naturais — treinos, PRs e conquistas aparecem aqui automaticamente</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" variant="outline" onClick={postActivity} className="gap-1.5 text-xs">
-            <Plus className="h-3.5 w-3.5" />
-            Publicar treino
+        <Link href="/app/equipes" className="shrink-0">
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+            <Users className="h-3.5 w-3.5" />
+            Equipes
           </Button>
-          <Link href="/app/equipes">
-            <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-              <Users className="h-3.5 w-3.5" />
-              Equipes
-            </Button>
-          </Link>
-        </div>
+        </Link>
       </div>
+
+      {/* Ranking entre amigos */}
+      {ranking.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Crown className="h-4 w-4 text-yellow-400" />
+              <p className="text-xs font-bold text-zinc-300 uppercase tracking-wide">Ranking da comunidade</p>
+            </div>
+            <Link href="/app/ranking" className="text-[11px] text-zinc-500 hover:text-zinc-300 flex items-center gap-0.5">
+              ver completo <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {ranking.map((r, i) => (
+              <div key={r.user_id} className={cn('rounded-lg p-2.5 text-center border', i === 0 ? 'border-yellow-600/30 bg-yellow-600/5' : 'border-zinc-800 bg-zinc-800/40')}>
+                <p className="text-base">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</p>
+                <p className="text-xs font-semibold text-zinc-200 truncate">{r.name}</p>
+                <p className="text-[10px] text-zinc-500">{r.xp_total.toLocaleString('pt-BR')} XP</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick stats bar */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Publicações', value: feed.length.toString(), icon: <Dumbbell className="h-3.5 w-3.5" /> },
-          { label: 'PRs da semana', value: feed.filter(f => f.type === 'new_pr').length.toString(), icon: <TrendingUp className="h-3.5 w-3.5" /> },
+          { label: 'PRs recentes', value: feed.filter(f => f.type === 'new_pr').length.toString(), icon: <TrendingUp className="h-3.5 w-3.5" /> },
           { label: 'Conquistas', value: feed.filter(f => f.type === 'achievement').length.toString(), icon: <Trophy className="h-3.5 w-3.5" /> },
         ].map(s => (
           <div key={s.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-3 text-center">
@@ -266,12 +270,89 @@ export default function FeedPage() {
           {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-xl bg-zinc-800 animate-pulse" />)}
         </div>
       ) : feed.length === 0 ? (
-        <EmptyFeed />
+        <div className="rounded-xl border border-dashed border-zinc-700 p-10 text-center space-y-3">
+          <Dumbbell className="h-10 w-10 text-zinc-600 mx-auto" />
+          <div>
+            <p className="font-semibold text-zinc-300">Nenhuma atividade ainda</p>
+            <p className="text-sm text-zinc-500 mt-1">Complete um treino, bata um PR ou entre em uma equipe — o feed publica automaticamente.</p>
+          </div>
+          <div className="flex gap-2 justify-center">
+            <Link href="/app/treinos"><Button size="sm" variant="outline" className="gap-1.5 text-xs"><Dumbbell className="h-3.5 w-3.5" />Treinos</Button></Link>
+            <Link href="/app/equipes"><Button size="sm" variant="outline" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Equipes</Button></Link>
+          </div>
+        </div>
       ) : (
         <div className="space-y-3">
-          {feed.map(item => (
-            <FeedCard key={item.id} item={item} onLike={handleLike} />
-          ))}
+          {feed.map(item => {
+            const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.workout_complete;
+            const { headline, detail } = headlineFor(item);
+            const timeAgo = formatDistanceToNow(parseISO(item.created_at), { locale: ptBR, addSuffix: true });
+            return (
+              <div key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+                {/* Header */}
+                <div className="flex items-start gap-3">
+                  <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', cfg.bg, cfg.color)}>
+                    {cfg.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-zinc-100 leading-tight">{headline}</p>
+                    {detail && <p className="text-xs text-zinc-500 mt-0.5">{detail}</p>}
+                  </div>
+                  <span className="text-[10px] text-zinc-600 shrink-0">{timeAgo}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full', cfg.bg, cfg.color)}>
+                    {cfg.label}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => toggleComments(item.id)}
+                      className={cn('flex items-center gap-1.5 text-xs rounded-full px-3 py-1 transition-colors', item.commentsOpen ? 'text-blue-400 bg-blue-400/10' : 'text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10')}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      {item.commentsCount > 0 && <span>{item.commentsCount}</span>}
+                    </button>
+                    <button
+                      onClick={() => handleLike(item.id)}
+                      className={cn('flex items-center gap-1.5 text-xs rounded-full px-3 py-1 transition-colors', item.userLiked ? 'text-red-400 bg-red-400/10' : 'text-zinc-500 hover:text-red-400 hover:bg-red-400/10')}
+                    >
+                      <Heart className={cn('h-3.5 w-3.5', item.userLiked && 'fill-current')} />
+                      {item.likes > 0 && <span>{item.likes}</span>}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Comments */}
+                {item.commentsOpen && (
+                  <div className="border-t border-zinc-800 pt-3 space-y-2.5">
+                    {item.comments.map(c => (
+                      <div key={c.id} className="flex items-start gap-2">
+                        <span className="text-xs font-semibold text-zinc-300 shrink-0">{c.profiles?.name?.split(' ')[0] ?? 'Atleta'}:</span>
+                        <p className="text-xs text-zinc-400 leading-relaxed break-words min-w-0">{c.content}</p>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        value={commentDrafts[item.id] ?? ''}
+                        onChange={e => setCommentDrafts(p => ({ ...p, [item.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') submitComment(item.id); }}
+                        placeholder="Comentar…"
+                        className="flex-1 h-8 rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                      />
+                      <button
+                        onClick={() => submitComment(item.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/15 text-blue-400 hover:bg-blue-600/25 transition-colors"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {hasMore && (
             <button onClick={() => loadFeed(false)} className="w-full text-xs text-zinc-500 hover:text-zinc-300 py-3 flex items-center justify-center gap-1 transition-colors">
               Carregar mais <ChevronRight className="h-3.5 w-3.5" />
