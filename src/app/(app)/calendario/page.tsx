@@ -518,7 +518,7 @@ export default function CalendarioPage() {
 
             {cfg && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-800/30 px-3 py-2">
-                <p className="text-[11px] text-zinc-500">Atual: {cfg.pattern.map(d => WEEKDAYS[d - 1]).join(', ')}</p>
+                <p className="text-[11px] text-zinc-500">Atual: {(cfg.pattern ?? []).map(d => WEEKDAYS[d - 1]).join(', ')}</p>
               </div>
             )}
 
