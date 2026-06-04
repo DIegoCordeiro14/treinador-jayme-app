@@ -1,4 +1,4 @@
-const CACHE_NAME = 'treinador-jayme-v1';
+const CACHE_NAME = 'treinador-jayme-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -55,17 +55,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Immutable build assets (hash no nome): cache-first é seguro
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/') || url.pathname === '/manifest.json') {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+          }
+          return res;
+        });
+      })
+    );
+    return;
+  }
+
+  // Todo o resto (RSC payloads, dados de página): network-first com fallback
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
+    fetch(request)
+      .then((res) => {
         if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((c) => c.put(request, clone));
         }
         return res;
-      });
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });
