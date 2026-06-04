@@ -285,11 +285,11 @@ export default function CardioPage() {
         <TabsContent value="visao-geral" className="mt-4 space-y-4">
 
           {/* Hero dashboard */}
-          <div className="rounded-2xl bg-gradient-to-br from-orange-600 to-red-600 p-5 text-white shadow-xl">
+          <div className="rounded-2xl bg-gradient-to-br from-[#3D2010] to-[#1A1005] border border-[#D4853A]/35 p-5 text-zinc-100">
             <div className="flex items-center gap-2 mb-4">
               <Flame className="h-5 w-5" />
               <span className="text-sm font-semibold opacity-90">Semana Atual</span>
-              <span className={cn('ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-white/20', recoveryColor === 'text-green-400' ? 'text-white' : 'text-white')}>
+              <span className={cn('ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-[#D4853A]/15 text-[#D4853A]', recoveryColor === 'text-green-400' ? 'text-white' : 'text-white')}>
                 Recuperacao: {recoveryStatus}
               </span>
             </div>
@@ -300,7 +300,7 @@ export default function CardioPage() {
                 { label: 'Sessoes', value: weekSessions.length, icon: <Activity className="h-4 w-4" /> },
                 { label: 'Streak', value: `${streak}d`, icon: <Zap className="h-4 w-4" /> },
               ].map(s => (
-                <div key={s.label} className="bg-white/10 rounded-xl p-3 text-center">
+                <div key={s.label} className="bg-black/25 border border-white/[0.06] rounded-xl p-3 text-center">
                   <div className="flex justify-center mb-1 opacity-80">{s.icon}</div>
                   <p className="text-xl font-black">{s.value}</p>
                   <p className="text-[10px] opacity-70">{s.label}</p>
@@ -313,7 +313,7 @@ export default function CardioPage() {
                 <span className="opacity-80">Meta semanal</span>
                 <span className="font-semibold">{weekKm.toFixed(1)} / {weeklyGoal} km ({goalPct}%)</span>
               </div>
-              <div className="h-2 rounded-full bg-white/20">
+              <div className="h-2 rounded-full bg-white/[0.08]">
                 <div className="h-full rounded-full bg-white transition-all" style={{ width: `${goalPct}%` }} />
               </div>
             </div>

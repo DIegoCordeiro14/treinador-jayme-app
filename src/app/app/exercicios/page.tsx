@@ -136,7 +136,7 @@ export default function ExerciciosPage() {
             "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
             showFavorites
               ? "bg-rose-600 border-rose-600 text-white"
-              : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+              : "bg-zinc-900 border-white/[0.07] text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
           )}
         >
           <Heart className={cn("h-3 w-3", showFavorites && "fill-white")} />
@@ -150,7 +150,7 @@ export default function ExerciciosPage() {
               "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
               selectedMuscle === filter.key
                 ? "bg-[#D4853A] border-[#D4853A] text-white"
-                : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+                : "bg-zinc-900 border-white/[0.07] text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
             )}
           >
             {filter.label}
@@ -167,8 +167,8 @@ export default function ExerciciosPage() {
             className={cn(
               "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
               selectedEquipment === filter.key
-                ? "bg-purple-600 border-purple-600 text-white"
-                : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+                ? "bg-[#D4853A]/[0.12] border-[#D4853A] text-[#D4853A]"
+                : "bg-zinc-900 border-white/[0.07] text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
             )}
           >
             {filter.key === "all" ? "Equipamento" : filter.label}

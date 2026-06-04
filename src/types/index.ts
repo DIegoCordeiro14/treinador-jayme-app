@@ -455,15 +455,15 @@ export const COMPLEXITY_LABELS: Record<RecommendedComplexity, string> = {
 };
 
 export const MUSCLE_GROUP_COLORS: Record<MuscleGroup, string> = {
-  chest: 'bg-red-500/20 text-red-400 border-red-500/30',
-  back: 'bg-[#D4853A]/20 text-[#D4853A] border-[#D4853A]/30',
-  shoulders: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  biceps: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  triceps: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  legs: 'bg-green-500/20 text-green-400 border-green-500/30',
-  glutes: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
-  abs: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  calves: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-  forearms: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  full_body: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-};
+  chest: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  back: 'bg-[#D4853A]/15 text-[#D4853A] border-transparent',
+  shoulders: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  biceps: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  triceps: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  legs: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  glutes: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  abs: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  calves: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  forearms: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+  full_body: 'bg-[rgba(144,164,174,0.1)] text-[#8FA3AD] border-transparent',
+}

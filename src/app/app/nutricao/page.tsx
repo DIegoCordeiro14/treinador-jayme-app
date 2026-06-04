@@ -147,11 +147,8 @@ export default function NutricaoPage() {
     load();
   }
 
-  const goalColors: Record<string, string> = {
-    weight_loss: 'from-orange-600 to-red-500', definition: 'from-[#D4853A] to-cyan-500',
-    hypertrophy: 'from-green-600 to-emerald-500', strength: 'from-purple-600 to-violet-500',
-  };
-  const gradientClass = goalColors[activeGoal] ?? 'from-green-600 to-emerald-500';
+  // Mockup: hero escuro com borda âmbar para todos os objetivos
+  const gradientClass = 'from-[#1A1005] to-[#0D1520] border border-[#D4853A]/25';
 
   // Weight chart data
   const weightChartData = [...weightLogs].reverse().slice(-14).map(l => ({
@@ -181,17 +178,17 @@ export default function NutricaoPage() {
       </div>
 
       {/* ── Macro hero card ──────────────────────────────────────── */}
-      <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl', gradientClass)}>
+      <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-zinc-100', gradientClass)}>
         <div className="flex items-center gap-2 mb-3">
           <Utensils className="h-5 w-5" />
           <span className="text-sm font-semibold opacity-90">Macros do Plano</span>
-          {plan && <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">{plan.strategy}</span>}
+          {plan && <span className="ml-auto text-xs bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
         </div>
         {plan ? (
           <div className="flex justify-around mt-2">
-            <MacroRing pct={plan.carbs_pct} color="text-yellow-300" label="Carbs" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
+            <MacroRing pct={plan.carbs_pct} color="text-[#A67C3A]" label="Carbs" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
             <MacroRing pct={Math.min(Math.round(plan.protein_g_per_kg * 4), 100)} color="text-[#E09B5A]" label="Proteina" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
-            <MacroRing pct={plan.fat_pct} color="text-pink-300" label="Gordura" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
+            <MacroRing pct={plan.fat_pct} color="text-[#8B5A5A]" label="Gordura" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
           </div>
         ) : (
           <div className="text-center py-4 opacity-60">
