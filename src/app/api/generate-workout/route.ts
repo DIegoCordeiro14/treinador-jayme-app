@@ -40,6 +40,38 @@ const LOCATION_PT: Record<string, string> = { full_gym: 'academia completa', bas
 const YEARS_PT: Record<string, string> = { lt_6m: '<6 meses', '6m_2y': '6m-2anos', '2y_5y': '2-5anos', gt_5y: '>5anos' };
 const LIMITATION_PT: Record<string, string> = { shoulder: 'ombro', knee: 'joelho', lower_back: 'lombar', hip: 'quadril', elbow: 'cotovelo', wrist: 'punho' };
 
+// ─── JSON repair (respostas truncadas da IA) ─────────────────────────────────
+function repairWorkoutJson(raw: string): any | null {
+  try {
+    // Remove vírgula final antes de fechar colchete/chave
+    let s = raw.replace(/,\s*([\]\}])/g, '$1');
+    // Corta um possível objeto de exercício incompleto no final
+    const lastComplete = s.lastIndexOf('}');
+    if (lastComplete > 0) s = s.slice(0, lastComplete + 1);
+    s = s.replace(/,\s*$/, '');
+    // Fecha colchetes/chaves abertos na ordem correta usando uma pilha
+    const stack: string[] = [];
+    let inStr = false;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inStr) {
+        if (c === '\\') i++;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === '{' || c === '[') stack.push(c);
+      else if (c === '}' || c === ']') stack.pop();
+    }
+    if (inStr) s += '"';
+    while (stack.length > 0) {
+      const open = stack.pop();
+      s += open === '[' ? ']' : '}';
+    }
+    return JSON.parse(s);
+  } catch { return null; }
+}
+
 // ─── POST /api/generate-workout ───────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   let whyText = "";
@@ -302,25 +334,33 @@ Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s;
 IDs disponíveis (id|nome, [ADV]=avançado):
 ${exerciseCatalog}
 JSON puro (sem markdown): {"days":[{"dayIndex":0,"focusLabel":"Peito+Tríceps","exercises":[{"exerciseId":"ID","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75,"notes":"RIR 2"}]}]}
-${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
+Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayCount - 1}). APENAS JSON.`;
 
     // ─── AI call ──────────────────────────────────────────────────────────────
     let fullText = "";
     for await (const chunk of provider.stream({
       messages: [{ role: "user", content: userPrompt }],
       systemPrompt: EDN_SYSTEM_PROMPT,
-      maxTokens: 2000,
+      maxTokens: 4000, // 2000 truncava o JSON em planos de 4+ dias
     })) {
       if (chunk.text) fullText += chunk.text;
     }
 
-    // ─── Parse JSON ───────────────────────────────────────────────────────────
-    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return Response.json({ error: "AI não retornou JSON válido", raw: fullText }, { status: 422 });
+    // ─── Parse JSON (com limpeza de fences e reparo de truncamento) ───────────
+    let cleaned = fullText.replace(/```json\n?|\n?```/g, '').trim();
+    const jsonStart = cleaned.indexOf('{');
+    if (jsonStart < 0) {
+      return Response.json({ error: "AI não retornou JSON válido", raw: fullText.slice(0, 200) }, { status: 422 });
+    }
+    cleaned = cleaned.slice(jsonStart);
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = repairWorkoutJson(cleaned);
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed?.days || !Array.isArray(parsed.days)) {
       return Response.json({ days: [], whyText, aiError: true, error: "Estrutura JSON inválida" }, { status: 200 });
     }
