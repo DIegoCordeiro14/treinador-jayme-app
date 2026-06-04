@@ -18,8 +18,10 @@
 /* Prevent overscroll bounce on iOS */
 html, body {
   overscroll-behavior: none;
-  /* Mobile: nunca permitir rolagem horizontal — conteúdo se ajusta à largura do aparelho */
-  overflow-x: hidden;
+  /* Mobile: sem rolagem horizontal, mantendo a vertical intacta.
+     'clip' não cria scroll container (diferente de 'hidden', que pode travar o scroll vertical) */
+  overflow-x: clip;
+  overflow-y: auto;
   max-width: 100%;
 }
 
