@@ -8,8 +8,9 @@
  * REGRA DE PONTUAÇÃO (Módulo 0): o atleta SÓ pontua após cumprir tarefas reais.
  * Sem treino registrado, sem log de nutrição, sem cárdio → componente = 0.
  *
- * V6.5: integra o Recovery Engine (Pilar 3) — recovery_state é a fonte de
- * prontidão usada pelo Decision Engine e pelo ajuste pré-treino (Pilar 5).
+ * V6.5: integra o Recovery Engine (Pilar 3) e wearable_metrics (Pilar 1) —
+ * recovery_state é a fonte de prontidão usada pelo Decision Engine e pelo
+ * ajuste pré-treino (Pilar 5).
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -91,6 +92,7 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
     { data: bioList },
     { data: weightLogs },
     { data: profileRec },
+    { data: wearableRow },
   ] = await Promise.all([
     supabase
       .from('workout_sessions')
@@ -136,6 +138,15 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
       .from('profiles')
       .select('sleep_hours, sleep_quality, stress_level, work_type, weekly_frequency, main_goal')
       .eq('id', userId)
+      .maybeSingle(),
+    // V6.5 Pilar 1 — métrica de wearable mais recente (até 2 dias)
+    supabase
+      .from('wearable_metrics')
+      .select('hrv_ms, hrv_baseline_ms, resting_hr, sleep_hours, body_battery, training_readiness, recovery_time_hours, recorded_at')
+      .eq('user_id', userId)
+      .gte('recorded_at', new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10))
+      .order('recorded_at', { ascending: false })
+      .limit(1)
       .maybeSingle(),
   ]);
 
@@ -211,7 +222,16 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
     avgRir,
     sessionsLast7,
     plannedPerWeek: daysPerWeek,
-    wearable: null, // Pilar 1 — preencher quando integrações de wearables chegarem
+    // Pilar 1 — wearables têm prioridade quando há dado recente
+    wearable: wearableRow ? {
+      hrvMs: wearableRow.hrv_ms,
+      hrvBaselineMs: wearableRow.hrv_baseline_ms,
+      restingHr: wearableRow.resting_hr,
+      sleepHoursMeasured: wearableRow.sleep_hours,
+      bodyBattery: wearableRow.body_battery,
+      trainingReadiness: wearableRow.training_readiness,
+      recoveryTimeHours: wearableRow.recovery_time_hours,
+    } : null,
   });
 
   // Recovery score de GAMIFICAÇÃO — só existe recuperação se houve treino
@@ -320,7 +340,7 @@ export function formatAthleteStateForAI(state: AthleteState): string {
   const rec = state.recovery_state;
   const lines = [
     `Score EDN: ${state.edn_score}/100 (Liga ${state.league.toUpperCase()})`,
-    `Prontidão (Recovery Engine): ${rec.score}/100 — ${RECOVERY_CATEGORY_LABELS[rec.category]}${rec.factors.length > 0 ? ` (${rec.factors.slice(0, 2).join('; ')})` : ''}`,
+    `Prontidão (Recovery Engine): ${rec.score}/100 — ${RECOVERY_CATEGORY_LABELS[rec.category]}${rec.usedWearable ? ' [dados de wearable]' : ''}${rec.factors.length > 0 ? ` (${rec.factors.slice(0, 2).join('; ')})` : ''}`,
     `Consistência: ${r.sessions_last_28}/${r.planned_sessions_last_28} sessões em 28 dias`,
     r.days_since_last_workout >= 999 ? 'Último treino: nunca (novo usuário — score zerado até a primeira atividade)' : `Último treino: há ${r.days_since_last_workout} dia(s)`,
     r.avg_rir !== null ? `RIR médio recente: ${r.avg_rir.toFixed(1)}` : null,
