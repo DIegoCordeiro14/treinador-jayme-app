@@ -52,6 +52,7 @@ export default async function DashboardPage() {
     { data: profile },
     { data: sessions },
     { data: activePlan },
+    { data: latestBio },
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase
@@ -70,6 +71,13 @@ export default async function DashboardPage() {
       .eq("user_id", user.id)
       .eq("is_active", true)
       .single(),
+    supabase
+      .from("bioimpedance_data")
+      .select("weight_kg, bmi, body_fat_pct, skeletal_muscle_mass_kg, lean_mass_kg")
+      .eq("user_id", user.id)
+      .order("measured_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const typedSessions = (sessions ?? []) as WorkoutSession[];
@@ -220,8 +228,42 @@ export default async function DashboardPage() {
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
 
-      {/* V5.0 — Coach EDN Daily Briefing */}
-      <DailyBriefingPanel />
+      {/* V5.0 — Coach EDN Daily Briefing + Composição Corporal (mockup) */}
+      <div className={latestBio ? "grid md:grid-cols-2 gap-4 items-start" : ""}>
+        <DailyBriefingPanel />
+        {latestBio && (
+          <div className="rounded-xl card-gradient p-5">
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3.5">Composição Corporal</p>
+            <div className="grid grid-cols-3 gap-3 mb-3.5">
+              <div className="text-center py-2.5 px-2 rounded-lg bg-white/[0.03]">
+                <p className="text-lg font-extrabold italic text-zinc-100">{latestBio.weight_kg ?? "—"}</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">PESO (KG)</p>
+              </div>
+              <div className="text-center py-2.5 px-2 rounded-lg bg-white/[0.03]">
+                <p className="text-lg font-extrabold italic text-[#8B5A5A]">{latestBio.body_fat_pct != null ? `${latestBio.body_fat_pct}%` : "—"}</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">GORDURA</p>
+              </div>
+              <div className="text-center py-2.5 px-2 rounded-lg bg-white/[0.03]">
+                <p className="text-lg font-extrabold italic text-[#5A8A6A]">{latestBio.skeletal_muscle_mass_kg ?? latestBio.lean_mass_kg ?? "—"}</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">MÚSCULO (KG)</p>
+              </div>
+            </div>
+            {latestBio.bmi != null && (
+              <div>
+                <div className="flex justify-between text-[11px] mb-1.5">
+                  <span className="text-zinc-400">IMC</span>
+                  <span className={latestBio.bmi >= 30 ? "text-[#A67C3A] font-semibold" : latestBio.bmi >= 25 ? "text-[#A67C3A] font-semibold" : "text-[#5A8A6A] font-semibold"}>
+                    {latestBio.bmi} — {latestBio.bmi >= 30 ? "Alto" : latestBio.bmi >= 25 ? "Acima" : "Normal"}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div className={`h-full rounded-full ${latestBio.bmi >= 25 ? "bg-[#A67C3A]" : "bg-[#5A8A6A]"}`} style={{ width: `${Math.min(100, (latestBio.bmi / 40) * 100)}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       {/* V5.0 — EDN Score 360° */}
       <AthleteIntelligencePanel name={profile?.name ?? undefined} />
 

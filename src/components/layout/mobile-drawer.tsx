@@ -30,37 +30,37 @@ import { GOAL_LABELS } from "@/types";
 
 const NAV_GROUPS = [
   {
-    label: "Principal",
+    label: "Treino",
     items: [
       { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
-      { href: "/app/exercicios", label: "Exercicios", icon: BookOpen },
+      { href: "/app/treinos", label: "Meus Treinos", icon: Dumbbell },
+      { href: "/app/exercicios", label: "Biblioteca", icon: BookOpen },
       { href: "/app/calendario", label: "Calendario", icon: Calendar },
-      { href: "/app/evolucao", label: "Evolucao", icon: TrendingUp },
-      { href: "/app/cardio", label: "Cardio", icon: Flame },
-      { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
     ],
   },
   {
-    label: "IA & Coach",
+    label: "Progresso",
     items: [
-      { href: "/app/ia", label: "Coach EDN", icon: Bot },
+      { href: "/app/evolucao", label: "Evolucao", icon: TrendingUp },
+      { href: "/app/cardio", label: "Cardio", icon: Flame },
+      { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
+      { href: "/app/conquistas", label: "Conquistas", icon: Trophy },
     ],
   },
   {
     label: "Comunidade",
     items: [
+      { href: "/app/feed", label: "Feed", icon: Rss },
       { href: "/app/ranking", label: "Ranking", icon: Medal },
-      { href: "/app/feed", label: "Feed EDN", icon: Rss },
       { href: "/app/equipes", label: "Equipes", icon: Users },
       { href: "/app/desafios", label: "Desafios", icon: Swords },
-      { href: "/app/conquistas", label: "Conquistas", icon: Trophy },
     ],
   },
   {
     label: "Conta",
     items: [
-      { href: "/app/perfil", label: "Perfil", icon: User },
+      { href: "/app/ia", label: "Coach EDN", icon: Bot },
+      { href: "/app/perfil", label: "Meu Perfil", icon: User },
     ],
   },
 ];

@@ -8,6 +8,7 @@ import {
   Bot,
   Utensils,
   User,
+  Flame,
   MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,8 +16,9 @@ import { cn } from "@/lib/utils";
 const PRIMARY_ITEMS = [
   { href: "/app/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/app/treinos", label: "Treinos", icon: Dumbbell },
-  { href: "/app/ia", label: "Coach EDN", icon: Bot },
+  { href: "/app/cardio", label: "Cardio", icon: Flame },
   { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
+  { href: "/app/ia", label: "Coach", icon: Bot },
   { href: "/app/perfil", label: "Perfil", icon: User },
 ];
 
