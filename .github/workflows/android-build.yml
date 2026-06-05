@@ -73,6 +73,16 @@ jobs:
               s = s.replace('</manifest>', perms + '</manifest>')
           open(p, 'w').write(s)
           print('Manifest atualizado')
+
+          # Opt-out do edge-to-edge forcado do Android 15 (status bar sobrepunha o app)
+          sp = 'android/app/src/main/res/values/styles.xml'
+          st = open(sp).read()
+          item = '        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>\n'
+          if 'windowOptOutEdgeToEdgeEnforcement' not in st:
+              st = st.replace('</style>', item + '    </style>')
+          open(sp, 'w').write(st)
+          print('styles.xml atualizado')
+          print(st)
           EOF
 
       - name: Set version from run number (OTA)
