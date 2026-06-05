@@ -121,6 +121,17 @@ jobs:
           sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
           grep -E "tools.build:gradle|compileSdkVersion|minSdkVersion" android/build.gradle android/variables.gradle
 
+      - name: Forçar Java 17 em todos os módulos (evita source release 21)
+        run: |
+          echo "android.javaCompile.suppressSourceTargetDeprecationWarning=true" >> android/gradle.properties
+          grep -rl "VERSION_21" node_modules/@capacitor node_modules/@capacitor-community node_modules/@kiwi-health 2>/dev/null | while read f; do
+            sed -i "s/VERSION_21/VERSION_17/g" "$f"; echo "fixed $f";
+          done
+          grep -rl "JavaLanguageVersion.of(21)\|jvmTarget = \"21\"\|jvmTarget = JvmTarget.JVM_21" node_modules/@capacitor node_modules/@capacitor-community node_modules/@kiwi-health 2>/dev/null | while read f; do
+            sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(17)/g; s/jvmTarget = "21"/jvmTarget = "17"/g; s/JvmTarget.JVM_21/JvmTarget.JVM_17/g' "$f"; echo "fixed jvm $f";
+          done
+          echo "done"
+
       - name: Set version from run number (OTA)
         run: |
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
