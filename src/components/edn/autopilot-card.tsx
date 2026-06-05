@@ -60,7 +60,7 @@ const INTENSITY_LABELS: Record<string, string> = {
   intervalado_leve: 'Intervalado leve',
 };
 
-export function AutopilotCard({ mode }: { mode: 'nutrition' | 'cardio' }) {
+export function AutopilotCard({ mode, embedded = false }: { mode: 'nutrition' | 'cardio'; embedded?: boolean }) {
   const [data, setData] = useState<AutopilotResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWhy, setShowWhy] = useState(false);
@@ -94,7 +94,7 @@ export function AutopilotCard({ mode }: { mode: 'nutrition' | 'cardio' }) {
   const explanation = mode === 'nutrition' ? (data.nutrition?.explanation ?? []) : (data.cardio?.explanation ?? []);
 
   return (
-    <div className="rounded-xl border border-[#D4853A]/25 bg-[#D4853A]/5 p-4 space-y-3">
+    <div className={embedded ? "space-y-3" : "rounded-xl border border-[#D4853A]/25 bg-[#D4853A]/5 p-4 space-y-3"}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">

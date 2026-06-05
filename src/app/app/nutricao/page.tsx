@@ -177,15 +177,17 @@ export default function NutricaoPage() {
           </Button>
         </div>
       </div>
-      <AutopilotCard mode="nutrition" />
-
-      {/* ── Macro hero card ──────────────────────────────────────── */}
+      {/* ── Card unificado: Nutrição Autônoma + Macros do Plano ── */}
       <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-zinc-100', gradientClass)}>
         <div className="flex items-center gap-2 mb-3">
           <Utensils className="h-5 w-5" />
           <span className="text-sm font-semibold opacity-90">Macros do Plano</span>
           {plan && <span className="ml-auto text-xs bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
         </div>
+
+        <AutopilotCard mode="nutrition" embedded />
+
+        <div className="my-4 h-px bg-white/[0.07]" />
         {plan ? (
           <>
             {/* Linha kcal — layout do mockup */}
