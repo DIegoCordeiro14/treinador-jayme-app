@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies + Capacitor
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/geolocation @capacitor-community/background-geolocation
+          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/geolocation @capacitor-community/background-geolocation @kiwi-health/capacitor-health-connect
 
       - name: Create Capacitor config (shell remoto -> Vercel)
         run: |
@@ -71,6 +71,35 @@ jobs:
           '''
           if 'ACCESS_FINE_LOCATION' not in s:
               s = s.replace('</manifest>', perms + '</manifest>')
+
+          # Health Connect: permissoes de leitura + visibilidade do pacote + rationale
+          health = '''    <uses-permission android:name="android.permission.health.READ_STEPS" />
+              <uses-permission android:name="android.permission.health.READ_SLEEP" />
+              <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+              <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+              <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+              <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
+              <queries>
+                  <package android:name="com.google.android.apps.healthdata" />
+              </queries>
+          '''
+          if 'health.READ_STEPS' not in s:
+              s = s.replace('</manifest>', health + '</manifest>')
+
+          alias = '''        <activity-alias
+                      android:name="ViewPermissionUsageActivity"
+                      android:exported="true"
+                      android:targetActivity=".MainActivity"
+                      android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                          <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+                      </intent-filter>
+                  </activity-alias>
+          '''
+          if 'VIEW_PERMISSION_USAGE' not in s:
+              s = s.replace('</application>', alias + '    </application>')
+
           open(p, 'w').write(s)
           print('Manifest atualizado')
 
