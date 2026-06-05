@@ -5,6 +5,24 @@ import { createClient } from '@/lib/supabase/server';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
+// Extrai e repara JSON vindo da IA (cercas markdown, texto extra, truncamento)
+function parseAiJson(raw: string): any | null {
+  let s = raw.replace(/```json\n?|\n?```/g, '').trim();
+  const start = s.indexOf('{');
+  if (start < 0) return null;
+  s = s.slice(start);
+  const end = s.lastIndexOf('}');
+  if (end > 0) s = s.slice(0, end + 1);
+  try { return JSON.parse(s); } catch { /* tenta reparo */ }
+  try {
+    s = s.replace(/,\s*([\]\}])/g, '$1');
+    const opens = (s.match(/[\[{]/g) ?? []).length;
+    const closes = (s.match(/[\]}]/g) ?? []).length;
+    for (let i = 0; i < opens - closes; i++) s += '}';
+    return JSON.parse(s);
+  } catch { return null; }
+}
+
 export async function POST(_req: NextRequest) {
   try {
     const supabase = createClient();
@@ -20,9 +38,9 @@ export async function POST(_req: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('goal, experience_level, age, gender, weight_kg')
+      .select('goal, main_goal, experience_level, age, gender, weight_kg')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!sessions || sessions.length === 0) {
       return Response.json({
@@ -59,14 +77,37 @@ export async function POST(_req: NextRequest) {
       return `[${date}] ${s.type} ${s.duration_min}min${s.distance_km ? ' ' + s.distance_km + 'km' + (pace ? ' pace=' + pace : '') : ''} intensidade=${s.intensity}${s.perceived_effort ? ' esforco=' + s.perceived_effort + '/10' : ''}`;
     }).join('\n');
 
-    const client = new Anthropic();
-    const res = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
-      system: 'Você e o Coach EDN, treinador de corrida da Escola dos Naturais. Análise os dados e responda em JSON valido apenas.',
-      messages: [{
-        role: 'user',
-        content: `Perfil: nivel=${profile?.experience_level}, objetivo=${profile?.goal}, idade=${profile?.age}, sexo=${profile?.gender}
+    // Fallback determinístico — usado se a IA falhar (nunca 500 para o usuário)
+    const fallbackAnalysis = {
+      summary: `Você acumulou ${totalKm.toFixed(1)}km em ${running.length} corrida(s), com ${last7.length} sessão(ões) nos últimos 7 dias${avgPaceMin > 0 ? ` e pace médio de ${Math.floor(avgPaceMin)}:${String(Math.round((avgPaceMin % 1) * 60)).padStart(2, '0')}/km` : ''}.`,
+      insights: [
+        `${last30.length} sessões nos últimos 30 dias`,
+        running.length > 0 ? `Distância média de ${(totalKm / running.length).toFixed(1)}km por corrida` : 'Registre corridas com GPS para análise de pace',
+        'Mantenha a regularidade — consistência vale mais que volume isolado',
+      ],
+      recommendation: last7.length === 0
+        ? 'Nenhum cardio esta semana — agende uma sessão de Zona 2 de 20-30min.'
+        : 'Continue no ritmo atual e aumente a duração gradualmente (~10%/semana).',
+      fatigue_level: 'normal',
+      trend: 'stable',
+      pace_trend: 'stable',
+      volume_alert: null,
+      ai: false,
+    };
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return Response.json({ analysis: fallbackAnalysis });
+    }
+
+    try {
+      const client = new Anthropic();
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        system: 'Você e o Coach EDN, treinador de corrida da Escola dos Naturais. Análise os dados e responda em JSON valido apenas, sem markdown.',
+        messages: [{
+          role: 'user',
+          content: `Perfil: nivel=${profile?.experience_level ?? 'n/d'}, objetivo=${(profile as any)?.main_goal ?? profile?.goal ?? 'n/d'}, idade=${profile?.age ?? 'n/d'}, sexo=${profile?.gender ?? 'n/d'}
 Total corridas: ${running.length} | Total km: ${totalKm.toFixed(1)} | Pace medio: ${avgPaceMin > 0 ? Math.floor(avgPaceMin) + ':' + String(Math.round((avgPaceMin % 1) * 60)).padStart(2, '0') + '/km' : 'N/A'}
 Sessoes últimos 7 dias: ${last7.length} | Sessoes últimos 30 dias: ${last30.length}
 
@@ -83,14 +124,22 @@ Responda APENAS em JSON:
   "pace_trend": "improving|stable|declining",
   "volume_alert": null
 }`
-      }]
-    });
+        }]
+      });
 
-    const raw = (res.content[0] as any).text.trim();
-    const json = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'));
-    const analysis = JSON.parse(json);
-    return Response.json({ analysis });
+      const raw = res.content[0]?.type === 'text' ? res.content[0].text : '';
+      const analysis = parseAiJson(raw);
+      if (analysis?.summary) {
+        return Response.json({ analysis: { ...analysis, ai: true } });
+      }
+      console.error('[analyze-cardio] JSON inválido da IA:', raw.slice(0, 200));
+      return Response.json({ analysis: fallbackAnalysis });
+    } catch (aiErr: any) {
+      console.error('[analyze-cardio] IA falhou:', aiErr?.message);
+      return Response.json({ analysis: fallbackAnalysis });
+    }
   } catch (err: any) {
+    console.error('[analyze-cardio] erro:', err?.message);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
