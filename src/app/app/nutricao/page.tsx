@@ -188,9 +188,9 @@ export default function NutricaoPage() {
         </div>
       </div>
       {/* ════ Plano Nutricional EDN — card único ════ */}
-      <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-zinc-100', gradientClass)}>
+      <div className={cn('rounded-2xl bg-gradient-to-br p-4 text-zinc-100', gradientClass)}>
         {/* Cabeçalho */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
           <Utensils className="h-5 w-5 text-[#D4853A]" />
           <span className="text-base font-extrabold italic">Plano Nutricional EDN</span>
           <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
@@ -226,12 +226,12 @@ export default function NutricaoPage() {
           return (
             <>
               {/* Meta de calorias em destaque + anel kcal */}
-              <div className="flex items-center justify-between gap-4 mb-5">
+              <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="min-w-0">
-                  <p className="text-3xl font-black italic text-zinc-100 leading-none">
-                    {targetKcal ?? '—'}<span className="text-base font-bold text-zinc-400 ml-1">kcal/dia</span>
+                  <p className="text-2xl font-black italic text-zinc-100 leading-none">
+                    {targetKcal ?? '—'}<span className="text-sm font-bold text-zinc-400 ml-1">kcal/dia</span>
                   </p>
-                  <p className="text-xs text-zinc-400 mt-2">
+                  <p className="text-[11px] text-zinc-400 mt-1.5">
                     {autoNutri
                       ? <>TMB {autoNutri.tmbKcal} kcal · TDEE {autoNutri.tdeeKcal} kcal (×{autoNutri.activityFactor}) · {autoNutri.goalAdjustmentKcal === 0 ? 'manutenção' : `${autoNutri.goalAdjustmentKcal > 0 ? '+' : ''}${autoNutri.goalAdjustmentKcal} kcal pelo objetivo`}</>
                       : <>TDEE estimado: {tdee ?? '—'} kcal</>}
@@ -243,19 +243,19 @@ export default function NutricaoPage() {
                     </button>
                   )}
                 </div>
-                <MacroRing pct={tdee && targetKcal ? Math.round((targetKcal / tdee) * 100) : 100} color="text-[#D4853A]" label="kcal" />
               </div>
 
               {showWhy && autoNutri?.explanation && (
-                <div className="mb-5 rounded-lg bg-black/25 border border-white/[0.06] p-3 space-y-1">
+                <div className="mb-3 rounded-lg bg-black/25 border border-white/[0.06] p-3 space-y-1">
                   {autoNutri.explanation.map((e, i) => (
                     <p key={i} className="text-[11px] text-zinc-400 leading-relaxed">• {e}</p>
                   ))}
                 </div>
               )}
 
-              {/* Macros + água — conjunto único */}
-              <div className="flex flex-wrap justify-around gap-y-4">
+              {/* Anéis por ordem de importância: Calorias > Proteína > Carbo > Gordura > Água */}
+              <div className="flex flex-wrap justify-around gap-y-3 pt-1">
+                <MacroRing pct={tdee && targetKcal ? Math.round((targetKcal / tdee) * 100) : 100} color="text-[#D4853A]" label="Calorias" labelColor="text-[#D4853A]" value={targetKcal ? `${targetKcal} kcal` : undefined} />
                 <MacroRing pct={pPct} color="text-[#5A8A6A]" label="Proteína" labelColor="text-[#5A8A6A]" value={proteinG != null ? `${proteinG}g${autoNutri ? ` · ${autoNutri.proteinGPerKg}g/kg` : ''}` : undefined} />
                 <MacroRing pct={cPct} color="text-[#A67C3A]" label="Carbo" labelColor="text-[#A67C3A]" value={carbsG != null ? `${carbsG}g` : undefined} />
                 <MacroRing pct={fPct} color="text-[#8B5A5A]" label="Gordura" labelColor="text-[#8B5A5A]" value={fatG != null ? `${fatG}g` : undefined} />
