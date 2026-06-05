@@ -3,6 +3,9 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
       - name: Install dependencies + Capacitor
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/geolocation @capacitor-community/background-geolocation
+          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/geolocation @capacitor-community/background-geolocation
 
       - name: Create Capacitor config (shell remoto -> Vercel)
         run: |
@@ -72,15 +75,33 @@ jobs:
           print('Manifest atualizado')
           EOF
 
+      - name: Set version from run number (OTA)
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+
       - name: Build debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk coach-edn-v1.${{ github.run_number }}.apk
+
+      - name: Upload APK (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: coach-edn-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: coach-edn-v1.${{ github.run_number }}.apk
           retention-days: 30
+
+      - name: Publish Release (canal OTA)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v${{ github.run_number }}
+          name: Coach EDN APK v1.${{ github.run_number }}
+          body: "APK Android (debug) do Coach EDN. O app instalado detecta esta release e oferece a atualização automaticamente."
+          files: coach-edn-v1.${{ github.run_number }}.apk
+          make_latest: true
