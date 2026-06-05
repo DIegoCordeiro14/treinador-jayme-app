@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import AutopilotCard from '@/components/edn/autopilot-card';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NutritionPlan {
@@ -89,6 +88,17 @@ export default function NutricaoPage() {
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
   const [savingWeight, setSavingWeight] = useState(false);
   const [activeTab, setActiveTab] = useState('coach');
+
+  // ── Plano Nutricional EDN (card unificado) ──
+  const [autoNutri, setAutoNutri] = useState<{
+    tmbKcal: number; tdeeKcal: number; activityFactor: number; targetKcal: number;
+    goalAdjustmentKcal: number; proteinG: number; proteinGPerKg: number; carbsG: number;
+    fatG: number; waterMl: number; source: string; explanation: string[];
+  } | null>(null);
+  const [showWhy, setShowWhy] = useState(false);
+  useEffect(() => {
+    fetch('/api/autopilot').then(r => r.json()).then(d => setAutoNutri(d?.nutrition ?? null)).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -177,41 +187,91 @@ export default function NutricaoPage() {
           </Button>
         </div>
       </div>
-      {/* ── Card unificado: Nutrição Autônoma + Macros do Plano ── */}
+      {/* ════ Plano Nutricional EDN — card único ════ */}
       <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-zinc-100', gradientClass)}>
-        <div className="flex items-center gap-2 mb-3">
-          <Utensils className="h-5 w-5" />
-          <span className="text-sm font-semibold opacity-90">Macros do Plano</span>
-          {plan && <span className="ml-auto text-xs bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
+        {/* Cabeçalho */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <Utensils className="h-5 w-5 text-[#D4853A]" />
+          <span className="text-base font-extrabold italic">Plano Nutricional EDN</span>
+          <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
+            {plan && <span className="text-[10px] bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
+            {autoNutri?.source === 'bioimpedance_tmb' && (
+              <span className="text-[10px] text-zinc-500 bg-black/30 px-2 py-0.5 rounded-full">TMB medida pela bioimpedância</span>
+            )}
+          </div>
         </div>
 
-        <AutopilotCard mode="nutrition" embedded />
+        {(() => {
+          const targetKcal = autoNutri?.targetKcal ?? smartMacros?.target_calories ?? null;
+          const tdee = autoNutri?.tdeeKcal ?? smartMacros?.tdee ?? null;
+          const proteinG = autoNutri?.proteinG ?? smartMacros?.protein_g ?? null;
+          const carbsG = autoNutri?.carbsG ?? smartMacros?.carbs_g ?? null;
+          const fatG = autoNutri?.fatG ?? smartMacros?.fat_g ?? null;
+          const waterL = autoNutri ? (autoNutri.waterMl / 1000).toFixed(1) : null;
+          const pct = (g: number | null, mult: number) =>
+            g != null && targetKcal ? Math.round(((g * mult) / targetKcal) * 100) : null;
+          const pPct = pct(proteinG, 4) ?? Math.min(Math.round((plan?.protein_g_per_kg ?? 0) * 4), 100);
+          const cPct = pct(carbsG, 4) ?? plan?.carbs_pct ?? 0;
+          const fPct = pct(fatG, 9) ?? plan?.fat_pct ?? 0;
 
-        <div className="my-4 h-px bg-white/[0.07]" />
-        {plan ? (
-          <>
-            {/* Linha kcal — layout do mockup */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-[11px] font-bold tracking-[0.08em] text-[#D4853A]">META DIÁRIA</p>
-                <p className="text-xl font-black italic text-zinc-100 mt-0.5">{(() => { const v = smartMacros?.target_calories ?? plan.daily_calories ?? '—'; return typeof v === 'number' ? `${v} kcal` : String(v).includes('kcal') ? v : `${v} kcal`; })()}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">TDEE estimado: {smartMacros?.tdee ?? '—'} kcal</p>
+          if (!targetKcal && !plan) {
+            return (
+              <div className="text-center py-4 opacity-60">
+                <p className="text-sm">Nenhum plano gerado</p>
+                <p className="text-xs mt-1">Use o Coach IA abaixo</p>
               </div>
-              <MacroRing pct={smartMacros?.tdee && smartMacros?.target_calories ? Math.round((smartMacros.target_calories / smartMacros.tdee) * 100) : 100} color="text-[#D4853A]" label="kcal" />
-            </div>
-            <div className="flex justify-around">
-              <MacroRing pct={Math.min(Math.round(plan.protein_g_per_kg * 4), 100)} color="text-[#5A8A6A]" label="Proteína" labelColor="text-[#5A8A6A]" value={smartMacros ? smartMacros.protein_g + 'g' : undefined} />
-              <MacroRing pct={plan.carbs_pct} color="text-[#A67C3A]" label="Carbo" labelColor="text-[#A67C3A]" value={smartMacros ? smartMacros.carbs_g + 'g' : undefined} />
-              <MacroRing pct={plan.fat_pct} color="text-[#8B5A5A]" label="Gordura" labelColor="text-[#8B5A5A]" value={smartMacros ? smartMacros.fat_g + 'g' : undefined} />
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-4 opacity-60">
-            <p className="text-sm">Nenhum plano gerado</p>
-            <p className="text-xs mt-1">Use o Coach IA abaixo</p>
-          </div>
-        )}
+            );
+          }
 
+          return (
+            <>
+              {/* Meta de calorias em destaque + anel kcal */}
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <div className="min-w-0">
+                  <p className="text-3xl font-black italic text-zinc-100 leading-none">
+                    {targetKcal ?? '—'}<span className="text-base font-bold text-zinc-400 ml-1">kcal/dia</span>
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-2">
+                    {autoNutri
+                      ? <>TMB {autoNutri.tmbKcal} kcal · TDEE {autoNutri.tdeeKcal} kcal (×{autoNutri.activityFactor}) · {autoNutri.goalAdjustmentKcal === 0 ? 'manutenção' : `${autoNutri.goalAdjustmentKcal > 0 ? '+' : ''}${autoNutri.goalAdjustmentKcal} kcal pelo objetivo`}</>
+                      : <>TDEE estimado: {tdee ?? '—'} kcal</>}
+                  </p>
+                  {autoNutri?.explanation && autoNutri.explanation.length > 0 && (
+                    <button onClick={() => setShowWhy(v => !v)} className="mt-2 text-[11px] text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1">
+                      <ChevronDown className={cn('h-3 w-3 transition-transform', showWhy && 'rotate-180')} />
+                      Como o Coach chegou nesses números?
+                    </button>
+                  )}
+                </div>
+                <MacroRing pct={tdee && targetKcal ? Math.round((targetKcal / tdee) * 100) : 100} color="text-[#D4853A]" label="kcal" />
+              </div>
+
+              {showWhy && autoNutri?.explanation && (
+                <div className="mb-5 rounded-lg bg-black/25 border border-white/[0.06] p-3 space-y-1">
+                  {autoNutri.explanation.map((e, i) => (
+                    <p key={i} className="text-[11px] text-zinc-400 leading-relaxed">• {e}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Macros + água — conjunto único */}
+              <div className="flex flex-wrap justify-around gap-y-4">
+                <MacroRing pct={pPct} color="text-[#5A8A6A]" label="Proteína" labelColor="text-[#5A8A6A]" value={proteinG != null ? `${proteinG}g${autoNutri ? ` · ${autoNutri.proteinGPerKg}g/kg` : ''}` : undefined} />
+                <MacroRing pct={cPct} color="text-[#A67C3A]" label="Carbo" labelColor="text-[#A67C3A]" value={carbsG != null ? `${carbsG}g` : undefined} />
+                <MacroRing pct={fPct} color="text-[#8B5A5A]" label="Gordura" labelColor="text-[#8B5A5A]" value={fatG != null ? `${fatG}g` : undefined} />
+                {waterL && (
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="relative w-16 h-16 flex items-center justify-center rounded-full border-[6px] border-[#2C3E4A]">
+                      <span className="text-xs font-bold text-zinc-100">{waterL}L</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-[#8FA3AD]">Água</span>
+                    <span className="text-[10px] text-zinc-500">por dia</span>
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
