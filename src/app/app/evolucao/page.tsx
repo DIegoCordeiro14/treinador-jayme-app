@@ -253,7 +253,7 @@ export default function EvolucaoPage() {
   const [reportGeneratedAt, setReportGeneratedAt] = useState<string | null>(null);
 
   const [bioForm, setBioForm] = useState<Record<string, string>>({
-    source: 'Zepp Life', body_score: '', body_type: '',
+    source: 'Zepp Life',
     weight_kg: '', bmi: '', body_fat_pct: '', water_pct: '',
     basal_metabolic_rate_kcal: '', visceral_fat_level: '',
     bone_mass_kg: '', protein_pct: '', skeletal_muscle_mass_kg: '',
@@ -345,8 +345,6 @@ export default function EvolucaoPage() {
     const payload: Record<string, unknown> = {
       user_id: user.id,
       source: bioForm.source || 'Zepp Life',
-      body_score: num('body_score'),
-      body_type: bioForm.body_type || null,
       weight_kg: num('weight_kg'),
       bmi: num('bmi'),
       body_fat_pct: num('body_fat_pct'),
@@ -380,7 +378,7 @@ export default function EvolucaoPage() {
         }).catch(() => {}); // silencioso — não bloqueia a UI
       }
     }
-    setBioForm({ source: 'Zepp Life', body_score: '', body_type: '', weight_kg: '', bmi: '', body_fat_pct: '', water_pct: '', basal_metabolic_rate_kcal: '', visceral_fat_level: '', bone_mass_kg: '', protein_pct: '', skeletal_muscle_mass_kg: '', lean_mass_kg: '', fat_mass_kg: '' });
+    setBioForm({ source: 'Zepp Life', weight_kg: '', bmi: '', body_fat_pct: '', water_pct: '', basal_metabolic_rate_kcal: '', visceral_fat_level: '', bone_mass_kg: '', protein_pct: '', skeletal_muscle_mass_kg: '', lean_mass_kg: '', fat_mass_kg: '' });
     load();
   }
 
@@ -484,14 +482,7 @@ export default function EvolucaoPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-xs text-zinc-500">{latestBio.source ?? 'Bioimpedância'} · {format(parseISO(latestBio.measured_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-                    {latestBio.body_type && <p className="text-sm text-zinc-400 mt-0.5">Tipo: <span className="text-zinc-200 font-medium">{latestBio.body_type}</span></p>}
                   </div>
-                  {latestBio.body_score !== null && (
-                    <div className="text-center">
-                      <p className="text-3xl font-bold text-[#D4853A]">{latestBio.body_score}</p>
-                      <p className="text-[10px] text-zinc-500">Pontuação</p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -526,7 +517,7 @@ export default function EvolucaoPage() {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-zinc-800">
-                          {['Data', 'Peso', 'Gordura%', 'Músculo', 'Água%', 'Visceral', 'Pont.'].map((h) => (
+                          {['Data', 'Peso', 'Gordura%', 'Músculo', 'Água%', 'Visceral'].map((h) => (
                             <th key={h} className="text-left px-3 py-2.5 text-zinc-500 font-medium whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -540,7 +531,6 @@ export default function EvolucaoPage() {
                             <td className="px-3 py-2.5 text-green-400">{b.skeletal_muscle_mass_kg ? `${b.skeletal_muscle_mass_kg}kg` : '—'}</td>
                             <td className="px-3 py-2.5 text-cyan-400">{b.water_pct ? `${b.water_pct}%` : '—'}</td>
                             <td className="px-3 py-2.5 text-pink-400">{b.visceral_fat_level ?? '—'}</td>
-                            <td className="px-3 py-2.5 text-[#D4853A] font-semibold">{b.body_score ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -878,17 +868,6 @@ export default function EvolucaoPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <NumInput label="Pontuação Corporal" field="body_score" placeholder="47" form={bioForm} setForm={setBioForm} step="1" />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Tipo de Corpo</Label>
-              <input type="text" placeholder="Grosso-conjunto, Padrão..."
-                value={bioForm.body_type}
-                onChange={(e) => setBioForm((f) => ({ ...f, body_type: e.target.value }))}
-                className="flex h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A] transition-colors"
-              />
-            </div>
-          </div>
 
           <div className="border-t border-zinc-800 pt-3">
             <p className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wide">Composição Corporal</p>
