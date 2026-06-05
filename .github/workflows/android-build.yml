@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies + Capacitor
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/app@7 @capacitor/geolocation@7 @capacitor-community/background-geolocation @kiwi-health/capacitor-health-connect
+          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/geolocation @capacitor-community/background-geolocation
 
       - name: Create Capacitor config (shell remoto -> Vercel)
         run: |
@@ -71,35 +71,6 @@ jobs:
           '''
           if 'ACCESS_FINE_LOCATION' not in s:
               s = s.replace('</manifest>', perms + '</manifest>')
-
-          # Health Connect: permissoes de leitura + visibilidade do pacote + rationale
-          health = '''    <uses-permission android:name="android.permission.health.READ_STEPS" />
-              <uses-permission android:name="android.permission.health.READ_SLEEP" />
-              <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
-              <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
-              <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
-              <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
-              <queries>
-                  <package android:name="com.google.android.apps.healthdata" />
-              </queries>
-          '''
-          if 'health.READ_STEPS' not in s:
-              s = s.replace('</manifest>', health + '</manifest>')
-
-          alias = '''        <activity-alias
-                      android:name="ViewPermissionUsageActivity"
-                      android:exported="true"
-                      android:targetActivity=".MainActivity"
-                      android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
-                      <intent-filter>
-                          <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
-                          <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
-                      </intent-filter>
-                  </activity-alias>
-          '''
-          if 'VIEW_PERMISSION_USAGE' not in s:
-              s = s.replace('</application>', alias + '    </application>')
-
           open(p, 'w').write(s)
           print('Manifest atualizado')
 
@@ -111,34 +82,7 @@ jobs:
               st = st.replace('</style>', item + '    </style>')
           open(sp, 'w').write(st)
           print('styles.xml atualizado')
-          print(st)
           EOF
-
-      - name: Bump AGP/compileSdk (exigido pelo Health Connect)
-        run: |
-          sed -i "s#com.android.tools.build:gradle:[0-9.]*#com.android.tools.build:gradle:8.9.1#" android/build.gradle
-          sed -i "s/compileSdkVersion = .*/compileSdkVersion = 36/" android/variables.gradle
-          sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
-          grep -E "tools.build:gradle|compileSdkVersion|minSdkVersion" android/build.gradle android/variables.gradle
-
-      - name: Atualizar Kotlin para 1.9.24 (conhece JVM target 21)
-        run: |
-          echo "android.javaCompile.suppressSourceTargetDeprecationWarning=true" >> android/gradle.properties
-          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-          # bump da versão do Kotlin onde quer que o Capacitor a declare
-          find android -name "*.gradle" -o -name "variables.gradle" | while read f; do
-            sed -i "s/kotlin_version = ['\"][0-9.]*['\"]/kotlin_version = '1.9.24'/g; s/kotlinVersion = ['\"][0-9.]*['\"]/kotlinVersion = '1.9.24'/g; s#org.jetbrains.kotlin:kotlin-gradle-plugin:[0-9.]*#org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24#g" "$f"
-          done
-          # força jvmTarget conhecido (17) no plugin Health Connect, que traz Kotlin antigo
-          KIWI=node_modules/@kiwi-health/capacitor-health-connect
-          echo "--- ANTES ---"; cat $KIWI/build.gradle 2>/dev/null | grep -nE "jvmTarget|VERSION_|kotlin" || true
-          sed -i 's/jvmTarget = JavaVersion.VERSION_21.toString()/jvmTarget = "17"/g; s/jvmTarget = "21"/jvmTarget = "17"/g; s/jvmTarget("21")/jvmTarget("17")/g; s/VERSION_21/VERSION_17/g' $KIWI/build.gradle 2>/dev/null || true
-          # se ainda referenciar 21 dinamicamente, fixa compileOptions/kotlinOptions
-          if ! grep -q 'jvmTarget = "17"' $KIWI/build.gradle 2>/dev/null; then
-            printf '\nandroid { compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }\n' >> $KIWI/build.gradle
-          fi
-          echo "--- DEPOIS ---"; cat $KIWI/build.gradle 2>/dev/null | grep -nE "jvmTarget|VERSION_" || true
-          echo "done"
 
       - name: Set version from run number (OTA)
         run: |
