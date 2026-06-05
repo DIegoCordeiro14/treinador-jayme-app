@@ -1,8 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Bot, TrendingUp, Dumbbell, Zap, ChevronRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 
-export default function LandingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LandingPage() {
+  // Usuário já logado não vê a landing — vai direto ao dashboard
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) redirect("/app/dashboard");
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Header */}
