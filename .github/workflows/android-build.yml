@@ -18,11 +18,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
       - name: Install dependencies + Capacitor
         run: |
@@ -121,11 +121,15 @@ jobs:
           sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
           grep -E "tools.build:gradle|compileSdkVersion|minSdkVersion" android/build.gradle android/variables.gradle
 
-      - name: Relaxar validação de JVM target (Java 17 + Kotlin)
+      - name: Atualizar Kotlin para 1.9.24 (conhece JVM target 21)
         run: |
           echo "android.javaCompile.suppressSourceTargetDeprecationWarning=true" >> android/gradle.properties
           echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-          tail -3 android/gradle.properties
+          # bump da versão do Kotlin onde quer que o Capacitor a declare
+          find android -name "*.gradle" -o -name "variables.gradle" | while read f; do
+            sed -i "s/kotlin_version = ['\"][0-9.]*['\"]/kotlin_version = '1.9.24'/g; s/kotlinVersion = ['\"][0-9.]*['\"]/kotlinVersion = '1.9.24'/g; s#org.jetbrains.kotlin:kotlin-gradle-plugin:[0-9.]*#org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24#g" "$f"
+          done
+          grep -rE "kotlin_version|kotlin-gradle-plugin" android/*.gradle android/**/*.gradle 2>/dev/null | head; echo "done"
 
       - name: Set version from run number (OTA)
         run: |
