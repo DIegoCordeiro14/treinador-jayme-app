@@ -121,28 +121,11 @@ jobs:
           sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
           grep -E "tools.build:gradle|compileSdkVersion|minSdkVersion" android/build.gradle android/variables.gradle
 
-      - name: Forçar Java/Kotlin 17 em todos os módulos (toolchain global)
+      - name: Relaxar validação de JVM target (Java 17 + Kotlin)
         run: |
           echo "android.javaCompile.suppressSourceTargetDeprecationWarning=true" >> android/gradle.properties
           echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-          cat >> android/build.gradle <<'GRADLE'
-
-          // Coach EDN CI: unifica Java e Kotlin em 17 (Health Connect + Capacitor)
-          allprojects {
-              afterEvaluate { p ->
-                  if (p.plugins.hasPlugin('com.android.library') || p.plugins.hasPlugin('com.android.application')) {
-                      p.android.compileOptions {
-                          sourceCompatibility JavaVersion.VERSION_17
-                          targetCompatibility JavaVersion.VERSION_17
-                      }
-                  }
-                  p.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                      kotlinOptions { jvmTarget = "17" }
-                  }
-              }
-          }
-          GRADLE
-          echo "build.gradle patched"
+          tail -3 android/gradle.properties
 
       - name: Set version from run number (OTA)
         run: |
