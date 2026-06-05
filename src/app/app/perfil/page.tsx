@@ -6,11 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarUploader } from '@/components/edn/avatar-uploader';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { getInitials } from '@/lib/utils';
 import { xpProgress } from '@/lib/edn/progression';
 import type { Profile, GenderType, MuscleGroup } from '@/types';
 import {
@@ -334,12 +333,11 @@ export default function PerfilPage() {
       {/* Avatar + XP */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
         <div className="flex items-center gap-5">
-          <Avatar className="h-20 w-20">
-            <AvatarImage src={profile?.avatar_url ?? undefined} />
-            <AvatarFallback className="bg-zinc-700 text-zinc-200 text-xl font-bold">
-              {getInitials(form.name || 'Atleta')}
-            </AvatarFallback>
-          </Avatar>
+          <AvatarUploader
+            initialUrl={profile?.avatar_url}
+            name={form.name}
+            onChange={(u) => setProfile((p) => (p ? { ...p, avatar_url: u } : p))}
+          />
           <div className="flex-1">
             <p className="font-bold text-zinc-100 text-lg">{form.name || 'Atleta'}</p>
             <p className="text-sm text-zinc-500">{email}</p>
