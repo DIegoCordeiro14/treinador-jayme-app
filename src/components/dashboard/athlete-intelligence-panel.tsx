@@ -223,11 +223,7 @@ function EdnScore360() {
 }
 
 // ── Main export (composed panel) ──────────────────────────────────────────────
-export function AthleteIntelligencePanel({ name }: { name?: string }) {
-  return (
-    <>
-      <ProactiveBriefing name={name} />
-      <EdnScore360 />
-    </>
-  );
+export function AthleteIntelligencePanel({ name: _name }: { name?: string }) {
+  // ProactiveBriefing foi unificado no DailyBriefingPanel ("Briefing Diário · Coach EDN")
+  return <EdnScore360 />;
 }

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Brain, RefreshCw, AlertTriangle, ChevronRight, Zap } from 'lucide-react';
+import { useAthleteState } from '@/hooks/useAthleteState';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,7 @@ const LEAGUE_COLOR: Record<string, string> = {
 
 export function DailyBriefingPanel() {
   const [briefing, setBriefing] = useState<Briefing | null>(null);
+  const { state } = useAthleteState();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -69,7 +71,8 @@ export function DailyBriefingPanel() {
             <Brain className="h-5 w-5 text-[#D4853A]" />
           </div>
           <div>
-            <p className="font-semibold text-zinc-100 text-base leading-tight">{briefing.greeting}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#D4853A]">Briefing Diário · Coach EDN</p>
+            <p className="font-semibold text-zinc-100 text-base leading-tight mt-0.5">{briefing.greeting}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={cn('text-xs font-bold', LEAGUE_COLOR[briefing.league])}>
                 {LEAGUE_EMOJI[briefing.league]} Score {briefing.score}
@@ -102,6 +105,35 @@ export function DailyBriefingPanel() {
           <p key={i} className="text-sm text-zinc-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: h.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>') }} />
         ))}
       </div>
+
+      {/* Insights do estado do atleta (antigo card Análise do dia) */}
+      {state && (() => {
+        const r = state.raw;
+        const extras: string[] = [];
+        if (r.days_since_last_workout >= 100) extras.push('💪 Nenhum treino registrado ainda — seu plano está pronto. Comece hoje!');
+        else if (r.days_since_last_workout >= 3) extras.push(`⚠️ ${r.days_since_last_workout} dias sem treinar — hora de retomar.`);
+        const subScores: Record<string, number> = {
+          'Consistência': Math.min(100, Math.round((r.sessions_last_28 / Math.max(1, r.planned_sessions_last_28)) * 100)),
+          'Nutrição': state.nutrition_adherence,
+          'Cárdio': state.cardio_load,
+          'Recuperação': state.recovery_score,
+          'Progressão': state.progression_score,
+        };
+        const [weakLabel, weakScore] = Object.entries(subScores).sort((a, b) => a[1] - b[1])[0];
+        if (weakScore < 60) extras.push(`📊 Fator que mais limita seu Score ${state.edn_score}/100: ${weakLabel} (${weakScore}/100).`);
+        const filtered = extras.filter(e => !briefing.highlights.some(h => h.includes(e.slice(3, 20))));
+        if (filtered.length === 0 && !r.plateau_detected) return null;
+        return (
+          <div className="space-y-1.5 border-t border-white/[0.06] pt-3">
+            {filtered.map((e, i) => (
+              <p key={i} className="text-sm text-zinc-300 leading-relaxed">{e}</p>
+            ))}
+            {r.plateau_detected && (
+              <p className="text-xs text-amber-300">🔄 Platô ativo — <Link href="/app/evolucao" className="underline">ver análise completa</Link></p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Today's action */}
       <div className="rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-3 py-2.5 flex items-start gap-2">
