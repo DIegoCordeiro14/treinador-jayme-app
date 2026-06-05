@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import AutopilotCard from '@/components/edn/autopilot-card';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NutritionPlan {
@@ -176,6 +177,7 @@ export default function NutricaoPage() {
           </Button>
         </div>
       </div>
+      <AutopilotCard mode="nutrition" />
 
       {/* ── Macro hero card ──────────────────────────────────────── */}
       <div className={cn('rounded-2xl bg-gradient-to-br p-5 text-zinc-100', gradientClass)}>
