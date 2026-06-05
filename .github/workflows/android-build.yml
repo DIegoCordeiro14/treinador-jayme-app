@@ -39,6 +39,9 @@ jobs:
               url: 'https://treinador-jayme-app.vercel.app',
               cleartext: false,
             },
+            android: {
+              adjustMarginsForEdgeToEdge: 'force',
+            },
           };
 
           export default config;
