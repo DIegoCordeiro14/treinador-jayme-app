@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Sparkles, CalendarDays, Loader2, X, Flame, Utensils, Dumbbell } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -12,6 +13,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { revalidateAfterSchedule } from './actions';
 
 interface SessionDay {
   date: string;
@@ -91,6 +93,7 @@ function shortLabel(label: string): string {
 
 export default function CalendarioPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sessionDays, setSessionDays] = useState<Map<string, SessionDay>>(new Map());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -176,6 +179,10 @@ export default function CalendarioPage() {
       if (!res.ok) throw new Error('Falha');
       const { schedule } = await res.json();
       setActivePlan(prev => prev ? { ...prev, schedule_config: schedule } : null);
+      // Invalida o cache (Data + Router) do Dashboard e do Calendário para que o
+      // card "Treino de Hoje" seja reprogramado junto com o Calendário.
+      await revalidateAfterSchedule();
+      router.refresh();
       toast.success('Plano completo gerado!');
     } catch {
       toast.error('Erro ao calcular. Tente novamente.');
