@@ -129,7 +129,16 @@ jobs:
           find android -name "*.gradle" -o -name "variables.gradle" | while read f; do
             sed -i "s/kotlin_version = ['\"][0-9.]*['\"]/kotlin_version = '1.9.24'/g; s/kotlinVersion = ['\"][0-9.]*['\"]/kotlinVersion = '1.9.24'/g; s#org.jetbrains.kotlin:kotlin-gradle-plugin:[0-9.]*#org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24#g" "$f"
           done
-          grep -rE "kotlin_version|kotlin-gradle-plugin" android/*.gradle android/**/*.gradle 2>/dev/null | head; echo "done"
+          # força jvmTarget conhecido (17) no plugin Health Connect, que traz Kotlin antigo
+          KIWI=node_modules/@kiwi-health/capacitor-health-connect
+          echo "--- ANTES ---"; cat $KIWI/build.gradle 2>/dev/null | grep -nE "jvmTarget|VERSION_|kotlin" || true
+          sed -i 's/jvmTarget = JavaVersion.VERSION_21.toString()/jvmTarget = "17"/g; s/jvmTarget = "21"/jvmTarget = "17"/g; s/jvmTarget("21")/jvmTarget("17")/g; s/VERSION_21/VERSION_17/g' $KIWI/build.gradle 2>/dev/null || true
+          # se ainda referenciar 21 dinamicamente, fixa compileOptions/kotlinOptions
+          if ! grep -q 'jvmTarget = "17"' $KIWI/build.gradle 2>/dev/null; then
+            printf '\nandroid { compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }\n' >> $KIWI/build.gradle
+          fi
+          echo "--- DEPOIS ---"; cat $KIWI/build.gradle 2>/dev/null | grep -nE "jvmTarget|VERSION_" || true
+          echo "done"
 
       - name: Set version from run number (OTA)
         run: |
