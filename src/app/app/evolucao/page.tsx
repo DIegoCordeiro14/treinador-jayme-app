@@ -280,12 +280,12 @@ export default function EvolucaoPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const payload: Record<string, number | string | null> = { user_id: user.id };
-    if (measForm.weight_kg) payload.weight_kg = parseFloat(measForm.weight_kg);
-    if (measForm.body_fat_pct) payload.body_fat_pct = parseFloat(measForm.body_fat_pct);
-    if (measForm.arm_cm) payload.arm_cm = parseFloat(measForm.arm_cm);
-    if (measForm.chest_cm) payload.chest_cm = parseFloat(measForm.chest_cm);
-    if (measForm.waist_cm) payload.waist_cm = parseFloat(measForm.waist_cm);
-    if (measForm.thigh_cm) payload.thigh_cm = parseFloat(measForm.thigh_cm);
+    if (measForm.weight_kg) payload.weight_kg = parseFloat(String(measForm.weight_kg).replace(',', '.')) || null;
+    if (measForm.body_fat_pct) payload.body_fat_pct = parseFloat(String(measForm.body_fat_pct).replace(',', '.')) || null;
+    if (measForm.arm_cm) payload.arm_cm = parseFloat(String(measForm.arm_cm).replace(',', '.')) || null;
+    if (measForm.chest_cm) payload.chest_cm = parseFloat(String(measForm.chest_cm).replace(',', '.')) || null;
+    if (measForm.waist_cm) payload.waist_cm = parseFloat(String(measForm.waist_cm).replace(',', '.')) || null;
+    if (measForm.thigh_cm) payload.thigh_cm = parseFloat(String(measForm.thigh_cm).replace(',', '.')) || null;
     const { error } = await supabase.from('body_measurements').insert(payload);
     if (error) { toast.error('Erro ao salvar medidas'); return; }
     toast.success('Medidas registradas!');
@@ -340,7 +340,8 @@ export default function EvolucaoPage() {
   async function saveBioimpedance() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const num = (k: string) => bioForm[k] ? parseFloat(bioForm[k]) : null;
+    const toNum = (v: string) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isNaN(n) ? null : n; };
+    const num = (k: string) => bioForm[k] ? toNum(bioForm[k]) : null;
     const payload: Record<string, unknown> = {
       user_id: user.id,
       source: bioForm.source || 'Zepp Life',
