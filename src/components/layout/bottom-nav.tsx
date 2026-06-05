@@ -16,6 +16,12 @@ const InicioIcon = ({ size = 19, className }: IconProps) => (
     <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
+const CalendarioIcon = ({ size = 19, className }: IconProps) => (
+  <svg {...svgProps(size, className)}>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M16 2v4M8 2v4M3 10h18" />
+  </svg>
+);
 const TreinosIcon = ({ size = 19, className }: IconProps) => (
   <svg {...svgProps(size, className)}>
     <path d="M6 5v14M18 5v14M3 8h4M17 8h4M3 16h4M17 16h4" />
@@ -37,20 +43,15 @@ const CoachIcon = ({ size = 19, className }: IconProps) => (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
-const PerfilIcon = ({ size = 19, className }: IconProps) => (
-  <svg {...svgProps(size, className)}>
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-  </svg>
-);
 import { cn } from "@/lib/utils";
 
 const PRIMARY_ITEMS = [
   { href: "/app/dashboard", label: "Inicio", icon: InicioIcon },
+  { href: "/app/calendario", label: "Calendario", icon: CalendarioIcon },
   { href: "/app/treinos", label: "Treinos", icon: TreinosIcon },
   { href: "/app/cardio", label: "Cardio", icon: CardioIcon },
   { href: "/app/nutricao", label: "Nutricao", icon: NutricaoIcon },
   { href: "/app/ia", label: "Coach", icon: CoachIcon },
-  { href: "/app/perfil", label: "Perfil", icon: PerfilIcon },
 ];
 
 interface BottomNavProps {
