@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies + Capacitor
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/geolocation @capacitor-community/background-geolocation @kiwi-health/capacitor-health-connect
+          npm install --no-audit --no-fund @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/app@7 @capacitor/geolocation@7 @capacitor-community/background-geolocation @kiwi-health/capacitor-health-connect
 
       - name: Create Capacitor config (shell remoto -> Vercel)
         run: |
