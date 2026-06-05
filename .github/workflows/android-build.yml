@@ -121,16 +121,28 @@ jobs:
           sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
           grep -E "tools.build:gradle|compileSdkVersion|minSdkVersion" android/build.gradle android/variables.gradle
 
-      - name: Forçar Java 17 em todos os módulos (evita source release 21)
+      - name: Forçar Java/Kotlin 17 em todos os módulos (toolchain global)
         run: |
           echo "android.javaCompile.suppressSourceTargetDeprecationWarning=true" >> android/gradle.properties
-          grep -rl "VERSION_21" node_modules/@capacitor node_modules/@capacitor-community node_modules/@kiwi-health 2>/dev/null | while read f; do
-            sed -i "s/VERSION_21/VERSION_17/g" "$f"; echo "fixed $f";
-          done
-          grep -rl "JavaLanguageVersion.of(21)\|jvmTarget = \"21\"\|jvmTarget = JvmTarget.JVM_21" node_modules/@capacitor node_modules/@capacitor-community node_modules/@kiwi-health 2>/dev/null | while read f; do
-            sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(17)/g; s/jvmTarget = "21"/jvmTarget = "17"/g; s/JvmTarget.JVM_21/JvmTarget.JVM_17/g' "$f"; echo "fixed jvm $f";
-          done
-          echo "done"
+          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
+          cat >> android/build.gradle <<'GRADLE'
+
+          // Coach EDN CI: unifica Java e Kotlin em 17 (Health Connect + Capacitor)
+          allprojects {
+              afterEvaluate { p ->
+                  if (p.plugins.hasPlugin('com.android.library') || p.plugins.hasPlugin('com.android.application')) {
+                      p.android.compileOptions {
+                          sourceCompatibility JavaVersion.VERSION_17
+                          targetCompatibility JavaVersion.VERSION_17
+                      }
+                  }
+                  p.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                      kotlinOptions { jvmTarget = "17" }
+                  }
+              }
+          }
+          GRADLE
+          echo "build.gradle patched"
 
       - name: Set version from run number (OTA)
         run: |
