@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import AutopilotCard from '@/components/edn/autopilot-card';
 
 const RunningTracker = dynamic(() => import('@/components/cardio/running-tracker'), { ssr: false });
 
@@ -261,6 +262,7 @@ export default function CardioPage() {
           </Button>
         </div>
       </div>
+      <AutopilotCard mode="cardio" />
 
       {/* ── Volume alert ─────────────────────────────────────────── */}
       {volumeAlert && (
