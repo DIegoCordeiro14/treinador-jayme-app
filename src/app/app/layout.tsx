@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { ApkUpdateBanner } from "@/components/edn/apk-update-banner";
 import type { Profile } from "@/types";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Mobile: Header + Drawer + BottomNav (state shared) */}
       <MobileNav profile={profile as Profile | null} />
+
+      {/* OTA do shell nativo (só aparece dentro do APK) */}
+      <ApkUpdateBanner />
 
       {/* Main content */}
       <main className="md:ml-60 min-h-screen pb-20 md:pb-0">
