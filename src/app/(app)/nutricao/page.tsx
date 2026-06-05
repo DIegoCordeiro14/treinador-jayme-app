@@ -19,6 +19,7 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import AutopilotCard from '@/components/edn/autopilot-card';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NutritionPlan {
@@ -260,6 +261,8 @@ export default function NutricaoPage() {
           </Button>
         </div>
       </div>
+
+      <AutopilotCard mode="nutrition" />
 
       {/* ── Macro hero card ──────────────────────────────────────── */}
       {/* Banner de fonte de dados corporais */}
