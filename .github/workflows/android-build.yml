@@ -114,6 +114,12 @@ jobs:
           print(st)
           EOF
 
+      - name: Bump AGP/compileSdk (exigido pelo Health Connect)
+        run: |
+          sed -i "s#com.android.tools.build:gradle:[0-9.]*#com.android.tools.build:gradle:8.9.1#" android/build.gradle
+          sed -i "s/compileSdkVersion = .*/compileSdkVersion = 36/" android/variables.gradle
+          grep -E "tools.build:gradle|compileSdkVersion" android/build.gradle android/variables.gradle
+
       - name: Set version from run number (OTA)
         run: |
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
