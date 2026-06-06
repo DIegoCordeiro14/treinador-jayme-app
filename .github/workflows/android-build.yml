@@ -120,6 +120,12 @@ jobs:
           sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
 
+      - name: Keystore de debug FIXO (assinatura estável p/ OTA sem conflito)
+        run: |
+          mkdir -p ~/.android
+          cp .github/coach-edn-debug.keystore ~/.android/debug.keystore
+          keytool -list -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep -i SHA1 || true
+
       - name: Build debug APK
         run: |
           cd android
