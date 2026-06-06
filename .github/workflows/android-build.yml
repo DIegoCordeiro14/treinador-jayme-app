@@ -29,7 +29,7 @@ jobs:
           npm install --no-audit --no-fund
           npm install --no-audit --no-fund \
             @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/app@8 \
-            @capacitor/geolocation@8 @capacitor-community/background-geolocation capacitor-health@8
+            @capacitor/geolocation@8 @capacitor-community/background-geolocation capacitor-health@8 @capacitor/filesystem@8 @capacitor-community/file-opener
 
       - name: Create Capacitor config (shell remoto -> Vercel)
         run: |
