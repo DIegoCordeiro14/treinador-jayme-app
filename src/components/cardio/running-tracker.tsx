@@ -652,25 +652,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
               </div>
             )}
 
-            <div className="rounded-xl bg-zinc-800/50 px-4 py-3 space-y-2">
-              <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Comparar com Strava</p>
-              <div className="flex gap-2">
-                <input type="number" inputMode="decimal" step="0.01" value={stravaRefInput} onChange={(e) => setStravaRefInput(e.target.value)} placeholder="distância do Strava (km)"
-                  className="flex-1 h-9 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
-                <button onClick={runStravaCompare} className="px-3 rounded-lg bg-zinc-700 text-zinc-100 text-sm font-medium hover:bg-zinc-600">Comparar</button>
-              </div>
-              {stravaCmp && (
-                <div className={cn('rounded-lg px-3 py-2 text-xs', stravaCmp.withinTarget ? 'bg-green-500/10 text-green-300' : 'bg-yellow-500/10 text-yellow-300')}>
-                  <p className="font-semibold">{stravaCmp.errorPct.toFixed(1)}% de erro · {stravaCmp.qualityLabel}</p>
-                  <p className="text-zinc-400 mt-0.5">{stravaCmp.message}</p>
-                </div>
-              )}
-            </div>
 
-            <div className="rounded-xl bg-zinc-800/50 px-4 py-3">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5"><Heart className="h-3.5 w-3.5 text-[#C0453A]" /> FC média (bpm) durante a corrida</label>
-              <input type="number" inputMode="numeric" min={40} max={240} value={avgBpm} onChange={(e) => setAvgBpm(e.target.value)} placeholder="ex.: 148" className="mt-2 w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-zinc-100 text-sm" />
-            </div>
             <div className="flex gap-3">
               <button onClick={handleDiscard} className="flex-1 py-3.5 rounded-2xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Descartar</button>
               <button onClick={handleSave} disabled={status === 'saving'} className="flex-1 py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-bold flex items-center justify-center gap-2 transition-colors">
