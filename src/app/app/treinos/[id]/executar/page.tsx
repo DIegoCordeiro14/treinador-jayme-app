@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
 import { RestTimer } from '@/components/workout/rest-timer';
+import { fetchAvgHrFromHealthConnect } from '@/lib/wearables/avg-hr';
 
 type SetType = 'aquecimento' | 'feeder' | 'top' | 'working';
 interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; }
@@ -306,7 +307,9 @@ export default function ExecutarPage() {
         allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType });
       });
     });
-    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '' }).select('id').single();
+    // FC média do período do treino — só grava se vier do relógio (Health Connect)
+    const avgHr = await fetchAvgHrFromHealthConnect(startedAt.current.getTime(), finishedAt.getTime());
+    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr }).select('id').single();
     if (error || !session) { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
     if (allSets.length > 0) await supabase.from('session_sets').insert(allSets.map(s => ({ ...(s as object), session_id: session.id })));
     toast.success('Treino salvo!');
