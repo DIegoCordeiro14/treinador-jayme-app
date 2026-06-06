@@ -40,6 +40,9 @@ import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelli
 import { ThreeLayerPanel } from "@/components/dashboard/three-layer-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
+// Sempre renderiza com dados frescos (e respeita a reprogramação do Calendário)
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
@@ -87,7 +90,17 @@ export default async function DashboardPage() {
   const typedPlan = activePlan as WorkoutPlan | null;
 
   // Calculate stats
-  const today = new Date();
+  // "Hoje" ancorado no fuso do Brasil — assim o card bate com o Calendário e o
+  // relógio do aparelho, mesmo quando o servidor (UTC) já virou o dia.
+  const TZ_BR = "America/Sao_Paulo";
+  const nowReal = new Date();
+  const today = new Date(nowReal.toLocaleString("en-US", { timeZone: TZ_BR }));
+  const todayLabel = nowReal.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    timeZone: TZ_BR,
+  });
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
   const monthStart = startOfMonth(today);
@@ -260,11 +273,7 @@ export default async function DashboardPage() {
             {getGreeting(profile?.name?.split(" ")[0] ?? "atleta")} 💪
           </h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {today.toLocaleDateString("pt-BR", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
+            {todayLabel}
           </p>
         </div>
         <Link href="/app/treinos">
@@ -310,6 +319,7 @@ export default async function DashboardPage() {
           plan={typedPlan}
           isRestDay={!todayWorkoutDay}
           nextWorkout={nextWorkout}
+          todayLabel={todayLabel}
         />
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
