@@ -49,6 +49,8 @@ export async function startTracking(opts: StartOptions): Promise<LocationHandle>
 
   // ── Caminho nativo (Foreground Service / CoreLocation) ──────────────────────
   if (isNative() && BG?.addWatcher) {
+    let gotNative = false;
+    let webId: number | null = null;
     const id: string = await BG.addWatcher(
       {
         backgroundTitle: opts.notificationTitle ?? 'Coach EDN',
@@ -68,6 +70,8 @@ export async function startTracking(opts: StartOptions): Promise<LocationHandle>
           return;
         }
         if (!location) return;
+        gotNative = true;
+        if (webId !== null && typeof navigator !== 'undefined' && navigator.geolocation) { navigator.geolocation.clearWatch(webId); webId = null; }
         opts.onPoint({
           latitude: location.latitude,
           longitude: location.longitude,
@@ -79,7 +83,34 @@ export async function startTracking(opts: StartOptions): Promise<LocationHandle>
         });
       },
     );
-    return { stop: async () => { try { await BG.removeWatcher({ id }); } catch { /* ignore */ } } };
+    // Fallback: enquanto o GPS nativo não entrega o 1º ponto, usa o geolocation
+    // do WebView (fused/rede) para destravar o início da corrida imediatamente.
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      webId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (gotNative) {
+            if (webId !== null) { navigator.geolocation.clearWatch(webId); webId = null; }
+            return;
+          }
+          opts.onPoint({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            altitude: pos.coords.altitude ?? null,
+            accuracy: pos.coords.accuracy ?? null,
+            speed: pos.coords.speed ?? null,
+            bearing: pos.coords.heading ?? null,
+            timestamp: pos.timestamp || Date.now(),
+          });
+        },
+        () => { /* fallback silencioso */ },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+      );
+    }
+
+    return { stop: async () => {
+      if (webId !== null && typeof navigator !== 'undefined' && navigator.geolocation) { navigator.geolocation.clearWatch(webId); webId = null; }
+      try { await BG.removeWatcher({ id }); } catch { /* ignore */ }
+    } };
   }
 
   // ── Fallback web (PWA) ──────────────────────────────────────────────────────
