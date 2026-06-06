@@ -30,6 +30,7 @@ export interface CleanPoint extends RawPoint {
 
 // ── Limiares (nível Garmin/Strava) ────────────────────────────────────────────
 export const MAX_ACCURACY_M = 35;     // V7.3: ignora accuracy > 35m
+export const PROVISIONAL_ACCURACY_M = 150; // fix inicial grosseiro aceito só para destravar a UI
 export const MAX_SPEED_KMH = 30;      // V7.3: ignora corrida > 30 km/h
 export const MAX_ACCEL_KMH_S = 8;     // variação de velocidade fisicamente plausível
 export const MIN_MOVE_KM = 0.0015;    // 1.5 m — abaixo disso é tremor parado
@@ -80,15 +81,25 @@ class Kalman1D {
 // ── Estado do filtro (uma instância por corrida) ──────────────────────────────
 export class GpsFilter {
   private last: CleanPoint | null = null;
+  private provisional = false;
   private kLat = new Kalman1D(2.5);
   private kLng = new Kalman1D(2.5);
 
-  reset() { this.last = null; this.kLat.reset(); this.kLng.reset(); }
+  reset() { this.last = null; this.provisional = false; this.kLat.reset(); this.kLng.reset(); }
 
   /** Processa um ponto cru e devolve a versão limpa (accepted=true/false). */
   push(raw: RawPoint): CleanPoint {
     // 1) Filtro de precisão
     if (raw.accuracy != null && raw.accuracy > MAX_ACCURACY_M) {
+      // Fix grosseiro no início: aceita provisoriamente (até PROVISIONAL_ACCURACY_M)
+      // para destravar a UI e mostrar a posição; distância NÃO conta nesta fase.
+      if ((!this.last || this.provisional) && raw.accuracy <= PROVISIONAL_ACCURACY_M) {
+        const latP = this.kLat.filter(raw.latitude, raw.accuracy);
+        const lngP = this.kLng.filter(raw.longitude, raw.accuracy);
+        const prov: CleanPoint = { ...raw, latitude: latP, longitude: lngP, speedKmh: 0, segmentKm: 0, accepted: true };
+        this.last = prov; this.provisional = true;
+        return prov;
+      }
       return this.reject(raw, `accuracy ${raw.accuracy?.toFixed(0)}m > ${MAX_ACCURACY_M}m`);
     }
 
@@ -97,6 +108,15 @@ export class GpsFilter {
     const lat = this.kLat.filter(raw.latitude, acc);
     const lng = this.kLng.filter(raw.longitude, acc);
     const smoothed: RawPoint = { ...raw, latitude: lat, longitude: lng };
+
+    // Primeiro fix PRECISO após âncora provisória: re-ancora aqui sem somar
+    // a distância acumulada na fase de baixa precisão.
+    if (this.last && this.provisional) {
+      this.provisional = false;
+      const reanchor: CleanPoint = { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
+      this.last = reanchor;
+      return reanchor;
+    }
 
     if (!this.last) {
       const first: CleanPoint = { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
