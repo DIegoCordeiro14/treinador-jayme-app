@@ -29,7 +29,7 @@ export interface CleanPoint extends RawPoint {
 }
 
 // ── Limiares (nível Garmin/Strava) ────────────────────────────────────────────
-export const MAX_ACCURACY_M = 15;     // V7.3: ignora accuracy > 15m
+export const MAX_ACCURACY_M = 35;     // V7.3: ignora accuracy > 35m
 export const MAX_SPEED_KMH = 30;      // V7.3: ignora corrida > 30 km/h
 export const MAX_ACCEL_KMH_S = 8;     // variação de velocidade fisicamente plausível
 export const MIN_MOVE_KM = 0.0015;    // 1.5 m — abaixo disso é tremor parado
@@ -108,11 +108,11 @@ export class GpsFilter {
     const segKm = haversineKm(this.last.latitude, this.last.longitude, lat, lng);
     const speedKmh = (segKm / dtSec) * 3600;
 
-    // Tremor parado: distância irrisória → mantém posição, velocidade 0
+    // Tremor/deslocamento sub-limiar: NÃO avança a âncora — o movimento
+    // acumula entre ticks até cruzar MIN_MOVE_KM (corrige taxas altas de
+    // pontos, ex. ~3 Hz, em que cada tick anda menos de 1,5 m).
     if (segKm < MIN_MOVE_KM) {
-      const p: CleanPoint = { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
-      this.last = p;
-      return p;
+      return { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
     }
 
     // 2) Filtro de velocidade
