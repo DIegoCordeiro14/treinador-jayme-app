@@ -9,6 +9,8 @@ interface WorkoutTodayCardProps {
   isRestDay?: boolean;
   /** Informativo do próximo treino agendado, ex.: { weekday: "sexta-feira", name: "Treino C", label: "legs/abs" } */
   nextWorkout?: { weekday: string; name: string; label?: string | null } | null;
+  /** Data de "hoje" já formatada no fuso correto (vem do servidor para casar com o Calendário) */
+  todayLabel?: string;
 }
 
 function NextWorkoutInfo({ nextWorkout }: { nextWorkout?: { weekday: string; name: string; label?: string | null } | null }) {
@@ -32,7 +34,16 @@ export function WorkoutTodayCard({
   plan,
   isRestDay = false,
   nextWorkout = null,
+  todayLabel,
 }: WorkoutTodayCardProps) {
+  const dateLabel =
+    todayLabel ??
+    new Date().toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+    });
+
   if (isRestDay || !workoutDay || !plan) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
@@ -42,13 +53,7 @@ export function WorkoutTodayCard({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Treino de Hoje</h3>
-            <p className="text-xs text-zinc-500">
-              {new Date().toLocaleDateString("pt-BR", {
-                weekday: "long",
-                day: "2-digit",
-                month: "long",
-              })}
-            </p>
+            <p className="text-xs text-zinc-500">{dateLabel}</p>
           </div>
         </div>
         <div className="text-center py-4">
@@ -80,13 +85,7 @@ export function WorkoutTodayCard({
         </div>
         <div>
           <h3 className="text-sm font-semibold text-zinc-100">Treino de Hoje</h3>
-          <p className="text-xs text-zinc-500">
-            {new Date().toLocaleDateString("pt-BR", {
-              weekday: "long",
-              day: "2-digit",
-              month: "long",
-            })}
-          </p>
+          <p className="text-xs text-zinc-500">{dateLabel}</p>
         </div>
       </div>
 
