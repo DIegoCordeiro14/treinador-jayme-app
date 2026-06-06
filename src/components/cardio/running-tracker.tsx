@@ -25,6 +25,27 @@ function fmtTime(totalSec: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * Liga a localização do aparelho automaticamente ao iniciar a corrida:
+ * mostra o diálogo nativo do Android (Play Services) para ativar o GPS em
+ * alta precisão com um toque. Sem o plugin (web/APK antigo), segue normal —
+ * o watcher de localização reporta o erro como antes.
+ */
+async function ensureGpsEnabled(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (!w?.Capacitor?.isNativePlatform?.()) return;
+    const la = w?.cordova?.plugins?.locationAccuracy;
+    if (!la) return;
+    await new Promise<void>((resolve) => {
+      try {
+        la.request(() => resolve(), () => resolve(), la.REQUEST_PRIORITY_HIGH_ACCURACY);
+      } catch (e) { void e; resolve(); }
+    });
+  } catch (e) { void e; }
+}
+
 interface Props { onClose: () => void; onSaved: () => void; }
 
 export default function RunningTracker({ onClose, onSaved }: Props) {
@@ -191,6 +212,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   }, [supabase]);
 
   const startGps = useCallback(async () => {
+    await ensureGpsEnabled();
     setGpsAccuracy(null);
     filterRef.current.reset();
     autoPauseRef.current = new AutoPause({
