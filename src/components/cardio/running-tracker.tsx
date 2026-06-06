@@ -419,6 +419,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const isActive = status === 'running' || status === 'paused' || status === 'acquiring';
 
   return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
       {replaying && (
         <div className="absolute inset-0 z-[60] flex flex-col justify-between pointer-events-none">
           <div className="pointer-events-auto bg-gradient-to-b from-black/85 to-transparent px-5 pt-5 pb-10 flex items-start justify-between">
@@ -441,7 +442,6 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
           </div>
         </div>
       )}
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
       {(status === 'idle' || status === 'finished') && (
         <button onClick={onClose} className="absolute top-4 left-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg">
           <X className="h-4 w-4" />
