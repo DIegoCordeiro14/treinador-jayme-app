@@ -10,6 +10,7 @@ import { GpsFilter, computePaces, fmtPace as fmtPaceLib } from '@/lib/cardio/gps
 import { startTracking, AutoPause, isNative, type LocationHandle } from '@/native/location';
 import { analyzeRun, ZONE_LABELS, ZONE_COLORS, type RunAnalysis, type RunZone } from '@/lib/cardio/run-classifier';
 import { compareWithStrava, type StravaComparison } from '@/lib/cardio/strava-compare';
+import { fetchAvgHrFromHealthConnect } from '@/lib/wearables/avg-hr';
 
 interface GpsPoint {
   lat: number; lng: number; timestamp: number;
@@ -359,12 +360,16 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     const speed = elapsedRef.current > 0 ? km / (elapsedRef.current / 3600) : 0;
     const intensity = speed > 12 ? 'muito alta' : speed > 8 ? 'alta' : speed > 5 ? 'moderada' : 'leve';
     const calories = Math.round(km * 65);
+    // FC média da corrida — só grava se vier do relógio (Health Connect)
+    const runStartTs = pointsRef.current[0]?.timestamp ?? (Date.now() - elapsedRef.current * 1000);
+    const avgHr = await fetchAvgHrFromHealthConnect(runStartTs, Date.now());
+    if (avgHr) setAvgBpm(String(avgHr));
     const { error } = await supabase.from('cardio_sessions').insert({
       user_id: user.id, type: 'Corrida', duration_min: durationMin, intensity,
       calories_burned: calories > 0 ? calories : null,
       gps_track: { coordinates: pointsRef.current, max_speed_kmh: Math.round(maxSpeedRef.current * 10) / 10 },
       distance_km: Math.round(km * 1000) / 1000,
-      avg_hr: avgBpm ? Math.round(Number(avgBpm)) : null,
+      avg_hr: avgHr,
     });
     if (error) { toast.error('Erro ao salvar corrida'); setStatus('finished'); return; }
     await cleanupSession();
