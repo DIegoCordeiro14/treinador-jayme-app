@@ -62,12 +62,10 @@ export function ApkUpdateBanner() {
           </p>
           <div className="flex gap-2 mt-3">
             <a
-              href={update.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/app/atualizacoes"
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#D4853A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#B8702E] transition-colors"
             >
-              <Download className="h-3.5 w-3.5" /> Baixar atualização
+              <Download className="h-3.5 w-3.5" /> Atualizar agora
             </a>
             <button
               onClick={() => { localStorage.setItem(DISMISS_KEY, String(update.build)); setUpdate(null); }}
