@@ -62,7 +62,8 @@ jobs:
       - name: SDK / AGP para Health Connect (compileSdk 36, minSdk 26, AGP 8.9.1)
         run: |
           sed -i "s/compileSdkVersion = .*/compileSdkVersion = 36/" android/variables.gradle
-          sed -i "s/targetSdkVersion = .*/targetSdkVersion = 36/" android/variables.gradle
+          # targetSdk 35: mantem o opt-out do edge-to-edge (em 36 o Android ignora e a status bar sobrepoe)
+          sed -i "s/targetSdkVersion = .*/targetSdkVersion = 35/" android/variables.gradle
           sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
           sed -i "s#com.android.tools.build:gradle:[0-9.]*#com.android.tools.build:gradle:8.9.1#" android/build.gradle
           grep -E "compileSdkVersion|targetSdkVersion|minSdkVersion" android/variables.gradle
