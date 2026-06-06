@@ -388,6 +388,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     const marker = L.marker([pts[0].lat, pts[0].lng], { icon }).addTo(map);
     replayLineRef.current = replayLine; replayMarkerRef.current = marker;
     map.setView([pts[0].lat, pts[0].lng], Math.max(15, map.getZoom()));
+    setTimeout(() => { try { map.invalidateSize(); map.setView([pts[0].lat, pts[0].lng], Math.max(15, map.getZoom())); } catch (e) { void e; } }, 100);
     runReplayTimer();
   }
 
@@ -433,6 +434,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       if (poly && pointsRef.current.length > 1) { try { map.fitBounds((poly as any).getBounds(), { padding: [40, 40] }); } catch (e) { void e; } }
     }
     setReplaying(false); setReplayPaused(false); setReplayProgress(0);
+    setTimeout(() => {
+      const m2 = mapRef.current; const poly2 = polylineRef.current;
+      try { m2?.invalidateSize(); } catch (e) { void e; }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (m2 && poly2 && pointsRef.current.length > 1) { try { m2.fitBounds((poly2 as any).getBounds(), { padding: [40, 40] }); } catch (e) { void e; } }
+    }, 100);
   }
   function exitReplay() { finishReplay(); }
 
@@ -514,7 +521,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         )}
       </div>
 
-      <div className="bg-zinc-900 border-t border-zinc-800 px-5 py-5 space-y-4 shrink-0 max-h-[72vh] overflow-y-auto">
+      <div className={cn("bg-zinc-900 border-t border-zinc-800 px-5 py-5 space-y-4 shrink-0 max-h-[72vh] overflow-y-auto", replaying && "hidden")}>
         {status === 'saved' ? (
           <>
             <div className="text-center py-2">
