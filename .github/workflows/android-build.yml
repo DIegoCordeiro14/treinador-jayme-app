@@ -24,10 +24,12 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Install dependencies + Capacitor
+      - name: Install dependencies + Capacitor 8 + Health
         run: |
           npm install --no-audit --no-fund
-          npm install --no-audit --no-fund @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/geolocation @capacitor-community/background-geolocation
+          npm install --no-audit --no-fund \
+            @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/app@8 \
+            @capacitor/geolocation@8 @capacitor-community/background-geolocation capacitor-health@8
 
       - name: Create Capacitor config (shell remoto -> Vercel)
         run: |
@@ -57,7 +59,16 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Add background-location permissions
+      - name: SDK / AGP para Health Connect (compileSdk 36, minSdk 26, AGP 8.9.1)
+        run: |
+          sed -i "s/compileSdkVersion = .*/compileSdkVersion = 36/" android/variables.gradle
+          sed -i "s/targetSdkVersion = .*/targetSdkVersion = 36/" android/variables.gradle
+          sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
+          sed -i "s#com.android.tools.build:gradle:[0-9.]*#com.android.tools.build:gradle:8.9.1#" android/build.gradle
+          grep -E "compileSdkVersion|targetSdkVersion|minSdkVersion" android/variables.gradle
+          grep -E "tools.build:gradle" android/build.gradle
+
+      - name: Permissões de localização, Health Connect rationale e edge-to-edge
         run: |
           python3 - <<'EOF'
           p = 'android/app/src/main/AndroidManifest.xml'
@@ -68,13 +79,32 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <queries>
+                  <package android:name="com.google.android.apps.healthdata" />
+              </queries>
           '''
           if 'ACCESS_FINE_LOCATION' not in s:
               s = s.replace('</manifest>', perms + '</manifest>')
+
+          # Activity-alias para o Health Connect mostrar a tela de justificativa/uso
+          alias = '''        <activity-alias
+                      android:name="ViewPermissionUsageActivity"
+                      android:exported="true"
+                      android:targetActivity=".MainActivity"
+                      android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                          <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+                      </intent-filter>
+                  </activity-alias>
+          '''
+          if 'VIEW_PERMISSION_USAGE' not in s:
+              s = s.replace('</application>', alias + '    </application>')
+
           open(p, 'w').write(s)
           print('Manifest atualizado')
 
-          # Opt-out do edge-to-edge forcado do Android 15 (status bar sobrepunha o app)
+          # Opt-out do edge-to-edge forcado do Android 15 (status bar nao sobrepoe)
           sp = 'android/app/src/main/res/values/styles.xml'
           st = open(sp).read()
           item = '        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>\n'
@@ -111,6 +141,6 @@ jobs:
         with:
           tag_name: apk-v${{ github.run_number }}
           name: Coach EDN APK v1.${{ github.run_number }}
-          body: "APK Android (debug) do Coach EDN. O app instalado detecta esta release e oferece a atualização automaticamente."
+          body: "APK Android (debug) do Coach EDN com Health Connect (Capacitor 8). O app instalado detecta esta release e oferece a atualização automaticamente."
           files: coach-edn-v1.${{ github.run_number }}.apk
           make_latest: true
