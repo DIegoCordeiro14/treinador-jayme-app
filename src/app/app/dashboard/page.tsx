@@ -17,7 +17,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { WorkoutTodayClient } from "@/components/dashboard/workout-today-client";
-import { WearableMetricsCard } from "@/components/dashboard/wearable-metrics-card";
 import { WeeklyCalendarStrip } from "@/components/dashboard/weekly-calendar-strip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,9 +172,6 @@ export default async function DashboardPage() {
         <WorkoutTodayClient plan={typedPlan} />
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
-
-      {/* Dados do relógio (Health Connect) — só aparece se houver sincronização */}
-      <WearableMetricsCard />
 
       <div className={latestBio ? "grid md:grid-cols-2 gap-4 items-start" : ""}>
         <DailyBriefingPanel />
