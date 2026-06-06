@@ -17,6 +17,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { WorkoutTodayClient } from "@/components/dashboard/workout-today-client";
+import { WearableMetricsCard } from "@/components/dashboard/wearable-metrics-card";
 import { WeeklyCalendarStrip } from "@/components/dashboard/weekly-calendar-strip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,6 @@ import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelli
 import { ThreeLayerPanel } from "@/components/dashboard/three-layer-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
 
-// Dados sempre frescos (reflete reprogramação do Calendário)
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
@@ -120,7 +120,6 @@ export default async function DashboardPage() {
     return bioW ?? measW;
   })();
 
-  // Para o link do checklist (o card "Treino de Hoje" agora é calculado no cliente)
   const todayDayOfWeek = today.getDay();
   let todayWorkoutDay: WorkoutDay | null = null;
   if (typedPlan && typedPlan.workout_days) {
@@ -170,11 +169,13 @@ export default async function DashboardPage() {
         <StatsCard label="Peso Atual" value={latestWeightKg ? formatWeight(latestWeightKg) : "—"} icon={<Scale className="h-4 w-4" />} color="purple" />
       </div>
 
-      {/* Treino de hoje (cliente, mesma data do aparelho que o Calendário) + faixa semanal */}
       <div className="grid md:grid-cols-2 gap-4">
         <WorkoutTodayClient plan={typedPlan} />
         <WeeklyCalendarStrip sessions={typedSessions} />
       </div>
+
+      {/* Dados do relógio (Health Connect) — só aparece se houver sincronização */}
+      <WearableMetricsCard />
 
       <div className={latestBio ? "grid md:grid-cols-2 gap-4 items-start" : ""}>
         <DailyBriefingPanel />
