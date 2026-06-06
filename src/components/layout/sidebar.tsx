@@ -19,6 +19,7 @@ import {
   Flame,
   Utensils,
   Rss,
+  RefreshCw,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -61,6 +62,7 @@ const NAV_GROUPS = [
     label: "Conta",
     items: [
       { href: "/app/perfil", label: "Perfil", icon: User },
+  { href: "/app/atualizacoes", label: "Atualizações", icon: RefreshCw },
     ],
   },
 ];
