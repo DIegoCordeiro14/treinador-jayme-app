@@ -8,6 +8,8 @@ import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio } 
 import { cn } from '@/lib/utils';
 import { GpsFilter, computePaces, fmtPace as fmtPaceLib } from '@/lib/cardio/gps-filter';
 import { startTracking, AutoPause, isNative, type LocationHandle } from '@/native/location';
+import { analyzeRun, ZONE_LABELS, ZONE_COLORS, type RunAnalysis, type RunZone } from '@/lib/cardio/run-classifier';
+import { compareWithStrava, type StravaComparison } from '@/lib/cardio/strava-compare';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface GpsPoint {
@@ -59,6 +61,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const [mapReady, setMapReady] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  // V7.7 / V7.8 / V7.11
+  const [analysis, setAnalysis] = useState<RunAnalysis | null>(null);
+  const [briefing, setBriefing] = useState<string | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [stravaRef, setStravaRef] = useState('');
+  const [stravaCmp, setStravaCmp] = useState<StravaComparison | null>(null);
 
   // ── Leaflet init ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -225,7 +233,48 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     const map = mapRef.current; const poly = polylineRef.current;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (map && poly && pointsRef.current.length > 1) map.fitBounds((poly as any).getBounds(), { padding: [40, 40] });
+
+    // V7.7 — classificação por faixas de velocidade
+    const samples = [];
+    const pts = pointsRef.current;
+    for (let i = 1; i < pts.length; i++) {
+      const dt = Math.max(0.001, (pts[i].timestamp - pts[i - 1].timestamp) / 1000);
+      samples.push({ speedKmh: pts[i].speedKmh ?? 0, dtSec: dt });
+    }
+    const a = analyzeRun(samples);
+    setAnalysis(a);
+
+    // V7.11 — briefing por IA
+    void fetchBriefing(a.sprintCount);
+
     setStatus('finished');
+  }
+
+  async function fetchBriefing(sprintCount: number) {
+    setBriefingLoading(true);
+    try {
+      const res = await fetch('/api/run-briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          distance_km: distRef.current,
+          duration_sec: elapsedRef.current,
+          avg_pace_sec: distRef.current > 0 ? elapsedRef.current / distRef.current : 0,
+          max_speed_kmh: maxSpeedRef.current,
+          sprint_count: sprintCount,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.briefing) setBriefing(data.briefing);
+    } catch { /* silencioso */ } finally {
+      setBriefingLoading(false);
+    }
+  }
+
+  function runStravaCompare() {
+    const ref = parseFloat(stravaRef.replace(',', '.'));
+    const cmp = compareWithStrava(distRef.current, ref);
+    setStravaCmp(cmp);
   }
 
   async function handleSave() {
@@ -322,7 +371,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       </div>
 
       {/* BOTTOM PANEL */}
-      <div className="bg-zinc-900 border-t border-zinc-800 px-5 py-5 space-y-4 shrink-0">
+      <div className="bg-zinc-900 border-t border-zinc-800 px-5 py-5 space-y-4 shrink-0 max-h-[72vh] overflow-y-auto">
         {!isFinished ? (
           <>
             <div className="grid grid-cols-3 gap-3 text-center">
@@ -409,6 +458,61 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
                 ))}
               </div>
             </div>
+            {/* V7.7 — Classificação por faixas */}
+            {analysis && (
+              <div className="rounded-xl bg-zinc-800/50 px-4 py-3 space-y-2">
+                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Tipo de corrida</p>
+                <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+                  {(Object.keys(analysis.zoneSeconds) as RunZone[]).map((z) => {
+                    const total = Object.values(analysis.zoneSeconds).reduce((a, b) => a + b, 0) || 1;
+                    const pct = (analysis.zoneSeconds[z] / total) * 100;
+                    return pct > 0 ? <div key={z} style={{ width: `${pct}%`, background: ZONE_COLORS[z] }} title={ZONE_LABELS[z]} /> : null;
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {(Object.keys(analysis.zoneSeconds) as RunZone[]).filter((z) => analysis.zoneSeconds[z] > 0).map((z) => (
+                    <span key={z} className="text-[10px] text-zinc-400 flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLORS[z] }} />
+                      {ZONE_LABELS[z]}
+                    </span>
+                  ))}
+                </div>
+                {analysis.insights.map((ins, i) => (
+                  <p key={i} className="text-xs text-zinc-300">• {ins}</p>
+                ))}
+              </div>
+            )}
+
+            {/* V7.11 — Briefing por IA */}
+            {(briefing || briefingLoading) && (
+              <div className="rounded-xl border border-[#D4853A]/30 bg-[#D4853A]/[0.06] px-4 py-3">
+                <p className="text-[11px] font-bold text-[#D4853A] uppercase tracking-wider mb-1">Coach EDN analisa</p>
+                {briefingLoading
+                  ? <p className="text-xs text-zinc-400 animate-pulse">Gerando análise…</p>
+                  : <p className="text-sm text-zinc-200 leading-relaxed">{briefing}</p>}
+              </div>
+            )}
+
+            {/* V7.8 — Comparador Strava */}
+            <div className="rounded-xl bg-zinc-800/50 px-4 py-3 space-y-2">
+              <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Comparar com Strava</p>
+              <div className="flex gap-2">
+                <input
+                  type="number" inputMode="decimal" step="0.01" value={stravaRef}
+                  onChange={(e) => setStravaRef(e.target.value)}
+                  placeholder="distância do Strava (km)"
+                  className="flex-1 h-9 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D4853A]"
+                />
+                <button onClick={runStravaCompare} className="px-3 rounded-lg bg-zinc-700 text-zinc-100 text-sm font-medium hover:bg-zinc-600">Comparar</button>
+              </div>
+              {stravaCmp && (
+                <div className={cn('rounded-lg px-3 py-2 text-xs', stravaCmp.withinTarget ? 'bg-green-500/10 text-green-300' : 'bg-yellow-500/10 text-yellow-300')}>
+                  <p className="font-semibold">{stravaCmp.errorPct.toFixed(1)}% de erro · {stravaCmp.qualityLabel}</p>
+                  <p className="text-zinc-400 mt-0.5">{stravaCmp.message}</p>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3">
               <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">
                 Descartar
