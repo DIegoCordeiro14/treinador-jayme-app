@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio } from 'lucide-react';
+import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio, Heart, Rss, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GpsFilter, computePaces, fmtPace as fmtPaceLib } from '@/lib/cardio/gps-filter';
 import { startTracking, AutoPause, isNative, type LocationHandle } from '@/native/location';
@@ -15,7 +15,7 @@ interface GpsPoint {
   lat: number; lng: number; timestamp: number;
   altitude?: number | null; accuracy?: number | null; speedKmh?: number; bearing?: number | null;
 }
-type RunStatus = 'idle' | 'acquiring' | 'running' | 'paused' | 'finished' | 'saving';
+type RunStatus = 'idle' | 'acquiring' | 'running' | 'paused' | 'finished' | 'saving' | 'saved';
 
 function fmtTime(totalSec: number) {
   const h = Math.floor(totalSec / 3600);
@@ -71,6 +71,14 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const [stravaCmp, setStravaCmp] = useState<StravaComparison | null>(null);
   const [resumable, setResumable] = useState<{ id: string; distanceKm: number; elapsed: number } | null>(null);
   const [replaying, setReplaying] = useState(false);
+  const [replayPaused, setReplayPaused] = useState(false);
+  const [replayProgress, setReplayProgress] = useState(0);
+  const [avgBpm, setAvgBpm] = useState<string>('');
+  const replayIdxRef = useRef(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const replayLineRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const replayMarkerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!mapEl.current) return;
@@ -334,11 +342,13 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       calories_burned: calories > 0 ? calories : null,
       gps_track: { coordinates: pointsRef.current, max_speed_kmh: Math.round(maxSpeedRef.current * 10) / 10 },
       distance_km: Math.round(km * 1000) / 1000,
+      avg_hr: avgBpm ? Math.round(Number(avgBpm)) : null,
     });
     if (error) { toast.error('Erro ao salvar corrida'); setStatus('finished'); return; }
     await cleanupSession();
     toast.success(`Corrida salva! ${km.toFixed(2)} km em ${fmtTime(elapsedRef.current)}`);
-    onSaved(); onClose();
+    onSaved();
+    setStatus('saved');
   }
 
   async function handleDiscard() { await cleanupSession(); onClose(); }
@@ -346,18 +356,32 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   function startReplay() {
     const L = leafletRef.current; const map = mapRef.current; const pts = pointsRef.current;
     if (!L || !map || pts.length < 2 || replaying) return;
-    setReplaying(true);
-    const replayLine = L.polyline([], { color: '#5A8A6A', weight: 6, opacity: 0.95, lineCap: 'round' }).addTo(map);
-    const icon = L.divIcon({ html: `<div style="width:18px;height:18px;border-radius:50%;background:#5A8A6A;border:3px solid white;"></div>`, className: '', iconSize: [18, 18], iconAnchor: [9, 9] });
+    if (replayLineRef.current) { map.removeLayer(replayLineRef.current); replayLineRef.current = null; }
+    if (replayMarkerRef.current) { map.removeLayer(replayMarkerRef.current); replayMarkerRef.current = null; }
+    if (replayTimerRef.current) clearInterval(replayTimerRef.current);
+    setReplaying(true); setReplayPaused(false); setReplayProgress(0);
+    replayIdxRef.current = 0;
+    const replayLine = L.polyline([[pts[0].lat, pts[0].lng]], { color: '#5A8A6A', weight: 6, opacity: 0.95, lineCap: 'round' }).addTo(map);
+    const icon = L.divIcon({ html: '<div style="width:18px;height:18px;border-radius:50%;background:#5A8A6A;border:3px solid white;box-shadow:0 0 0 6px rgba(90,138,106,0.35)"></div>', className: '', iconSize: [18, 18], iconAnchor: [9, 9] });
     const marker = L.marker([pts[0].lat, pts[0].lng], { icon }).addTo(map);
-    let i = 0;
+    replayLineRef.current = replayLine; replayMarkerRef.current = marker;
+    map.setView([pts[0].lat, pts[0].lng], Math.max(15, map.getZoom()));
+    runReplayTimer();
+  }
+
+  function runReplayTimer() {
+    const map = mapRef.current; const pts = pointsRef.current;
+    const replayLine = replayLineRef.current; const marker = replayMarkerRef.current;
+    if (!map || !replayLine || !marker) return;
     const stepMs = Math.max(20, Math.min(120, Math.round(6000 / pts.length)));
     if (replayTimerRef.current) clearInterval(replayTimerRef.current);
     replayTimerRef.current = setInterval(() => {
-      i++;
+      replayIdxRef.current++;
+      const i = replayIdxRef.current;
       if (i >= pts.length) {
         if (replayTimerRef.current) clearInterval(replayTimerRef.current);
-        setTimeout(() => { map.removeLayer(replayLine); map.removeLayer(marker); setReplaying(false); }, 800);
+        setReplayProgress(100);
+        finishReplay();
         return;
       }
       const p = pts[i];
@@ -365,14 +389,58 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       (replayLine as any).addLatLng([p.lat, p.lng]);
       marker.setLatLng([p.lat, p.lng]);
       map.panTo([p.lat, p.lng], { animate: true, duration: stepMs / 1000 });
+      setReplayProgress(Math.round((i / (pts.length - 1)) * 100));
     }, stepMs);
   }
+
+  function pauseReplay() {
+    if (replayTimerRef.current) clearInterval(replayTimerRef.current);
+    replayTimerRef.current = null;
+    setReplayPaused(true);
+  }
+  function resumeReplay() { setReplayPaused(false); runReplayTimer(); }
+  function finishReplay() {
+    if (replayTimerRef.current) clearInterval(replayTimerRef.current);
+    replayTimerRef.current = null;
+    const map = mapRef.current;
+    if (map) {
+      if (replayLineRef.current) { map.removeLayer(replayLineRef.current); replayLineRef.current = null; }
+      if (replayMarkerRef.current) { map.removeLayer(replayMarkerRef.current); replayMarkerRef.current = null; }
+      const poly = polylineRef.current;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (poly && pointsRef.current.length > 1) { try { map.fitBounds((poly as any).getBounds(), { padding: [40, 40] }); } catch (e) { void e; } }
+    }
+    setReplaying(false); setReplayPaused(false); setReplayProgress(0);
+  }
+  function exitReplay() { finishReplay(); }
 
   const cals = Math.round(distance * 65);
   const isFinished = status === 'finished' || status === 'saving';
   const isActive = status === 'running' || status === 'paused' || status === 'acquiring';
 
   return (
+      {replaying && (
+        <div className="absolute inset-0 z-[60] flex flex-col justify-between pointer-events-none">
+          <div className="pointer-events-auto bg-gradient-to-b from-black/85 to-transparent px-5 pt-5 pb-10 flex items-start justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-[#5A8A6A] uppercase tracking-widest">Replay da rota</p>
+              <p className="text-zinc-200 text-sm mt-0.5">{distance.toFixed(2)} km · {fmtTime(elapsed)}</p>
+            </div>
+            <button onClick={exitReplay} className="flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-sm px-3 py-2 text-sm text-white"><X className="h-4 w-4" /> Sair</button>
+          </div>
+          <div className="pointer-events-auto bg-gradient-to-t from-black/90 to-transparent px-5 pb-7 pt-12 space-y-3">
+            <div className="h-1.5 rounded-full bg-white/15 overflow-hidden"><div className="h-full bg-[#5A8A6A] transition-all duration-200" style={{ width: `${replayProgress}%` }} /></div>
+            <div className="flex gap-3">
+              {!replayPaused ? (
+                <button onClick={pauseReplay} className="flex-1 py-3 rounded-2xl border-2 border-white/30 text-white font-bold flex items-center justify-center gap-2"><Pause className="h-5 w-5 fill-current" /> Pausar</button>
+              ) : (
+                <button onClick={resumeReplay} className="flex-1 py-3 rounded-2xl bg-[#5A8A6A] text-white font-black flex items-center justify-center gap-2"><Play className="h-5 w-5 fill-current" /> Retomar</button>
+              )}
+              <button onClick={exitReplay} className="flex-1 py-3 rounded-2xl bg-zinc-800 text-zinc-200 font-bold flex items-center justify-center gap-2"><Square className="h-4 w-4" /> Encerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
       {(status === 'idle' || status === 'finished') && (
         <button onClick={onClose} className="absolute top-4 left-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg">
@@ -425,7 +493,20 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       </div>
 
       <div className="bg-zinc-900 border-t border-zinc-800 px-5 py-5 space-y-4 shrink-0 max-h-[72vh] overflow-y-auto">
-        {!isFinished ? (
+        {status === 'saved' ? (
+          <>
+            <div className="text-center py-2">
+              <CheckCircle2 className="h-10 w-10 text-[#5A8A6A] mx-auto mb-2" />
+              <p className="text-lg font-black text-zinc-100">Corrida salva!</p>
+              <p className="text-sm text-zinc-400 mt-0.5">{distance.toFixed(2)} km · {fmtTime(elapsed)}{avgBpm ? ` · ${Math.round(Number(avgBpm))} bpm` : ''}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <a href="/app/feed" className="py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white font-bold flex items-center justify-center gap-2"><Rss className="h-4 w-4" /> Ver no Feed</a>
+              <a href="/app/cardio" className="py-3.5 rounded-2xl border border-zinc-700 text-zinc-200 font-bold flex items-center justify-center gap-2"><ListChecks className="h-4 w-4" /> Ver nos Registros</a>
+            </div>
+            <button onClick={onClose} className="w-full py-3 rounded-2xl text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Fechar</button>
+          </>
+        ) : !isFinished ? (
           <>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div><p className="text-2xl font-black tabular-nums text-zinc-100">{fmtTime(elapsed)}</p><p className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wider">Tempo</p></div>
@@ -557,6 +638,10 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
               )}
             </div>
 
+            <div className="rounded-xl bg-zinc-800/50 px-4 py-3">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5"><Heart className="h-3.5 w-3.5 text-[#C0453A]" /> FC média (bpm) durante a corrida</label>
+              <input type="number" inputMode="numeric" min={40} max={240} value={avgBpm} onChange={(e) => setAvgBpm(e.target.value)} placeholder="ex.: 148" className="mt-2 w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-zinc-100 text-sm" />
+            </div>
             <div className="flex gap-3">
               <button onClick={handleDiscard} className="flex-1 py-3.5 rounded-2xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Descartar</button>
               <button onClick={handleSave} disabled={status === 'saving'} className="flex-1 py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-bold flex items-center justify-center gap-2 transition-colors">
