@@ -179,23 +179,44 @@ export default function PlanDetailPage() {
     const uniqueIds = [...new Set(exIds)];
     if (!uniqueIds.length) { setLoadingHistory(false); return; }
 
-    const { data } = await supabase.from("progressions")
-      .select("exercise_id, weight_kg, reps, recorded_at")
+    const { data: sess } = await supabase
+      .from("workout_sessions")
+      .select("id, started_at")
       .eq("user_id", user.id)
-      .in("exercise_id", uniqueIds)
-      .eq("set_type", "topset")
-      .order("recorded_at", { ascending: false })
+      .order("started_at", { ascending: false })
       .limit(200);
+    const sessions = (sess ?? []) as { id: string; started_at: string }[];
+    const sessIds = sessions.map((s) => s.id);
+    const dateById = new Map(sessions.map((s) => [s.id, s.started_at]));
+    if (!sessIds.length) { setExerciseHistory({}); setLoadingHistory(false); setShowEvolution(true); return; }
+
+    const { data } = await supabase
+      .from("session_sets")
+      .select("exercise_id, weight_kg, reps_done, session_id")
+      .in("exercise_id", uniqueIds)
+      .in("session_id", sessIds);
 
     if (data) {
-      const hist: ExerciseHistory = {};
+      const bestPerSession = new Map<string, { weight_kg: number; reps: number; recorded_at: string }>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const row of data as any[]) {
-        if (!hist[row.exercise_id]) hist[row.exercise_id] = [];
-        if (hist[row.exercise_id].length < 8) {
-          hist[row.exercise_id].push({ weight_kg: row.weight_kg, reps: row.reps, recorded_at: row.recorded_at });
+        const key = row.exercise_id + "|" + row.session_id;
+        const w = Number(row.weight_kg) || 0;
+        const cur = bestPerSession.get(key);
+        if (!cur || w > cur.weight_kg) {
+          bestPerSession.set(key, { weight_kg: w, reps: Number(row.reps_done) || 0, recorded_at: dateById.get(row.session_id) ?? "" });
         }
       }
-      setExerciseHistory(hist);
+      const grouped: ExerciseHistory = {};
+      for (const [key, val] of bestPerSession) {
+        const exId = key.split("|")[0];
+        (grouped[exId] ??= []).push(val);
+      }
+      for (const exId of Object.keys(grouped)) {
+        grouped[exId].sort((a, b) => (b.recorded_at > a.recorded_at ? 1 : -1));
+        grouped[exId] = grouped[exId].slice(0, 8);
+      }
+      setExerciseHistory(grouped);
     }
     setLoadingHistory(false);
     setShowEvolution(true);
