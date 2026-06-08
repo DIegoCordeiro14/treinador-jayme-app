@@ -237,6 +237,10 @@ alter table ai_conversations enable row level security;
 -- Profiles
 create policy "Users can view own profile" on profiles
   for select using (auth.uid() = id);
+-- Recursos sociais (Ranking, Feed, Equipes) precisam de nome/foto de outros usuários.
+-- Dados sensíveis ficam em tabelas separadas (bioimpedance_data, body_weight_logs) com RLS própria.
+create policy "Authenticated can view profiles" on profiles
+  for select to authenticated using (true);
 create policy "Users can update own profile" on profiles
   for update using (auth.uid() = id);
 create policy "Users can insert own profile" on profiles
