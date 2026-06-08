@@ -604,10 +604,10 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
       for (const day of plan.days) {
         const exCount = day.exercises.length;
         if (exCount === 0) {
-          lines.push(`  ${day.name}: (sem exercícios cadastrados)`);
+          lines.push(`  ${day.name} | DAY_ID: ${day.id}: (sem exercícios cadastrados)`);
           continue;
         }
-        lines.push(`  ${day.name}: ${exCount} exercício(s)`);
+        lines.push(`  ${day.name} | DAY_ID: ${day.id}: ${exCount} exercício(s)`);
         for (const ex of day.exercises) {
           const muscle = MUSCLE_LABELS[ex.muscleGroup] ?? ex.muscleGroup;
           const compound = ex.isCompound ? '★' : '○';

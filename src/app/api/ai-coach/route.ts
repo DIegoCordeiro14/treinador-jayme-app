@@ -5,6 +5,12 @@ import { makeCacheKey, getCached, setCached } from '@/lib/ai-coach/cache';
 import type { AIMessage } from '@/lib/ai-coach';
 import { detectAgent, AGENT_CONFIGS } from '@/lib/ai-coach/agents';
 import { getCachedAthleteContext, serializeAthleteContext } from '@/lib/edn/athlete-context';
+import {
+  applyWorkoutActions,
+  parseWorkoutDirective,
+  partialMarkerHold,
+  EDN_ACTION_MARKER,
+} from '@/lib/edn/workout-actions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -33,8 +39,6 @@ export async function POST(req: NextRequest) {
     const ctx = await getCachedAthleteContext(user.id);
 
     // ── V6.0: Serialize with workout context only for agents that need it ─────
-    // includeWorkoutContext agents (treinador, geral) get full plans + library
-    // Other agents (nutricionista, analista, performance) skip to save tokens
     const includeWorkoutContext = agentConfig.includeWorkoutContext === true;
     const athleteContextStr = serializeAthleteContext(ctx, {
       includeWorkoutPlans: includeWorkoutContext,
@@ -76,20 +80,63 @@ INSTRUÇÕES CRÍTICAS:
 
     const responseStream = new ReadableStream({
       async start(controller) {
+        // Tudo que já foi enviado ao cliente; a diretiva @@EDN_ACTIONS@@ nunca é
+        // transmitida (é segurada e removida antes de chegar à tela).
+        let fullText = '';
+        let emittedLen = 0;
+
+        const visibleOf = (full: string): string => {
+          const mi = full.indexOf(EDN_ACTION_MARKER);
+          if (mi >= 0) return full.slice(0, mi);
+          const hold = partialMarkerHold(full);
+          return full.slice(0, full.length - hold);
+        };
+        const emit = (text: string) => {
+          if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+        };
+
         try {
-          let fullText = '';
-          for await (const chunk of provider.stream({ messages: trimmedMessages, systemPrompt, maxTokens: 700 })) {
+          for await (const chunk of provider.stream({ messages: trimmedMessages, systemPrompt, maxTokens: 800 })) {
             if (chunk.text) {
               fullText += chunk.text;
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk.text })}\n\n`));
+              const visible = visibleOf(fullText);
+              if (visible.length > emittedLen) {
+                emit(visible.slice(emittedLen));
+                emittedLen = visible.length;
+              }
             }
-            if (chunk.done) {
-              // Cache response
-              if (fullText.length > 50) setCached(cacheKey, fullText);
 
-              // Save conversation
+            if (chunk.done) {
+              // ── Separa a diretiva da prosa e executa as ações reais ─────────
+              const { clean, actions } = parseWorkoutDirective(fullText);
+
+              // Garante que toda a prosa limpa foi enviada
+              if (clean.length > emittedLen) {
+                emit(clean.slice(emittedLen));
+                emittedLen = clean.length;
+              }
+
+              let finalText = clean;
+
+              if (actions.length > 0) {
+                const results = await applyWorkoutActions(supabase, user.id, actions);
+                const okMsgs = results.filter(r => r.ok).map(r => r.message);
+                const failMsgs = results.filter(r => !r.ok).map(r => r.message);
+                let confirm = '';
+                if (okMsgs.length) confirm += `\n\n✅ **Aplicado no app:**\n` + okMsgs.map(m => `- ${m}`).join('\n');
+                if (failMsgs.length) confirm += `\n\n⚠️ **Não foi possível aplicar:**\n` + failMsgs.map(m => `- ${m}`).join('\n');
+                if (confirm) {
+                  emit(confirm);
+                  finalText = clean + confirm;
+                }
+              }
+
+              // Cache só a prosa final (sem diretiva, com a confirmação real)
+              if (finalText.length > 50) setCached(cacheKey, finalText);
+
+              // Salva a conversa
               try {
-                const assistantMessage: AIMessage = { role: 'assistant', content: fullText };
+                const assistantMessage: AIMessage = { role: 'assistant', content: finalText };
                 const allMessages = [...messages, assistantMessage];
                 if (conversationId) {
                   await supabase.from('ai_conversations').update({ messages: allMessages, updated_at: new Date().toISOString() }).eq('id', conversationId).eq('user_id', user.id);

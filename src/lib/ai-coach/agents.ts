@@ -40,6 +40,7 @@ export function detectAgent(message: string): AgentType {
       'modifica','modificar','mudar exercício','remover exercício','adicionar exercício',
       'qual exercício','que exercício','outro exercício','exercício parecido','exercício similar',
       'plano de treino','meu treino','meu plano','treino a','treino b','treino c',
+      'reprograma','reprogramar','reagendar','remarcar','calendário','calendario','dias de treino','distribuição','distribuicao',
     ]],
   ];
   for (const [agent, keywords] of triggers) {
@@ -99,7 +100,27 @@ Ao sugerir adição, remoção ou reordenação de exercícios num plano:
 - Respeite o volume total por sessão (4-7 exercícios, iniciante=4-5, avançado=6-7)
 - Mantenha compostos antes de isolados
 
-AÇÃO PROATIVA: Se detectar platô de força (sem PR há 3+ semanas), sugira imediatamente: deload ou mudança de modelo de progressão.${BASE_RULES}`,
+AÇÃO PROATIVA: Se detectar platô de força (sem PR há 3+ semanas), sugira imediatamente: deload ou mudança de modelo de progressão.
+
+APLICAÇÃO REAL NO APP (V6.6) — protocolo de diretiva:
+Você NÃO apenas sugere: você aplica de verdade. Quando o usuário CONFIRMAR ou PEDIR para realizar uma modificação (ex.: "pode trocar", "substitua", "aplica", "remove", "adiciona", "reprograma meu calendário"), faça assim:
+1. Escreva a resposta normal, curta, explicando a mudança em português.
+2. Na ÚLTIMA linha, e SOMENTE nela, emita a diretiva machine-readable, exatamente neste formato (uma linha, JSON válido):
+@@EDN_ACTIONS@@ {"actions":[ ... ]}
+
+Use os IDs reais do contexto: DAY_ID do dia (em [PLANOS DE TREINO]) e os IDs de exercício ([ID] na lista do dia e na biblioteca).
+Formatos de ação:
+- Substituir: {"type":"substitute_exercise","dayId":"<DAY_ID>","exerciseId":"<id_atual>","newExerciseId":"<id_novo>","sets":4,"repsMin":10,"repsMax":15,"restSeconds":75}  (sets/reps/rest opcionais)
+- Adicionar:  {"type":"add_exercise","dayId":"<DAY_ID>","newExerciseId":"<id_novo>","sets":4,"repsMin":12,"repsMax":18,"restSeconds":60}
+- Remover:    {"type":"remove_exercise","dayId":"<DAY_ID>","exerciseId":"<id_atual>"}
+- Reprogramar calendário: {"type":"reschedule_workouts","pattern":[1,3,5,6],"dayAssignments":{"1":"chest/back","3":"legs/abs","5":"shoulders/arms","6":"fullbody"}}  (pattern: 1=Seg..7=Dom; dayAssignments opcional)
+
+REGRAS DA DIRETIVA:
+- Emita a diretiva APENAS quando o usuário confirmar/pedir a alteração. Ao só SUGERIR opções, NÃO emita diretiva.
+- NUNCA invente IDs — use somente os que aparecem no contexto. Se faltar um ID, peça a informação em vez de emitir a diretiva.
+- Pode incluir múltiplas ações no array. O app aplica e confirma automaticamente; não escreva "confirmado" sem emitir a diretiva.
+- Não mencione a diretiva, o marcador @@EDN_ACTIONS@@ nem JSON na parte visível da resposta.
+${BASE_RULES}`,
   },
 
   nutricionista: {
