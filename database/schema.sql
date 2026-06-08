@@ -924,3 +924,95 @@ insert into exercises (name, muscle_group, equipment, difficulty, description, t
  ARRAY['Amplitude muito curta (movimento de "borboleta")', 'Não fazer a contração no topo', 'Velocidade excessiva', 'Joelhos dobrados (muda o músculo recrutado)'],
  ARRAY['Gastrocnêmio', 'Sóleo (assistência)'],
  'https://www.youtube.com/watch?v=-M4-G8p1fCI');
+
+-- ================================================
+-- LEADERBOARD POPULATION (V6.6)
+-- Popula a tabela leaderboard a partir dos treinos reais.
+-- Antes desta versão nada escrevia em `leaderboard`, então a aba Ranking
+-- ficava sempre vazia. refresh_user_leaderboard calcula o breakdown
+-- (consistência/progressão/aderência/participação) e faz upsert; o trigger
+-- de conclusão de treino e a página de Ranking (RPC) mantêm os dados frescos.
+-- ================================================
+create or replace function refresh_user_leaderboard(
+  p_user_id uuid, p_period_type text, p_period_start date, p_period_end date
+) returns void as $$
+declare
+  v_weekly_freq int;
+  v_period_weeks numeric;
+  v_target_days int;
+  v_actual int;
+  v_started int;
+  v_consistency numeric;
+  v_progression numeric;
+  v_adherence numeric;
+  v_participation numeric;
+  v_total numeric;
+  v_volume numeric;
+  v_challenge int;
+begin
+  select coalesce(weekly_frequency, 3) into v_weekly_freq from profiles where id = p_user_id;
+  v_period_weeks := greatest((p_period_end - p_period_start)::numeric / 7.0, 1.0 / 7.0);
+  v_target_days  := greatest(round(v_weekly_freq * v_period_weeks), 1);
+
+  select count(*) into v_actual from workout_sessions
+   where user_id = p_user_id and started_at::date between p_period_start and p_period_end and finished_at is not null;
+  select count(*) into v_started from workout_sessions
+   where user_id = p_user_id and started_at::date between p_period_start and p_period_end;
+
+  if v_started = 0 and v_actual = 0 then
+    delete from leaderboard where user_id = p_user_id and period_type = p_period_type and period_start = p_period_start;
+    return;
+  end if;
+
+  v_consistency := least(100.0, (v_actual::numeric / v_target_days) * 100.0);
+
+  select count(*) into v_progression from (
+    select exercise_id from progressions
+     where user_id = p_user_id and recorded_at::date between p_period_start and p_period_end and set_type = 'topset'
+     group by exercise_id having max(weight_kg) > min(weight_kg)
+  ) prog;
+  v_progression := least(100.0, v_progression * 20.0);
+
+  v_adherence := case when v_started > 0 then (v_actual::numeric / v_started) * 100.0 else 0 end;
+
+  select count(*) into v_challenge from challenge_participants
+   where user_id = p_user_id and joined_at::date between p_period_start and p_period_end;
+  v_participation := least(100.0, v_challenge * 25.0);
+
+  v_total := round(v_consistency * 0.40 + v_progression * 0.30 + v_adherence * 0.20 + v_participation * 0.10, 2);
+
+  select coalesce(sum(total_volume_kg), 0) into v_volume from workout_sessions
+   where user_id = p_user_id and started_at::date between p_period_start and p_period_end and finished_at is not null;
+
+  insert into leaderboard (
+    user_id, score_total, score_consistency, score_progression, score_adherence, score_participation,
+    period_type, period_start, period_end, rank_position, workouts_count, total_volume_kg, calculated_at
+  ) values (
+    p_user_id, v_total, round(v_consistency,2), round(v_progression,2), round(v_adherence,2), round(v_participation,2),
+    p_period_type, p_period_start, p_period_end, null, v_actual, v_volume, now()
+  )
+  on conflict (user_id, period_type, period_start) do update set
+    score_total=excluded.score_total, score_consistency=excluded.score_consistency,
+    score_progression=excluded.score_progression, score_adherence=excluded.score_adherence,
+    score_participation=excluded.score_participation, period_end=excluded.period_end,
+    workouts_count=excluded.workouts_count, total_volume_kg=excluded.total_volume_kg, calculated_at=now();
+end;
+$$ language plpgsql security definer;
+
+create or replace function refresh_leaderboards_now() returns void as $$
+declare
+  w_start date := date_trunc('week',  current_date)::date;
+  w_end   date := date_trunc('week',  current_date)::date + 6;
+  m_start date := date_trunc('month', current_date)::date;
+  m_end   date := (date_trunc('month', current_date) + interval '1 month - 1 day')::date;
+  r record;
+begin
+  for r in select id from profiles loop
+    perform refresh_user_leaderboard(r.id, 'weekly',  w_start, w_end);
+    perform refresh_user_leaderboard(r.id, 'monthly', m_start, m_end);
+  end loop;
+end;
+$$ language plpgsql security definer;
+
+grant execute on function refresh_leaderboards_now() to anon, authenticated;
+grant execute on function refresh_user_leaderboard(uuid, text, date, date) to anon, authenticated;

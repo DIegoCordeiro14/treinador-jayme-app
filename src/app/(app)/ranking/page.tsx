@@ -55,6 +55,9 @@ export default function RankingPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Recalcula o ranking (semana + mês) a partir dos treinos reais antes de ler
+    try { await supabase.rpc('refresh_leaderboards_now'); } catch { /* não-fatal */ }
+
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() + 1);
