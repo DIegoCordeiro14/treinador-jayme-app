@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { X, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { padZero } from "@/lib/utils";
@@ -14,16 +14,22 @@ interface RestTimerProps {
 export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProps) {
   const [remaining, setRemaining] = useState(durationSeconds);
 
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
   useEffect(() => {
-    if (remaining <= 0) {
-      onComplete();
-      return;
-    }
     const interval = setInterval(() => {
-      setRemaining((prev) => prev - 1);
+      setRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          onCompleteRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, [remaining, onComplete]);
+  }, []);
 
   const progress = ((durationSeconds - remaining) / durationSeconds) * 100;
   const circumference = 2 * Math.PI * 54; // r=54
