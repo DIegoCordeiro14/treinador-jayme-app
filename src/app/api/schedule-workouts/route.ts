@@ -107,6 +107,9 @@ export async function POST(req: NextRequest) {
     const mealsTemplate = Array.from({ length: mealsPerDay }, (_, i) => `{"name":"Refeição ${i+1}","time":"00h","calories_pct":${Math.round(100/mealsPerDay)},"focus":"...","example":"..."}`).join(',');
 
     const daysPerWeek = plan.days_per_week;
+    // Domingo (7) é prioridade de descanso: se o início cai no domingo e o
+    // usuário não treina os 7 dias, a IA começa na segunda (1).
+    if (startWeekday === 7 && daysPerWeek <= 6) startWeekday = 1;
     const weekendRule = allowWeekends
       ? 'Pode usar qualquer dia (1-6), mas PRIORIZE domingo (7) como descanso; só use domingo se treinar 7 dias.'
       : 'NAO use sabado (6) nem domingo (7). Use SOMENTE dias 1 a 5 (Seg-Sex).';
