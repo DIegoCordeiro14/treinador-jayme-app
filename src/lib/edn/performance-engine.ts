@@ -280,10 +280,8 @@ export async function computeAthleteState(userId: string): Promise<AthleteState>
     recs.push('Seu Score começa em 0 — registre seu primeiro treino para começar a pontuar');
   if (lastSession && daysSinceLastWorkout >= 2 && sessionsCount < plannedSessions)
     recs.push('Você tem treino pendente — priorize hoje para manter a consistência');
-  if (totalLoggedDays === 0)
-    recs.push('Nenhum registro de nutrição — registre suas refeições para pontuar em Nutrição');
-  if (proteinDaysBelow >= 2)
-    recs.push('Proteína abaixo da meta — adicione uma fonte proteica em cada refeição');
+  if (wLogs.length === 0 && (!bioList || bioList.length === 0))
+    recs.push('Registre seu peso ou bioimpedância para acompanhar sua evolução');
   if (sessionsCount > 0 && cardioKm < cardioGoalKm * 0.5)
     recs.push(`Cárdio abaixo da meta semanal (${cardioKm.toFixed(1)}/${cardioGoalKm}km) — adicione uma saída de Zona 2`);
   if (plateauDetected && !recs.find(r => r.includes('platô')))
