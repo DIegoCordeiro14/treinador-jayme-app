@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     const daysPerWeek = plan.days_per_week;
     const weekendRule = allowWeekends
-      ? 'Pode usar qualquer dia da semana (1-7).'
+      ? 'Pode usar qualquer dia (1-6), mas PRIORIZE domingo (7) como descanso; só use domingo se treinar 7 dias.'
       : 'NAO use sabado (6) nem domingo (7). Use SOMENTE dias 1 a 5 (Seg-Sex).';
     const prompt = 'Voce e Jayme De Lamadrid (EDN). Monte um plano semanal.\n\n' +
       'DADOS:\n' +
@@ -161,6 +161,15 @@ export async function POST(req: NextRequest) {
 
     const result = JSON.parse(jsonMatch[0]);
     let pattern = (result.pattern as number[]).map(Number);
+
+    // Domingo (7) é SEMPRE priorizado como descanso, exceto se treina 7 dias.
+    if (daysPerWeek <= 6) {
+      const pref = allowWeekends ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+      const chosen: number[] = [];
+      for (const d of pattern) { if (d !== 7 && !chosen.includes(d)) chosen.push(d); }
+      for (const d of pref) { if (chosen.length >= daysPerWeek) break; if (!chosen.includes(d)) chosen.push(d); }
+      if (chosen.length >= daysPerWeek) pattern = chosen.slice(0, daysPerWeek);
+    }
 
     // Garante a regra de fins de semana (independente da IA), remapeando 6/7 para dias úteis livres
     if (!allowWeekends && daysPerWeek <= 5) {
