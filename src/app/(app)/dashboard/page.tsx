@@ -99,6 +99,9 @@ export default async function DashboardPage() {
   // Streak calculation
   let streak = 0;
   let checkDate = new Date(today);
+  // Se ainda não treinou hoje, conta a partir de ontem — o dia de hoje ainda não acabou.
+  const trainedToday = typedSessions.some((s) => isSameDay(parseISO(s.started_at), today));
+  if (!trainedToday) checkDate = subDays(checkDate, 1);
   while (true) {
     const hasWorkout = typedSessions.some((s) =>
       isSameDay(parseISO(s.started_at), checkDate)
