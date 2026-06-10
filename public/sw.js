@@ -1,4 +1,4 @@
-const CACHE_NAME = 'treinador-jayme-v2';
+const CACHE_NAME = 'treinador-jayme-v3';
 
 const STATIC_ASSETS = [
   '/',

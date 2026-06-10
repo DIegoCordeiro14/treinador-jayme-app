@@ -65,6 +65,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const pointsRef = useRef<GpsPoint[]>([]);
   const cumulativeRef = useRef<{ km: number; sec: number }[]>([]);
   const elapsedRef = useRef(0);
+  const pendingRestoreRef = useRef(false);
   const countingRef = useRef(false);   // relógio correndo? (false em pausa/auto-pausa)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wakeLockRef = useRef<any>(null);   // Screen Wake Lock — mantém a corrida viva
@@ -135,6 +136,10 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
       mapRef.current = m;
       setMapReady(true);
+      if (pendingRestoreRef.current && pointsRef.current.length) {
+        pointsRef.current.forEach((pp, i) => renderPoint(pp.lat, pp.lng, i === 0));
+        pendingRestoreRef.current = false;
+      }
       navigator.geolocation?.getCurrentPosition(
         (pos) => { if (mounted) m.setView([pos.coords.latitude, pos.coords.longitude], 17); },
         () => { if (mounted) m.setView([-23.5505, -46.6333], 14); },
@@ -245,6 +250,11 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     await supabase.from('active_cardio_sessions').delete().eq('id', id).then(() => {}, () => {});
   }, [supabase]);
 
+  const updateSessionStatus = useCallback(async (st: string) => {
+    if (!sessionIdRef.current) return;
+    await supabase.from('active_cardio_sessions').update({ status: st }).eq('id', sessionIdRef.current).then(() => {}, () => {});
+  }, [supabase]);
+
   // Persiste o estado ao sair (trocar de aba/minimizar/fechar) e recalcula o
   // tempo ao voltar. A corrida NÃO é finalizada — fica retomável.
   useEffect(() => {
@@ -254,6 +264,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       void flushBuffer();
       const last = pointsRef.current[pointsRef.current.length - 1];
       if (last) void syncSession(last.lat, last.lng);
+      if (statusRef.current === 'running' || statusRef.current === 'acquiring') void updateSessionStatus('paused');
     };
     const onVis = () => {
       if (document.visibilityState === 'hidden') {
@@ -273,20 +284,42 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       persistNow();
       void releaseWakeLock();
     };
-  }, [syncElapsed, flushBuffer, syncSession, requestWakeLock, releaseWakeLock]);
+  }, [syncElapsed, flushBuffer, syncSession, requestWakeLock, releaseWakeLock, updateSessionStatus]);
 
 
+  // Ao abrir, se houver uma corrida não finalizada (running/paused), restaura
+  // automaticamente em estado PAUSADO, com tempo, distância e trajeto — sem
+  // iniciar o GPS. O usuário toca em Retomar para continuar.
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase.from('active_cardio_sessions')
         .select('id, distance_km, elapsed_seconds')
-        .eq('user_id', user.id).eq('status', 'running')
+        .eq('user_id', user.id).in('status', ['running', 'paused'])
         .order('started_at', { ascending: false }).limit(1).maybeSingle();
-      if (data) setResumable({ id: data.id, distanceKm: Number(data.distance_km) || 0, elapsed: data.elapsed_seconds || 0 });
+      if (!data) return;
+      const { data: pts } = await supabase.from('cardio_gps_points')
+        .select('latitude, longitude, altitude, accuracy, speed, bearing, timestamp')
+        .eq('session_id', data.id).order('timestamp', { ascending: true });
+      sessionIdRef.current = data.id;
+      userIdRef.current = user.id;
+      const el = data.elapsed_seconds || 0;
+      const km = Number(data.distance_km) || 0;
+      elapsedRef.current = el; setElapsed(el);
+      accumRef.current = el; countingRef.current = false; runStartRef.current = Date.now();
+      distRef.current = km; setDistance(km);
+      pointsRef.current = (pts ?? []).map((pp) => ({
+        lat: Number(pp.latitude), lng: Number(pp.longitude), timestamp: new Date(pp.timestamp).getTime(),
+        altitude: pp.altitude, accuracy: pp.accuracy, speedKmh: Number(pp.speed) || 0, bearing: pp.bearing,
+      }));
+      pendingRestoreRef.current = true; // desenha o trajeto assim que o mapa estiver pronto
+      pointsRef.current.forEach((pp, i) => renderPoint(pp.lat, pp.lng, i === 0));
+      await supabase.from('active_cardio_sessions').update({ status: 'paused' }).eq('id', data.id).then(() => {}, () => {});
+      setStatus('paused');
+      toast('Corrida retomada — pausada. Toque em Retomar para continuar.');
     })();
-  }, [supabase]);
+  }, [supabase, renderPoint]);
 
   const startGps = useCallback(async () => {
     await ensureGpsEnabled();
@@ -388,11 +421,11 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   }, [resumable, supabase]);
 
   function handleStart() { setGpsError(null); setStatus('acquiring'); accumRef.current = 0; runStartRef.current = Date.now(); countingRef.current = false; elapsedRef.current = 0; setElapsed(0); void requestWakeLock(); void ensureActiveSession(); startTimer(); startGps(); }
-  function handlePause() { setStatus('paused'); stopTimer(); stopGps(); void releaseWakeLock(); }
-  function handleResume() { setGpsError(null); setStatus('acquiring'); void requestWakeLock(); startTimer(); startGps(); }
+  function handlePause() { setStatus('paused'); stopTimer(); stopGps(); void releaseWakeLock(); void updateSessionStatus('paused'); }
+  function handleResume() { setGpsError(null); setStatus('acquiring'); void requestWakeLock(); void updateSessionStatus('running'); startTimer(); startGps(); }
 
   function handleFinish() {
-    stopTimer(); stopGps(); void releaseWakeLock(); void flushBuffer();
+    stopTimer(); stopGps(); void releaseWakeLock(); void updateSessionStatus('finished'); void flushBuffer();
     const map = mapRef.current; const poly = polylineRef.current;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (map && poly && pointsRef.current.length > 1) map.fitBounds((poly as any).getBounds(), { padding: [40, 40] });
