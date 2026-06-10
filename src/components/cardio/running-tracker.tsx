@@ -165,16 +165,29 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     syncElapsed();
   }, [syncElapsed]);
 
-  // Ao retornar ao primeiro plano, recalcula o tempo decorrido pelo relógio real.
+  // Persiste o estado ao sair (trocar de aba/minimizar/fechar) e recalcula o
+  // tempo ao voltar. A corrida NÃO é finalizada — fica retomável.
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') syncElapsed(); };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onVisible);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onVisible);
+    const persistNow = () => {
+      syncElapsed();
+      if (!sessionIdRef.current) return;
+      void flushBuffer();
+      const last = pointsRef.current[pointsRef.current.length - 1];
+      if (last) void syncSession(last.lat, last.lng);
     };
-  }, [syncElapsed]);
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') persistNow();
+      else syncElapsed();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', () => syncElapsed());
+    window.addEventListener('pagehide', persistNow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pagehide', persistNow);
+      persistNow();
+    };
+  }, [syncElapsed, flushBuffer, syncSession]);
 
   const renderPoint = useCallback((lat: number, lng: number, isFirst: boolean) => {
     const L = leafletRef.current; const map = mapRef.current;

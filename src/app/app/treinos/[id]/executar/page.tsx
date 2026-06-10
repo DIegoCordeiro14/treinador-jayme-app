@@ -125,6 +125,17 @@ export default function ExecutarPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAt = useRef<Date>(new Date());
   const elapsedRef = useRef(0);
+  // Cronômetro por timestamp (imune a background) + persistência do progresso
+  const accumRef = useRef(0);
+  const runStartRef = useRef(0);
+  const countingRef = useRef(false);
+  const restoredRef = useRef(false);
+  const phaseRef = useRef<'warmup' | 'active' | 'summary'>('warmup');
+  const isPausedRef = useRef(false);
+  const syncElapsedRef = useRef<() => void>(() => {});
+  const setCountingRef = useRef<(on: boolean) => void>(() => {});
+  const saveProgressRef = useRef<() => void>(() => {});
+  const storageKey = `edn_workout_progress_${id}_${dayId}`;
 
   // V6.5 — Pilar 5: consulta o Coach EDN antes do treino
   useEffect(() => {
@@ -183,11 +194,67 @@ export default function ExecutarPage() {
     })();
   }, [dayId]);
 
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+
+  // Cronômetro por relógio real — continua certo mesmo em background.
   useEffect(() => {
-    if (phase !== 'active' || isPaused) return;
-    timerRef.current = setInterval(() => { elapsedRef.current += 1; setElapsed(elapsedRef.current); }, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    if (phase === 'active' && !isPaused) {
+      setCountingRef.current(true);
+      timerRef.current = setInterval(() => syncElapsedRef.current(), 500);
+      return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+    }
+    setCountingRef.current(false);
   }, [phase, isPaused]);
+
+  // Retoma um treino salvo (mesmo aparelho) — entra PAUSADO, sem perder nada.
+  useEffect(() => {
+    if (loading || restoredRef.current || exStates.length === 0) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved?.exStates || saved.exStates.length !== exStates.length) return;
+      setExStates(saved.exStates);
+      setCurrentIdx(Math.min(saved.currentIdx ?? 0, exStates.length - 1));
+      accumRef.current = saved.elapsed ?? 0;
+      elapsedRef.current = saved.elapsed ?? 0;
+      setElapsed(saved.elapsed ?? 0);
+      countingRef.current = false;
+      if (saved.startedAt) startedAt.current = new Date(saved.startedAt);
+      setPhase('active');
+      setIsPaused(true);
+      toast('Treino retomado — estava pausado. Toque em Retomar para continuar.');
+    } catch { /* ignore */ }
+  }, [loading, exStates.length, storageKey]);
+
+  // Auto-salva o progresso a cada mudança relevante.
+  useEffect(() => {
+    if (phase === 'active') saveProgressRef.current();
+  }, [exStates, currentIdx, isPaused, phase]);
+
+  // Ao sair (trocar de aba, minimizar, fechar) → auto-pausa e salva tudo.
+  useEffect(() => {
+    const persist = () => {
+      if (phaseRef.current !== 'active') return;
+      if (countingRef.current) setCountingRef.current(false); // congela o tempo
+      isPausedRef.current = true;
+      setIsPaused(true);
+      saveProgressRef.current();
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') persist();
+      else syncElapsedRef.current();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pagehide', persist);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pagehide', persist);
+      saveProgressRef.current(); // salva ao desmontar (navegou para outra tela)
+    };
+  }, []);
 
   const loadTip = useCallback(async (idx: number, exs: WorkoutExerciseWithExercise[], loads: Record<string, number>) => {
     if (idx >= exs.length) return;
@@ -222,15 +289,53 @@ export default function ExecutarPage() {
     }
   }, []);
 
+  // ── Cronômetro / persistência (refs sempre apontam para a versão atual) ──────
+  const syncElapsed = () => {
+    const base = accumRef.current;
+    const live = countingRef.current ? (Date.now() - runStartRef.current) / 1000 : 0;
+    elapsedRef.current = Math.floor(base + live);
+    setElapsed(elapsedRef.current);
+  };
+  const setCounting = (on: boolean) => {
+    if (on === countingRef.current) return;
+    const now = Date.now();
+    if (on) runStartRef.current = now;
+    else accumRef.current += (now - runStartRef.current) / 1000;
+    countingRef.current = on;
+    syncElapsed();
+  };
+  const saveProgress = () => {
+    if (phaseRef.current !== 'active') return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        v: 1,
+        currentIdx,
+        elapsed: elapsedRef.current,
+        isPaused: isPausedRef.current,
+        startedAt: startedAt.current.toISOString(),
+        exStates,
+      }));
+    } catch { /* ignore */ }
+  };
+  const clearProgress = () => { try { localStorage.removeItem(storageKey); } catch { /* ignore */ } };
+  syncElapsedRef.current = syncElapsed;
+  setCountingRef.current = setCounting;
+  saveProgressRef.current = saveProgress;
+
   function startWorkout() {
     startedAt.current = new Date();
+    accumRef.current = 0;
+    runStartRef.current = Date.now();
+    countingRef.current = false;
+    elapsedRef.current = 0;
+    setElapsed(0);
     setPhase('active');
     if (exercises.length > 0) loadTip(0, exercises, prevLoads);
   }
 
   function pauseWorkout() {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     setIsPaused(true);
+    saveProgressRef.current();
   }
 
   function resumeWorkout() {
@@ -239,6 +344,7 @@ export default function ExecutarPage() {
 
   function endWorkout() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setCounting(false);
     setPhase('summary');
   }
 
@@ -312,6 +418,7 @@ export default function ExecutarPage() {
     const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr }).select('id').single();
     if (error || !session) { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
     if (allSets.length > 0) await supabase.from('session_sets').insert(allSets.map(s => ({ ...(s as object), session_id: session.id })));
+    clearProgress();
     toast.success('Treino salvo!');
     router.push(`/app/treinos/${id}`);
   }
@@ -456,7 +563,7 @@ export default function ExecutarPage() {
         })}
       </div>
       <div className="flex gap-3">
-        <button onClick={() => router.back()} className="flex-1 py-3.5 rounded-xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Descartar</button>
+        <button onClick={() => { clearProgress(); router.back(); }} className="flex-1 py-3.5 rounded-xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Descartar</button>
         <button onClick={saveSession} disabled={saving} className="flex-1 py-3.5 rounded-xl bg-[#D4853A] hover:bg-[#D4853A] disabled:opacity-60 text-white font-bold flex items-center justify-center gap-2 transition-colors">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Salvar treino</>}
         </button>
