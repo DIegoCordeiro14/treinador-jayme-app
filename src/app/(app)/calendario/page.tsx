@@ -9,7 +9,7 @@ import {
   parseISO, addMonths, subMonths, getDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, formatVolume } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -224,7 +224,7 @@ export default function CalendarioPage() {
           <p className="text-xs text-zinc-500 mt-0.5">Treinos no mês</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xl font-bold text-[#D4853A]">{stats.volume > 0 ? `${(stats.volume / 1000).toFixed(1)}t` : '—'}</p>
+          <p className="text-2xl font-bold text-[#D4853A]">{stats.volume > 0 ? formatVolume(stats.volume) : '—'}</p>
           <p className="text-xs text-zinc-500 mt-0.5">Volume total</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
@@ -315,7 +315,7 @@ export default function CalendarioPage() {
                 <div key={s.id as string} className="flex items-center gap-3 text-sm">
                   <div className={cn('h-2 w-2 rounded-full shrink-0', s.finished_at ? 'bg-green-400' : 'bg-yellow-400')} />
                   <span className="text-zinc-200">{(s.workout_day as { name: string } | null)?.name ?? 'Treino livre'}</span>
-                  {(s.total_volume_kg != null) && <span className="text-zinc-500 text-xs ml-auto">{(s.total_volume_kg as number).toFixed(0)}kg</span>}
+                  {(s.total_volume_kg != null) && <span className="text-zinc-500 text-xs ml-auto">{formatVolume(s.total_volume_kg as number)}</span>}
                 </div>
               ))}
             </div>
