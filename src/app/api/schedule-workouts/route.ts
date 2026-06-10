@@ -30,6 +30,39 @@ function dayMuscleLabel(day: any): string {
   return groups.slice(0, 2).map((g: string) => muscleShort(g)).join('/');
 }
 
+// ── Distribuição EDN: espaça os dias para respeitar 48–72h de recuperação ──────
+function spreadWeekdays(n: number, allowWeekends: boolean): number[] {
+  if (n >= 7) return [1, 2, 3, 4, 5, 6, 7];
+  if (n <= 1) return [1];
+  let pool = allowWeekends ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+  if (n > pool.length) pool = [1, 2, 3, 4, 5, 6, 7];
+  const L = pool.length;
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) out.push(pool[Math.round((i * (L - 1)) / (n - 1))]);
+  const uniq = [...new Set(out)];
+  for (const d of pool) { if (uniq.length >= n) break; if (!uniq.includes(d)) uniq.push(d); }
+  return uniq.slice(0, n).sort((a, b) => a - b);
+}
+
+// Ordena os treinos para que dias CONSECUTIVOS não repitam o mesmo agrupamento.
+function orderForRecovery(dayGroups: Set<string>[]): number[] {
+  const n = dayGroups.length;
+  if (n <= 2) return dayGroups.map((_, i) => i);
+  const used = new Set<number>([0]);
+  const order = [0];
+  while (order.length < n) {
+    const prev = dayGroups[order[order.length - 1]];
+    let best = -1, bestOv = Infinity;
+    for (let i = 0; i < n; i++) {
+      if (used.has(i)) continue;
+      let ov = 0; dayGroups[i].forEach((g) => { if (prev.has(g)) ov++; });
+      if (ov < bestOv) { bestOv = ov; best = i; }
+    }
+    order.push(best); used.add(best);
+  }
+  return order;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient();
@@ -163,46 +196,29 @@ export async function POST(req: NextRequest) {
     if (!jsonMatch) return Response.json({ error: 'AI did not return valid JSON' }, { status: 422 });
 
     const result = JSON.parse(jsonMatch[0]);
-    let pattern = (result.pattern as number[]).map(Number);
 
-    // Domingo (7) é SEMPRE priorizado como descanso, exceto se treina 7 dias.
-    if (daysPerWeek <= 6) {
-      const pref = allowWeekends ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
-      const chosen: number[] = [];
-      for (const d of pattern) { if (d !== 7 && !chosen.includes(d)) chosen.push(d); }
-      for (const d of pref) { if (chosen.length >= daysPerWeek) break; if (!chosen.includes(d)) chosen.push(d); }
-      if (chosen.length >= daysPerWeek) pattern = chosen.slice(0, daysPerWeek);
-    }
-
-    // Garante a regra de fins de semana (independente da IA), remapeando 6/7 para dias úteis livres
-    if (!allowWeekends && daysPerWeek <= 5) {
-      const weekdays = [1, 2, 3, 4, 5];
-      const used = new Set<number>();
-      const fixed: number[] = [];
-      // garante o dia de início primeiro
-      const ordered = [startWeekday, ...pattern.filter((d) => d !== startWeekday)];
-      for (let day of ordered) {
-        if (day >= 6 || used.has(day)) {
-          const free = weekdays.find((w) => !used.has(w));
-          if (free !== undefined) day = free;
-        }
-        if (!used.has(day) && day <= 5) { used.add(day); fixed.push(day); }
-      }
-      // completa até daysPerWeek com dias úteis livres
-      while (fixed.length < daysPerWeek) {
-        const free = weekdays.find((w) => !used.has(w));
-        if (free === undefined) break;
-        used.add(free); fixed.push(free);
-      }
-      pattern = fixed;
-    }
-    result.pattern = pattern.sort((a: number, b: number) => a - b);
+    // ── Distribuição EDN determinística (independe do que a IA sugeriu) ─────────
+    // Grupos musculares reais de cada treino — funciona para planos montados
+    // manualmente (sem "Montar com Coach EDN") ou gerados pela IA.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dayGroups: Set<string>[] = sortedDays.map((d: any) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      new Set(((d.workout_exercises ?? []).map((we: any) => we.exercise?.muscle_group).filter(Boolean)) as string[])
+    );
+    // Ordena os treinos para evitar o mesmo agrupamento em dias seguidos
+    const order = sortedDays.length > 0 ? orderForRecovery(dayGroups) : [];
+    // Espalha os dias de treino na semana com o maior intervalo possível
+    const pattern = daysPerWeek <= 1 ? [startWeekday] : spreadWeekdays(daysPerWeek, allowWeekends);
+    result.pattern = pattern;
 
     const dayAssignments: Record<string, string> = {};
-    result.pattern.forEach((weekday: number, i: number) => {
-      const day = sortedDays[i % sortedDays.length];
-      dayAssignments[String(weekday)] = dayMuscleLabel(day);
+    pattern.forEach((weekday: number, i: number) => {
+      const planIdx = order.length > 0 ? order[i % order.length] : (i % Math.max(1, sortedDays.length));
+      dayAssignments[String(weekday)] = dayMuscleLabel(sortedDays[planIdx]);
     });
+
+    result.reasoning =
+      'Distribuição pela metodologia EDN: treinos espaçados para garantir 48–72h de recuperação por grupo muscular, evitando trabalhar o mesmo agrupamento em dias consecutivos.';
 
     const scheduleConfig = {
       start_date,
