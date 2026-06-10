@@ -66,6 +66,9 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const cumulativeRef = useRef<{ km: number; sec: number }[]>([]);
   const elapsedRef = useRef(0);
   const countingRef = useRef(false);   // relógio correndo? (false em pausa/auto-pausa)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wakeLockRef = useRef<any>(null);   // Screen Wake Lock — mantém a corrida viva
+  const statusRef = useRef<RunStatus>('idle');
   const runStartRef = useRef(0);        // epoch do início do segmento atual
   const accumRef = useRef(0);           // segundos acumulados antes do segmento atual
   const filterRef = useRef<GpsFilter>(new GpsFilter());
@@ -165,6 +168,27 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     syncElapsed();
   }, [syncElapsed]);
 
+  // Screen Wake Lock: enquanto a corrida está ativa, impede o sistema de
+  // suspender a página — o cronômetro e o GPS continuam marcando mesmo com a
+  // tela escurecida. O lock é solto pelo SO quando a tela apaga, então o
+  // re-adquirimos ao voltar ao primeiro plano (ver efeito de visibilidade).
+  const requestWakeLock = useCallback(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nav = navigator as any;
+      if (nav?.wakeLock?.request && !wakeLockRef.current) {
+        wakeLockRef.current = await nav.wakeLock.request('screen');
+        wakeLockRef.current?.addEventListener?.('release', () => { wakeLockRef.current = null; });
+      }
+    } catch { /* indisponível — ignora */ }
+  }, []);
+  const releaseWakeLock = useCallback(async () => {
+    try { await wakeLockRef.current?.release?.(); } catch { /* */ }
+    wakeLockRef.current = null;
+  }, []);
+
+  useEffect(() => { statusRef.current = status; }, [status]);
+
   const renderPoint = useCallback((lat: number, lng: number, isFirst: boolean) => {
     const L = leafletRef.current; const map = mapRef.current;
     if (!L || !map) return;
@@ -232,8 +256,13 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       if (last) void syncSession(last.lat, last.lng);
     };
     const onVis = () => {
-      if (document.visibilityState === 'hidden') persistNow();
-      else syncElapsed();
+      if (document.visibilityState === 'hidden') {
+        persistNow();
+      } else {
+        syncElapsed();
+        // O SO solta o Wake Lock quando a tela apaga — re-adquire ao voltar.
+        if (statusRef.current === 'running' || statusRef.current === 'acquiring') void requestWakeLock();
+      }
     };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('focus', () => syncElapsed());
@@ -242,8 +271,9 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('pagehide', persistNow);
       persistNow();
+      void releaseWakeLock();
     };
-  }, [syncElapsed, flushBuffer, syncSession]);
+  }, [syncElapsed, flushBuffer, syncSession, requestWakeLock, releaseWakeLock]);
 
 
   useEffect(() => {
@@ -346,7 +376,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     }));
     pointsRef.current.forEach((p, i) => renderPoint(p.lat, p.lng, i === 0));
     setResumable(null);
-    setStatus('acquiring'); startTimer(); startGps();
+    setStatus('acquiring'); void requestWakeLock(); startTimer(); startGps();
     toast.success('Corrida retomada');
   }, [resumable, supabase, renderPoint, startTimer, startGps]);
 
@@ -357,12 +387,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     setResumable(null);
   }, [resumable, supabase]);
 
-  function handleStart() { setGpsError(null); setStatus('acquiring'); accumRef.current = 0; runStartRef.current = Date.now(); countingRef.current = false; elapsedRef.current = 0; setElapsed(0); void ensureActiveSession(); startTimer(); startGps(); }
-  function handlePause() { setStatus('paused'); stopTimer(); stopGps(); }
-  function handleResume() { setGpsError(null); setStatus('acquiring'); startTimer(); startGps(); }
+  function handleStart() { setGpsError(null); setStatus('acquiring'); accumRef.current = 0; runStartRef.current = Date.now(); countingRef.current = false; elapsedRef.current = 0; setElapsed(0); void requestWakeLock(); void ensureActiveSession(); startTimer(); startGps(); }
+  function handlePause() { setStatus('paused'); stopTimer(); stopGps(); void releaseWakeLock(); }
+  function handleResume() { setGpsError(null); setStatus('acquiring'); void requestWakeLock(); startTimer(); startGps(); }
 
   function handleFinish() {
-    stopTimer(); stopGps(); void flushBuffer();
+    stopTimer(); stopGps(); void releaseWakeLock(); void flushBuffer();
     const map = mapRef.current; const poly = polylineRef.current;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (map && poly && pointsRef.current.length > 1) map.fitBounds((poly as any).getBounds(), { padding: [40, 40] });
@@ -420,13 +450,14 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       avg_hr: avgHr,
     });
     if (error) { toast.error('Erro ao salvar corrida'); setStatus('finished'); return; }
+    void releaseWakeLock();
     await cleanupSession();
     toast.success(`Corrida salva! ${km.toFixed(2)} km em ${fmtTime(elapsedRef.current)}`);
     onSaved();
     setStatus('saved');
   }
 
-  async function handleDiscard() { await cleanupSession(); onClose(); }
+  async function handleDiscard() { void releaseWakeLock(); await cleanupSession(); onClose(); }
 
   function startReplay() {
     const L = leafletRef.current; const map = mapRef.current; const pts = pointsRef.current;
