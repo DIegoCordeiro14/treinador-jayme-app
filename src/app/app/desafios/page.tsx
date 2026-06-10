@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO, differenceInDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, differenceInDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,8 @@ interface Challenge {
   user_id: string | null;
   current_value?: number;
   completed?: boolean;
+  eff_end?: string;
+  not_started?: boolean;
 }
 
 const TYPE_ICONS: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
@@ -83,30 +85,47 @@ export default function DesafiosPage() {
     const withProgress = (challenges ?? []).map((c: Record<string, unknown>) => {
       const part = myMap.get(c.id as string);
       let currentValue = part?.current_value ?? 0;
+      let effEnd: string | undefined;
+      let notStarted = false;
 
-      // Auto-calculate progress for personal challenges
+      // Desafios pessoais: a contagem só começa no PRIMEIRO treino do usuário
+      // após a criação do desafio (start_date). Antes disso, fica "aguardando".
       if (c.user_id === user.id && c.tracking_type && !part?.completed) {
-        const range = periodRange(c.tracking_period as string, c.start_date as string);
-        const rangeEnd = new Date() < range.end ? new Date() : range.end;
-        const periodSessions = allSessions.filter(s => {
-          const d = parseISO(s.started_at);
-          return d >= range.start && d <= rangeEnd;
-        });
-
-        if (c.tracking_type === 'sessions_count') {
-          currentValue = periodSessions.length;
-        } else if (c.tracking_type === 'volume_kg') {
-          currentValue = Math.round(periodSessions.reduce((s, ws) => s + (ws.total_volume_kg ?? 0), 0));
-        } else if (c.tracking_type === 'days_active') {
-          const uniqueDays = new Set(periodSessions.map(s => s.started_at.slice(0, 10)));
-          currentValue = uniqueDays.size;
+        const anchor = startOfDay(parseISO(c.start_date as string));
+        const after = allSessions
+          .filter(s => parseISO(s.started_at) >= anchor)
+          .sort((a, b) => parseISO(a.started_at).getTime() - parseISO(b.started_at).getTime());
+        const first = after[0];
+        if (!first) {
+          notStarted = true;
+          currentValue = 0;
+        } else {
+          const periodDays = (c.tracking_period as string) === 'monthly' ? 30 : 7;
+          const effStart = startOfDay(parseISO(first.started_at));
+          const end = addDays(effStart, periodDays - 1);
+          effEnd = format(end, 'yyyy-MM-dd');
+          const today = new Date();
+          const rangeEnd = today < end ? today : end;
+          const periodSessions = allSessions.filter(s => {
+            const d = parseISO(s.started_at);
+            return d >= effStart && d <= rangeEnd;
+          });
+          if (c.tracking_type === 'sessions_count') {
+            currentValue = periodSessions.length;
+          } else if (c.tracking_type === 'volume_kg') {
+            currentValue = Math.round(periodSessions.reduce((s, ws) => s + (ws.total_volume_kg ?? 0), 0));
+          } else if (c.tracking_type === 'days_active') {
+            currentValue = new Set(periodSessions.map(s => s.started_at.slice(0, 10))).size;
+          }
         }
       }
 
       return {
         ...(c as unknown as Challenge),
         current_value: currentValue,
-        completed: part?.completed ?? (currentValue >= (c.target_value as number)),
+        eff_end: effEnd,
+        not_started: notStarted,
+        completed: part?.completed ?? (!notStarted && currentValue >= (c.target_value as number)),
       };
     });
 
@@ -247,7 +266,8 @@ export default function DesafiosPage() {
 }
 
 function ChallengeCard({ challenge: c, onJoin }: { challenge: Challenge; onJoin?: () => void }) {
-  const daysLeft = differenceInDays(parseISO(c.end_date), new Date());
+  const endRef = c.not_started ? null : parseISO(c.eff_end ?? c.end_date);
+  const daysLeft = endRef ? differenceInDays(endRef, new Date()) : 0;
   const progress = c.target_value > 0 ? Math.min(100, ((c.current_value ?? 0) / c.target_value) * 100) : 0;
   const isParticipating = c.current_value !== undefined;
   const meta = TYPE_ICONS[c.type] ?? TYPE_ICONS.consistency;
@@ -301,8 +321,14 @@ function ChallengeCard({ challenge: c, onJoin }: { challenge: Challenge; onJoin?
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-zinc-600">
           <Clock className="h-3 w-3" />
-          <span>{daysLeft > 0 ? daysLeft + ' dias restantes' : 'Encerrado'}</span>
-          <span>· ate {format(parseISO(c.end_date), 'dd/MM', { locale: ptBR })}</span>
+          {c.not_started ? (
+            <span className="text-[#D4853A]">Começa no seu primeiro treino</span>
+          ) : (
+            <>
+              <span>{daysLeft > 0 ? daysLeft + ' dias restantes' : 'Encerrado'}</span>
+              <span>· ate {format(endRef as Date, 'dd/MM', { locale: ptBR })}</span>
+            </>
+          )}
         </div>
         {onJoin && daysLeft > 0 && (
           <Button size="sm" onClick={onJoin} className="h-7 text-xs gap-1">

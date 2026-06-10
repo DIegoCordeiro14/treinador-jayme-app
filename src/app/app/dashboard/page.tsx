@@ -24,6 +24,7 @@ import {
   getGreeting,
   formatDuration,
   formatWeight,
+  formatVolume,
 } from "@/lib/utils";
 import {
   startOfWeek,
@@ -166,7 +167,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatsCard label="Sequência" value={`${streak} ${streak === 1 ? "dia" : "dias"}`} icon={<Flame className="h-4 w-4" />} color="orange" />
-        <StatsCard label="Volume Semanal" value={weeklyVolume > 0 ? formatWeight(weeklyVolume) : "0kg"} icon={<BarChart2 className="h-4 w-4" />} color="blue" />
+        <StatsCard label="Volume Semanal" value={formatVolume(weeklyVolume)} icon={<BarChart2 className="h-4 w-4" />} color="blue" />
         <StatsCard label="Treinos no Mês" value={monthlySessions.length} icon={<Calendar className="h-4 w-4" />} color="green" />
         <StatsCard label="Peso Atual" value={latestWeightKg ? formatWeight(latestWeightKg) : "—"} icon={<Scale className="h-4 w-4" />} color="purple" />
       </div>

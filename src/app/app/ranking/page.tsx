@@ -89,10 +89,10 @@ export default function RankingPage() {
 
   const radarData = myEntry
     ? [
-        { subject: 'Consistência', value: myEntry.score_consistency },
-        { subject: 'Progressão', value: myEntry.score_progression },
-        { subject: 'Aderência', value: myEntry.score_adherence },
-        { subject: 'Participação', value: myEntry.score_participation },
+        { subject: 'Consist.', value: myEntry.score_consistency },
+        { subject: 'Progr.', value: myEntry.score_progression },
+        { subject: 'Ader.', value: myEntry.score_adherence },
+        { subject: 'Particip.', value: myEntry.score_participation },
       ]
     : [];
 
@@ -122,9 +122,9 @@ export default function RankingPage() {
               <p className="text-xs text-zinc-500 mt-0.5">Score Total (semana)</p>
             </div>
             <ResponsiveContainer width="100%" height={120}>
-              <RadarChart data={radarData}>
+              <RadarChart data={radarData} margin={{ top: 12, right: 42, bottom: 12, left: 42 }} outerRadius="70%">
                 <PolarGrid stroke="#2C3E4A" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#607D8B', fontSize: 9 }} />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#9CA3AF', fontSize: 9 }} />
                 <Radar dataKey="value" stroke="#D4853A" fill="#D4853A" fillOpacity={0.2} />
                 <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', fontSize: 11 }} />
               </RadarChart>

@@ -24,6 +24,7 @@ import {
   getGreeting,
   formatDuration,
   formatWeight,
+  formatVolume,
 } from "@/lib/utils";
 import {
   startOfWeek,
@@ -195,7 +196,7 @@ export default async function DashboardPage() {
         />
         <StatsCard
           label="Volume Semanal"
-          value={weeklyVolume > 0 ? formatWeight(weeklyVolume) : "0kg"}
+          value={formatVolume(weeklyVolume)}
           icon={<BarChart2 className="h-4 w-4" />}
           color="blue"
         />

@@ -9,6 +9,13 @@ export function formatWeight(kg: number): string {
   return `${kg.toFixed(1)}kg`;
 }
 
+// Volume total abreviado: 16465 -> "16,5k kg"; 850 -> "850 kg".
+export function formatVolume(kg: number): string {
+  if (!kg || kg <= 0) return '0 kg';
+  if (kg >= 1000) return `${(kg / 1000).toFixed(1).replace('.', ',')}k kg`;
+  return `${Math.round(kg)} kg`;
+}
+
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);

@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
 
     const generated: any[] = JSON.parse(jsonMatch[0]);
     const now = new Date();
-    const startDate = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    // A contagem só começa no primeiro treino do usuário após a criação (ver página de Desafios).
+    const startDate = format(now, 'yyyy-MM-dd');
 
     const toInsert = generated.map((c) => ({
       user_id: user.id,

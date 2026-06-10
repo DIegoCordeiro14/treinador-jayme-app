@@ -139,7 +139,7 @@ export default function RankingPage() {
               ))}
             </div>
             <ResponsiveContainer width="100%" height={160}>
-              <RadarChart data={radarData}>
+              <RadarChart data={radarData} margin={{ top: 14, right: 44, bottom: 14, left: 44 }} outerRadius="68%">
                 <PolarGrid stroke="#2C3E4A" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#607D8B', fontSize: 8 }} />
                 <Radar dataKey="value" stroke="#D4853A" fill="#D4853A" fillOpacity={0.2} />
