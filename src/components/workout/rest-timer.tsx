@@ -22,14 +22,47 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
   // mas ao voltar recalculamos pelo relógio real.
   const endAtRef = useRef<number>(Date.now() + durationSeconds * 1000);
   const doneRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const audioCtxRef = useRef<any>(null);
+  const prevRemRef = useRef<number>(durationSeconds);
+
+  // Bip curto via Web Audio (sem arquivo). Aviso nos 10s finais.
+  function beep(freq: number, durMs: number, volume = 0.18) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(volume, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + durMs / 1000);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now + durMs / 1000 + 0.02);
+    } catch { /* áudio indisponível — ignora */ }
+  }
 
   useEffect(() => {
     endAtRef.current = Date.now() + durationSeconds * 1000;
     doneRef.current = false;
+    prevRemRef.current = durationSeconds;
 
     const tick = () => {
       const rem = Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000));
       setRemaining(rem);
+      // Aviso sonoro na contagem regressiva final
+      if (rem !== prevRemRef.current) {
+        if (rem === 10) { beep(880, 180); try { navigator.vibrate?.(120); } catch { /* */ } }
+        else if (rem === 3 || rem === 2 || rem === 1) beep(700, 120);
+        else if (rem === 0) { beep(1040, 450, 0.22); try { navigator.vibrate?.([90, 60, 90]); } catch { /* */ } }
+        prevRemRef.current = rem;
+      }
       if (rem <= 0 && !doneRef.current) {
         doneRef.current = true;
         onCompleteRef.current();
