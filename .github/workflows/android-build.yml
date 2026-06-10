@@ -81,6 +81,7 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+            <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
               <queries>
                   <package android:name="com.google.android.apps.healthdata" />
               </queries>
@@ -115,6 +116,47 @@ jobs:
           open(sp, 'w').write(st)
           print('styles.xml atualizado')
           EOF
+
+      - name: Pedir isencao de otimizacao de bateria (1a execucao)
+        run: |
+          pkgdir=android/app/src/main/java/com/coachedn/app
+          mkdir -p "$pkgdir"
+          cat > "$pkgdir/MainActivity.java" <<'EOF'
+          package com.coachedn.app;
+
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.PowerManager;
+          import android.provider.Settings;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  try {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          SharedPreferences prefs = getSharedPreferences("coach_edn", Context.MODE_PRIVATE);
+                          if (!prefs.getBoolean("battery_opt_asked", false)) {
+                              PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                              String pkg = getPackageName();
+                              if (pm != null && !pm.isIgnoringBatteryOptimizations(pkg)) {
+                                  Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                                  i.setData(Uri.parse("package:" + pkg));
+                                  startActivity(i);
+                              }
+                              prefs.edit().putBoolean("battery_opt_asked", true).apply();
+                          }
+                      }
+                  } catch (Exception e) { /* ignore */ }
+              }
+          }
+          EOF
+          echo "MainActivity.java escrito:"; cat "$pkgdir/MainActivity.java"
 
       - name: Set version from run number (OTA)
         run: |
