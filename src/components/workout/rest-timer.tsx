@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { X, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { padZero } from "@/lib/utils";
@@ -17,19 +17,38 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
+  // Fim absoluto (timestamp). Assim o tempo continua correto mesmo se a aba/app
+  // for para segundo plano ou a tela apagar — o setInterval é congelado pelo SO,
+  // mas ao voltar recalculamos pelo relógio real.
+  const endAtRef = useRef<number>(Date.now() + durationSeconds * 1000);
+  const doneRef = useRef(false);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          onCompleteRef.current();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    endAtRef.current = Date.now() + durationSeconds * 1000;
+    doneRef.current = false;
+
+    const tick = () => {
+      const rem = Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000));
+      setRemaining(rem);
+      if (rem <= 0 && !doneRef.current) {
+        doneRef.current = true;
+        onCompleteRef.current();
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 250);
+    // Recalcula imediatamente quando o app volta ao primeiro plano
+    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [durationSeconds]);
 
   const progress = ((durationSeconds - remaining) / durationSeconds) * 100;
   const circumference = 2 * Math.PI * 54; // r=54
@@ -39,14 +58,16 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
   const seconds = remaining % 60;
 
   const urgencyColor =
-    remaining <= 10
-      ? "#8B5A5A"
-      : remaining <= 30
-      ? "#A67C3A"
-      : "#D4853A";
+    remaining <= 10 ? "#8B5A5A" : remaining <= 30 ? "#A67C3A" : "#D4853A";
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-8 animate-in fade-in-0">
+    <div
+      className="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center gap-8 animate-in fade-in-0"
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+      }}
+    >
       <div>
         <h2 className="text-center text-xl font-bold text-zinc-100 mb-1">Descanso</h2>
         <p className="text-center text-sm text-zinc-400">Próxima série em breve</p>
@@ -55,34 +76,16 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
       {/* Circular progress */}
       <div className="relative flex items-center justify-center">
         <svg width="140" height="140" className="-rotate-90">
-          {/* Background circle */}
+          <circle cx="70" cy="70" r="54" fill="none" stroke="#1C2933" strokeWidth="8" />
           <circle
-            cx="70"
-            cy="70"
-            r="54"
-            fill="none"
-            stroke="#1C2933"
-            strokeWidth="8"
-          />
-          {/* Progress circle */}
-          <circle
-            cx="70"
-            cy="70"
-            r="54"
-            fill="none"
-            stroke={urgencyColor}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
+            cx="70" cy="70" r="54" fill="none"
+            stroke={urgencyColor} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
             style={{ transition: "stroke-dashoffset 1s linear, stroke 0.5s ease" }}
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span
-            className="text-4xl font-bold font-mono tabular-nums"
-            style={{ color: urgencyColor }}
-          >
+          <span className="text-4xl font-bold font-mono tabular-nums" style={{ color: urgencyColor }}>
             {padZero(minutes)}:{padZero(seconds)}
           </span>
           <span className="text-xs text-zinc-500 mt-1">

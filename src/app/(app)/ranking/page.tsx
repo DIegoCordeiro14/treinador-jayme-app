@@ -58,13 +58,16 @@ export default function RankingPage() {
     // Recalcula o ranking (semana + mês) a partir dos treinos reais antes de ler
     try { await supabase.rpc('refresh_leaderboards_now'); } catch { /* não-fatal */ }
 
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const fmtLocal = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay() + 1);
+    const dow = now.getDay();
+    const diffToMonday = dow === 0 ? -6 : 1 - dow;
+    const weekStartStr = fmtLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday));
 
     const [{ data: weekData }, { data: ednData }] = await Promise.all([
       supabase.from('leaderboard').select('*, profiles(name, avatar_url)')
-        .eq('period_type', 'weekly').gte('period_start', weekStart.toISOString().split('T')[0])
+        .eq('period_type', 'weekly').gte('period_start', weekStartStr)
         .order('score_total', { ascending: false }).limit(20),
       supabase.from('user_xp').select('*, profiles(name, avatar_url)')
         .order('edn_score', { ascending: false }).limit(50),

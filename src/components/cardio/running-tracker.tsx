@@ -65,6 +65,9 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const pointsRef = useRef<GpsPoint[]>([]);
   const cumulativeRef = useRef<{ km: number; sec: number }[]>([]);
   const elapsedRef = useRef(0);
+  const countingRef = useRef(false);   // relógio correndo? (false em pausa/auto-pausa)
+  const runStartRef = useRef(0);        // epoch do início do segmento atual
+  const accumRef = useRef(0);           // segundos acumulados antes do segmento atual
   const filterRef = useRef<GpsFilter>(new GpsFilter());
   const autoPausedRef = useRef(false);
   const autoPauseRef = useRef<AutoPause | null>(null);
@@ -145,6 +148,34 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     };
   }, []);
 
+  // Cronômetro baseado em RELÓGIO REAL: imune a background/tela apagada.
+  // O setInterval pode ser congelado pelo SO; ao voltar, recalculamos por timestamp.
+  const syncElapsed = useCallback(() => {
+    const base = accumRef.current;
+    const live = countingRef.current ? (Date.now() - runStartRef.current) / 1000 : 0;
+    elapsedRef.current = Math.floor(base + live);
+    setElapsed(elapsedRef.current);
+  }, []);
+  const setCounting = useCallback((on: boolean) => {
+    if (on === countingRef.current) return;
+    const now = Date.now();
+    if (on) { runStartRef.current = now; }
+    else { accumRef.current += (now - runStartRef.current) / 1000; }
+    countingRef.current = on;
+    syncElapsed();
+  }, [syncElapsed]);
+
+  // Ao retornar ao primeiro plano, recalcula o tempo decorrido pelo relógio real.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') syncElapsed(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [syncElapsed]);
+
   const renderPoint = useCallback((lat: number, lng: number, isFirst: boolean) => {
     const L = leafletRef.current; const map = mapRef.current;
     if (!L || !map) return;
@@ -186,11 +217,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
 
   const syncSession = useCallback(async (lat: number, lng: number) => {
     if (!sessionIdRef.current) return;
+    syncElapsed();
     await supabase.from('active_cardio_sessions').update({
       elapsed_seconds: elapsedRef.current, distance_km: Math.round(distRef.current * 1000) / 1000,
       last_latitude: lat, last_longitude: lng, last_sync: new Date().toISOString(),
     }).eq('id', sessionIdRef.current);
-  }, [supabase]);
+  }, [supabase, syncElapsed]);
 
   const cleanupSession = useCallback(async () => {
     const id = sessionIdRef.current;
@@ -218,14 +250,15 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     filterRef.current.reset();
     autoPauseRef.current = new AutoPause({
       pauseAfterSec: 15, resumeSpeedKmh: 3,
-      onPause: () => { autoPausedRef.current = true; setAutoPaused(true); },
-      onResume: () => { autoPausedRef.current = false; setAutoPaused(false); },
+      onPause: () => { autoPausedRef.current = true; setAutoPaused(true); setCounting(false); },
+      onResume: () => { autoPausedRef.current = false; setAutoPaused(false); setCounting(true); },
     });
     try {
       locHandleRef.current = await startTracking({
         notificationTitle: 'Coach EDN', notificationText: 'Corrida em andamento',
         onError: (msg) => setGpsError(msg),
         onPoint: (raw) => {
+          syncElapsed();
           const clean = filterRef.current.push(raw);
           setGpsAccuracy(raw.accuracy != null ? Math.round(raw.accuracy) : null);
           if (!clean.accepted) return;
@@ -265,7 +298,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       setGpsError(e instanceof Error ? e.message : 'Falha ao iniciar o GPS');
       setStatus('idle');
     }
-  }, [renderPoint, flushBuffer, syncSession]);
+  }, [renderPoint, flushBuffer, syncSession, syncElapsed, setCounting]);
 
   const stopGps = useCallback(async () => {
     await locHandleRef.current?.stop();
@@ -273,14 +306,14 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   }, []);
 
   const startTimer = useCallback(() => {
-    timerRef.current = setInterval(() => {
-      if (autoPausedRef.current) return;
-      elapsedRef.current += 1; setElapsed(elapsedRef.current);
-    }, 1000);
-  }, []);
+    setCounting(true);
+    if (timerRef.current) return;
+    timerRef.current = setInterval(syncElapsed, 500);
+  }, [setCounting, syncElapsed]);
   const stopTimer = useCallback(() => {
+    setCounting(false);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-  }, []);
+  }, [setCounting]);
 
   const resumePersistedSession = useCallback(async () => {
     if (!resumable) return;
@@ -291,6 +324,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     const { data: { user } } = await supabase.auth.getUser();
     userIdRef.current = user?.id ?? null;
     elapsedRef.current = resumable.elapsed; setElapsed(resumable.elapsed);
+    accumRef.current = resumable.elapsed; countingRef.current = false; runStartRef.current = Date.now();
     distRef.current = resumable.distanceKm; setDistance(resumable.distanceKm);
     pointsRef.current = (pts ?? []).map((p) => ({
       lat: Number(p.latitude), lng: Number(p.longitude), timestamp: new Date(p.timestamp).getTime(),
@@ -309,7 +343,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     setResumable(null);
   }, [resumable, supabase]);
 
-  function handleStart() { setGpsError(null); setStatus('acquiring'); void ensureActiveSession(); startTimer(); startGps(); }
+  function handleStart() { setGpsError(null); setStatus('acquiring'); accumRef.current = 0; runStartRef.current = Date.now(); countingRef.current = false; elapsedRef.current = 0; setElapsed(0); void ensureActiveSession(); startTimer(); startGps(); }
   function handlePause() { setStatus('paused'); stopTimer(); stopGps(); }
   function handleResume() { setGpsError(null); setStatus('acquiring'); startTimer(); startGps(); }
 

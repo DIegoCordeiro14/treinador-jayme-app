@@ -14,7 +14,7 @@ interface HeaderProps {
 
 export function Header({ profile, title, onOpenDrawer }: HeaderProps) {
   return (
-    <header className="md:hidden sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-sm border-b border-white/[0.07]">
+    <header className="md:hidden sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-sm border-b border-white/[0.07] pt-safe">
       <div className="flex items-center justify-between px-4 py-3">
         {/* Hamburger */}
         <button
