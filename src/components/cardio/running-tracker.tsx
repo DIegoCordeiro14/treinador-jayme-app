@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -50,7 +50,8 @@ async function ensureGpsEnabled(): Promise<void> {
 interface Props { onClose: () => void; onSaved: () => void; }
 
 export default function RunningTracker({ onClose, onSaved }: Props) {
-  const supabase = createClient();
+  // Instância única por montagem — evita que efeitos com [supabase] re-executem a cada render.
+  const supabase = useMemo(() => createClient(), []);
 
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
@@ -290,15 +291,20 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   // Ao abrir, se houver uma corrida não finalizada (running/paused), restaura
   // automaticamente em estado PAUSADO, com tempo, distância e trajeto — sem
   // iniciar o GPS. O usuário toca em Retomar para continuar.
+  const restoredOnceRef = useRef(false);
   useEffect(() => {
+    if (restoredOnceRef.current) return;
+    restoredOnceRef.current = true;
     (async () => {
+      // Nunca restaura por cima de uma corrida já em andamento nesta tela.
+      if (statusRef.current !== 'idle') return;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase.from('active_cardio_sessions')
         .select('id, distance_km, elapsed_seconds')
         .eq('user_id', user.id).in('status', ['running', 'paused'])
         .order('started_at', { ascending: false }).limit(1).maybeSingle();
-      if (!data) return;
+      if (!data || statusRef.current !== 'idle') return;
       const { data: pts } = await supabase.from('cardio_gps_points')
         .select('latitude, longitude, altitude, accuracy, speed, bearing, timestamp')
         .eq('session_id', data.id).order('timestamp', { ascending: true });
