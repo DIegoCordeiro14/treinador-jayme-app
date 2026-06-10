@@ -333,8 +333,11 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     filterRef.current.reset();
     autoPauseRef.current = new AutoPause({
       pauseAfterSec: 15, resumeSpeedKmh: 3,
-      onPause: () => { autoPausedRef.current = true; setAutoPaused(true); setCounting(false); },
-      onResume: () => { autoPausedRef.current = false; setAutoPaused(false); setCounting(true); },
+      // Parado: NÃO para o cronômetro — apenas suspende o acúmulo de distância
+      // (o tempo e a corrida continuam correndo). A distância é bloqueada via
+      // autoPausedRef no onPoint.
+      onPause: () => { autoPausedRef.current = true; setAutoPaused(true); },
+      onResume: () => { autoPausedRef.current = false; setAutoPaused(false); },
     });
     try {
       locHandleRef.current = await startTracking({
@@ -381,7 +384,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       setGpsError(e instanceof Error ? e.message : 'Falha ao iniciar o GPS');
       setStatus('idle');
     }
-  }, [renderPoint, flushBuffer, syncSession, syncElapsed, setCounting]);
+  }, [renderPoint, flushBuffer, syncSession, syncElapsed]);
 
   const stopGps = useCallback(async () => {
     await locHandleRef.current?.stop();
@@ -616,7 +619,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
         {autoPaused && status === 'running' && (
           <div className="absolute inset-x-0 top-9 z-20 flex items-center justify-center gap-2 bg-yellow-500/15 backdrop-blur-sm py-1.5">
             <Pause className="h-3.5 w-3.5 text-yellow-400" />
-            <p className="text-[11px] text-yellow-300 font-semibold">Auto-pausa — sem movimento</p>
+            <p className="text-[11px] text-yellow-300 font-semibold">Parado — distância em espera (tempo segue)</p>
           </div>
         )}
         {mapReady && (
