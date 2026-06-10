@@ -332,7 +332,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     setGpsAccuracy(null);
     filterRef.current.reset();
     autoPauseRef.current = new AutoPause({
-      pauseAfterSec: 15, resumeSpeedKmh: 3,
+      pauseAfterSec: 120, resumeSpeedKmh: 3,
       // Parado: NÃO para o cronômetro — apenas suspende o acúmulo de distância
       // (o tempo e a corrida continuam correndo). A distância é bloqueada via
       // autoPausedRef no onPoint.
