@@ -95,6 +95,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [analysis, setAnalysis] = useState<RunAnalysis | null>(null);
+  const [gpsQuality, setGpsQuality] = useState<{ captured: number; valid: number; discarded: number; spikes: number; rawKm: number; confidence: number; label: string } | null>(null);
   const [briefing, setBriefing] = useState<string | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [stravaRefInput, setStravaRefInput] = useState('');
@@ -429,7 +430,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     setResumable(null);
   }, [resumable, supabase]);
 
-  function handleStart() { setGpsError(null); setStatus('acquiring'); accumRef.current = 0; runStartRef.current = Date.now(); countingRef.current = false; elapsedRef.current = 0; setElapsed(0); void requestWakeLock(); void ensureActiveSession(); startTimer(); startGps(); }
+  function handleStart() { setGpsError(null); setGpsQuality(null); setStatus('acquiring'); accumRef.current = 0; runStartRef.current = Date.now(); countingRef.current = false; elapsedRef.current = 0; setElapsed(0); void requestWakeLock(); void ensureActiveSession(); startTimer(); startGps(); }
   function handlePause() { setStatus('paused'); stopTimer(); stopGps(); void releaseWakeLock(); void updateSessionStatus('paused'); }
   function handleResume() { setGpsError(null); setStatus('acquiring'); void requestWakeLock(); void updateSessionStatus('running'); startTimer(); startGps(); }
 
@@ -446,6 +447,12 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     }
     const a = analyzeRun(samples);
     setAnalysis(a);
+    // V6.7 — relatório de qualidade do GPS (dados já validados pelo filtro)
+    const qs = filterRef.current.getStats();
+    setGpsQuality({
+      captured: qs.captured, valid: qs.valid, discarded: qs.discarded, spikes: qs.spikes,
+      rawKm: qs.rawKm, confidence: filterRef.current.getConfidence(), label: filterRef.current.getConfidenceLabel(),
+    });
     void fetchBriefing(a.sprintCount);
     setStatus('finished');
   }
@@ -748,6 +755,28 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
               <button onClick={startReplay} disabled={replaying} className="w-full py-2.5 rounded-xl border border-zinc-700 text-zinc-200 text-sm font-medium hover:bg-zinc-800 disabled:opacity-60 flex items-center justify-center gap-2">
                 <Play className="h-4 w-4" /> {replaying ? 'Reproduzindo…' : 'Ver replay da rota'}
               </button>
+            )}
+
+            {gpsQuality && (
+              <div className="rounded-xl bg-zinc-800/50 px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Qualidade do GPS</p>
+                  <span className={cn('text-[11px] font-bold px-2 py-0.5 rounded-full',
+                    gpsQuality.confidence >= 95 ? 'bg-green-500/15 text-green-400' :
+                    gpsQuality.confidence >= 85 ? 'bg-emerald-500/15 text-emerald-300' :
+                    gpsQuality.confidence >= 70 ? 'bg-yellow-500/15 text-yellow-300' : 'bg-red-500/15 text-red-400')}>
+                    {gpsQuality.label} · {gpsQuality.confidence}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                  <span className="text-zinc-500">Pontos capturados</span><span className="text-zinc-300 text-right tabular-nums">{gpsQuality.captured}</span>
+                  <span className="text-zinc-500">Pontos válidos</span><span className="text-zinc-300 text-right tabular-nums">{gpsQuality.valid}</span>
+                  <span className="text-zinc-500">Pontos descartados</span><span className="text-zinc-300 text-right tabular-nums">{gpsQuality.discarded}</span>
+                  <span className="text-zinc-500">GPS spikes corrigidos</span><span className="text-zinc-300 text-right tabular-nums">{gpsQuality.spikes}</span>
+                  <span className="text-zinc-500">Distância bruta</span><span className="text-zinc-300 text-right tabular-nums">{gpsQuality.rawKm.toFixed(2)} km</span>
+                  <span className="text-zinc-500">Distância corrigida</span><span className="text-zinc-100 font-semibold text-right tabular-nums">{distance.toFixed(2)} km</span>
+                </div>
+              </div>
             )}
 
             {analysis && (

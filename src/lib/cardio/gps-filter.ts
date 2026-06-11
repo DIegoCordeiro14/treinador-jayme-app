@@ -11,6 +11,16 @@
  * apenas o estado anterior, adequado para uso ao vivo no tracker.
  */
 
+import {
+  GpsAnomalyDetector,
+  bearingDelta,
+  newQualityStats,
+  routeConfidence,
+  confidenceLabel,
+  type GpsQualityStats,
+  type RunModality,
+} from './gps-anomaly-detector';
+
 export interface RawPoint {
   latitude: number;
   longitude: number;
@@ -31,7 +41,7 @@ export interface CleanPoint extends RawPoint {
 // ── Limiares (nível Garmin/Strava) ────────────────────────────────────────────
 export const MAX_ACCURACY_M = 35;     // V7.3: ignora accuracy > 35m
 export const PROVISIONAL_ACCURACY_M = 150; // fix inicial grosseiro aceito só para destravar a UI
-export const MAX_SPEED_KMH = 30;      // V7.3: ignora corrida > 30 km/h
+export const MAX_SPEED_KMH = 24;      // V6.7: limite fisiológico de corrida (km/h)
 export const MAX_ACCEL_KMH_S = 8;     // variação de velocidade fisicamente plausível
 export const MIN_MOVE_KM = 0.0015;    // 1.5 m — abaixo disso é tremor parado
 
@@ -84,11 +94,32 @@ export class GpsFilter {
   private provisional = false;
   private kLat = new Kalman1D(2.5);
   private kLng = new Kalman1D(2.5);
+  private anomaly: GpsAnomalyDetector;
+  private stats: GpsQualityStats = newQualityStats();
 
-  reset() { this.last = null; this.provisional = false; this.kLat.reset(); this.kLng.reset(); }
+  constructor(modality: RunModality = 'running') {
+    this.anomaly = new GpsAnomalyDetector(modality);
+  }
+
+  reset() {
+    this.last = null; this.provisional = false;
+    this.kLat.reset(); this.kLng.reset();
+    this.anomaly.reset(); this.stats = newQualityStats();
+  }
+
+  /** Estatísticas de qualidade da rota (módulos 8/9). */
+  getStats(): GpsQualityStats { return { ...this.stats }; }
+  getConfidence(): number { return routeConfidence(this.stats); }
+  getConfidenceLabel() { return confidenceLabel(this.getConfidence()); }
+
+  private markValid(raw: RawPoint) {
+    this.stats.valid++;
+    if (raw.accuracy != null) { this.stats.sumAccuracy += raw.accuracy; this.stats.accuracyCount++; }
+  }
 
   /** Processa um ponto cru e devolve a versão limpa (accepted=true/false). */
   push(raw: RawPoint): CleanPoint {
+    this.stats.captured++;
     // 1) Filtro de precisão
     if (raw.accuracy != null && raw.accuracy > MAX_ACCURACY_M) {
       // Fix grosseiro no início: aceita provisoriamente (até PROVISIONAL_ACCURACY_M)
@@ -98,6 +129,7 @@ export class GpsFilter {
         const lngP = this.kLng.filter(raw.longitude, raw.accuracy);
         const prov: CleanPoint = { ...raw, latitude: latP, longitude: lngP, speedKmh: 0, segmentKm: 0, accepted: true };
         this.last = prov; this.provisional = true;
+        this.markValid(raw);
         return prov;
       }
       return this.reject(raw, `accuracy ${raw.accuracy?.toFixed(0)}m > ${MAX_ACCURACY_M}m`);
@@ -115,12 +147,14 @@ export class GpsFilter {
       this.provisional = false;
       const reanchor: CleanPoint = { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
       this.last = reanchor;
+      this.markValid(raw);
       return reanchor;
     }
 
     if (!this.last) {
       const first: CleanPoint = { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
       this.last = first;
+      this.markValid(raw);
       return first;
     }
 
@@ -132,28 +166,39 @@ export class GpsFilter {
     // acumula entre ticks até cruzar MIN_MOVE_KM (corrige taxas altas de
     // pontos, ex. ~3 Hz, em que cada tick anda menos de 1,5 m).
     if (segKm < MIN_MOVE_KM) {
+      this.markValid(raw);
       return { ...smoothed, speedKmh: 0, segmentKm: 0, accepted: true };
     }
 
-    // 2) Filtro de velocidade
-    if (speedKmh > MAX_SPEED_KMH) {
-      return this.reject(raw, `velocidade ${speedKmh.toFixed(0)} km/h > ${MAX_SPEED_KMH}`);
+    // Distância "bruta" (inclui o que será rejeitado) p/ o relatório de qualidade
+    this.stats.rawKm += segKm;
+
+    const newBearing = raw.bearing ?? bearingDeg(this.last.latitude, this.last.longitude, lat, lng);
+    const bChange = bearingDelta(this.last.bearing ?? null, newBearing);
+
+    // Módulos 2–5: velocidade fisiológica + aceleração + mediana + direção
+    const verdict = this.anomaly.check({
+      speedKmh,
+      prevSpeedKmh: this.last.speedKmh,
+      dtSec,
+      bearingChangeDeg: bChange,
+      timestamp: raw.timestamp,
+    });
+    if (!verdict.ok) {
+      this.stats.spikes++;
+      return this.reject(raw, `${verdict.kind}: ${verdict.reason}`);
     }
 
-    // 3) Filtro de aceleração — salto impossível de velocidade
-    const accelKmhS = Math.abs(speedKmh - this.last.speedKmh) / dtSec;
-    if (this.last.speedKmh > 0 && accelKmhS > MAX_ACCEL_KMH_S) {
-      return this.reject(raw, `aceleração ${accelKmhS.toFixed(1)} km/h/s (salto)`);
-    }
-
-    const bearing = raw.bearing ?? bearingDeg(this.last.latitude, this.last.longitude, lat, lng);
-    const clean: CleanPoint = { ...smoothed, bearing, speedKmh, segmentKm: segKm, accepted: true };
+    this.anomaly.accept(speedKmh);
+    this.markValid(raw);
+    const clean: CleanPoint = { ...smoothed, bearing: newBearing, speedKmh, segmentKm: segKm, accepted: true };
     this.last = clean;
     return clean;
   }
 
   private reject(raw: RawPoint, reason: string): CleanPoint {
     // ponto rejeitado NÃO atualiza o "last" — evita propagar o ruído
+    this.stats.discarded++;
     return { ...raw, speedKmh: 0, segmentKm: 0, accepted: false, reason };
   }
 }
