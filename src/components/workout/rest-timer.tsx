@@ -118,7 +118,7 @@ export function RestTimer({ durationSeconds, onComplete, onSkip }: RestTimerProp
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span className="text-4xl font-bold font-mono tabular-nums" style={{ color: urgencyColor }}>
+          <span className="text-3xl font-bold font-mono tabular-nums tracking-tight" style={{ color: urgencyColor }}>
             {padZero(minutes)}:{padZero(seconds)}
           </span>
           <span className="text-xs text-zinc-500 mt-1">

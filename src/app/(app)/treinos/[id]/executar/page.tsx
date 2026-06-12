@@ -237,9 +237,9 @@ export default function ExecutarPage() {
   useEffect(() => {
     const persist = () => {
       if (phaseRef.current !== 'active') return;
-      if (countingRef.current) setCountingRef.current(false); // congela o tempo
-      isPausedRef.current = true;
-      setIsPaused(true);
+      // Bloquear a tela NÃO pausa o treino — só salva. O cronômetro é por
+      // timestamp, então o tempo segue correto ao voltar. Só pausa se o
+      // usuário tocar em Pausar.
       saveProgressRef.current();
     };
     const onVis = () => {

@@ -96,7 +96,7 @@ INSTRUÇÕES CRÍTICAS:
         };
 
         try {
-          for await (const chunk of provider.stream({ messages: trimmedMessages, systemPrompt, maxTokens: 800 })) {
+          for await (const chunk of provider.stream({ messages: trimmedMessages, systemPrompt, maxTokens: 1400 })) {
             if (chunk.text) {
               fullText += chunk.text;
               const visible = visibleOf(fullText);
