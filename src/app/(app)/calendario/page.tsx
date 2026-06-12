@@ -70,6 +70,24 @@ function getWorkoutLabel(date: Date, cfg: ScheduleConfig | null) {
   return (cfg.day_assignments ?? {})[String(jsToEdn(getDay(date)))] ?? '';
 }
 
+const MUSCLE_EN: Record<string, string> = {
+  chest: 'Peit', back: 'Cost', shoulders: 'Omb', biceps: 'Bíc', triceps: 'Trí',
+  legs: 'Pern', quadriceps: 'Quad', hamstrings: 'Post', glutes: 'Glút', abs: 'Abd',
+  calves: 'Pant', forearms: 'Ante', core: 'Core', full_body: 'Full', cardio: 'Card',
+};
+function muscleLabelFromGroups(groups: string[]): string {
+  const uniq = [...new Set(groups.filter(Boolean))];
+  if (!uniq.length) return '';
+  return uniq.slice(0, 2).map(g => MUSCLE_EN[g] ?? (g.charAt(0).toUpperCase() + g.slice(1, 3))).join('/');
+}
+function resolveMuscle(stored: string, map: Record<string, string>): string | null {
+  if (!stored) return null;
+  const a = stored.trim().toLowerCase();
+  const b = a.replace(/^treino\s+/, '');
+  const v = map[a] ?? map[b];
+  return v || null;
+}
+
 const MUSCLE_ABBREV: Record<string, string> = {
   peito: 'Peit', peitoral: 'Peit',
   costas: 'Cost', dorsais: 'Dors', dorsal: 'Dors',
@@ -108,6 +126,7 @@ export default function CalendarioPage() {
     id: string; name: string; days_per_week: number; goal: string;
     schedule_config: ScheduleConfig | null;
   } | null>(null);
+  const [dayMuscleMap, setDayMuscleMap] = useState<Record<string, string>>({});
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [scheduleStartDate, setScheduleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isScheduling, setIsScheduling] = useState(false);
@@ -155,6 +174,26 @@ export default function CalendarioPage() {
 
     setSessionDays(map);
     setActivePlan(plan as any ?? null);
+
+    if (plan) {
+      const { data: days } = await supabase
+        .from('workout_days')
+        .select('name, order_index, workout_exercises(exercise:exercises(muscle_group))')
+        .eq('plan_id', (plan as any).id)
+        .order('order_index');
+      const m: Record<string, string> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (days ?? []).forEach((d: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const groups = (d.workout_exercises ?? []).map((we: any) => we.exercise?.muscle_group).filter(Boolean) as string[];
+        const lbl = muscleLabelFromGroups(groups);
+        if (!lbl) return;
+        const name = String(d.name ?? '').trim().toLowerCase();
+        const letter = String.fromCharCode(97 + (d.order_index ?? 0));
+        m[name] = lbl; m[name.replace(/^treino\s+/, '')] = lbl; m[letter] = lbl; m['treino ' + letter] = lbl;
+      });
+      setDayMuscleMap(m);
+    } else { setDayMuscleMap({}); }
     setLoading(false);
   }
 
@@ -280,12 +319,12 @@ export default function CalendarioPage() {
                   <>
                     <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#D4853A]/70" />
                     {workoutLabel && (
-                      <span className="absolute top-0 left-0 right-0 bottom-0 rounded-lg" title={workoutLabel} />
+                      <span className="absolute top-0 left-0 right-0 bottom-0 rounded-lg" title={resolveMuscle(workoutLabel, dayMuscleMap) ?? workoutLabel} />
                     )}
                   </>
                 )}
                 {session && workoutLabel && (
-                  <span className="absolute top-0 left-0 right-0 bottom-0 rounded-lg" title={`Treino realizado: ${workoutLabel}`} />
+                  <span className="absolute top-0 left-0 right-0 bottom-0 rounded-lg" title={`Treino realizado: ${resolveMuscle(workoutLabel, dayMuscleMap) ?? workoutLabel}`} />
                 )}
               </button>
             );
@@ -323,7 +362,7 @@ export default function CalendarioPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-[#E09B5A]">
                 <CalendarDays className="h-4 w-4" />
-                <span>Treino planejado: <strong>{getWorkoutLabel(selectedDay, cfg)}</strong></span>
+                <span>Treino planejado: <strong>{resolveMuscle(getWorkoutLabel(selectedDay, cfg), dayMuscleMap) ?? getWorkoutLabel(selectedDay, cfg)}</strong></span>
               </div>
               {/* Cardio for this day */}
               {cfg?.cardio && (

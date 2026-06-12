@@ -43,6 +43,26 @@ function getWorkoutLabel(date: Date, cfg: ScheduleConfig | null) {
   return cfg.day_assignments?.[String(jsToEdn(getDay(date)))] ?? '';
 }
 
+// Abreviação de grupo muscular (a partir do muscle_group em inglês dos exercícios)
+const MUSCLE_EN: Record<string, string> = {
+  chest: 'Peit', back: 'Cost', shoulders: 'Omb', biceps: 'Bíc', triceps: 'Trí',
+  legs: 'Pern', quadriceps: 'Quad', hamstrings: 'Post', glutes: 'Glút', abs: 'Abd',
+  calves: 'Pant', forearms: 'Ante', core: 'Core', full_body: 'Full', cardio: 'Card',
+};
+function muscleLabelFromGroups(groups: string[]): string {
+  const uniq = [...new Set(groups.filter(Boolean))];
+  if (!uniq.length) return '';
+  return uniq.slice(0, 2).map(g => MUSCLE_EN[g] ?? (g.charAt(0).toUpperCase() + g.slice(1, 3))).join('/');
+}
+// Resolve a letra/nome do dia (ex.: "Treino A", "B") para o agrupamento muscular real
+function resolveMuscle(stored: string, map: Record<string, string>): string | null {
+  if (!stored) return null;
+  const a = stored.trim().toLowerCase();
+  const b = a.replace(/^treino\s+/, '');
+  const v = map[a] ?? map[b];
+  return v || null;
+}
+
 const MUSCLE_ABBREV: Record<string, string> = {
   peito: 'Peit', peitoral: 'Peit', costas: 'Cost', dorsais: 'Dors', dorsal: 'Dors',
   pernas: 'Pern', quadríceps: 'Quad', quadriceps: 'Quad', posteriores: 'Post', isquiotibiais: 'Isq', panturrilha: 'Pant',
@@ -71,6 +91,7 @@ export default function CalendarioPage() {
   const [selectedSessions, setSelectedSessions] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePlan, setActivePlan] = useState<{ id: string; name: string; days_per_week: number; goal: string; schedule_config: ScheduleConfig | null; } | null>(null);
+  const [dayMuscleMap, setDayMuscleMap] = useState<Record<string, string>>({});
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [scheduleStartDate, setScheduleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isScheduling, setIsScheduling] = useState(false);
@@ -110,6 +131,32 @@ export default function CalendarioPage() {
 
     setSessionDays(map);
     setActivePlan(plan as any ?? null);
+
+    // Mapa letra/nome do dia -> agrupamento muscular (derivado dos exercícios reais)
+    if (plan) {
+      const { data: days } = await supabase
+        .from('workout_days')
+        .select('name, order_index, workout_exercises(exercise:exercises(muscle_group))')
+        .eq('plan_id', (plan as any).id)
+        .order('order_index');
+      const m: Record<string, string> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (days ?? []).forEach((d: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const groups = (d.workout_exercises ?? []).map((we: any) => we.exercise?.muscle_group).filter(Boolean) as string[];
+        const lbl = muscleLabelFromGroups(groups);
+        if (!lbl) return;
+        const name = String(d.name ?? '').trim().toLowerCase();
+        const letter = String.fromCharCode(97 + (d.order_index ?? 0)); // a, b, c...
+        m[name] = lbl;
+        m[name.replace(/^treino\s+/, '')] = lbl;
+        m[letter] = lbl;
+        m['treino ' + letter] = lbl;
+      });
+      setDayMuscleMap(m);
+    } else {
+      setDayMuscleMap({});
+    }
     if (prof) setAllowWeekends((prof as { train_weekends?: boolean }).train_weekends ?? true);
     setLoading(false);
   }
@@ -204,7 +251,7 @@ export default function CalendarioPage() {
                 {planned && (
                   <>
                     <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#D4853A]/70" />
-                    {workoutLabel && <span className="absolute top-0.5 right-0.5 text-[7px] text-[#D4853A]/70 font-medium leading-none truncate max-w-[46px]">{shortLabel(workoutLabel)}</span>}
+                    {workoutLabel && <span className="absolute top-0.5 right-0.5 text-[7px] text-[#D4853A]/70 font-medium leading-none truncate max-w-[46px]">{resolveMuscle(workoutLabel, dayMuscleMap) ?? shortLabel(workoutLabel)}</span>}
                   </>
                 )}
               </button>
@@ -233,7 +280,7 @@ export default function CalendarioPage() {
             </div>
           ) : isScheduledDay(selectedDay, cfg) && selectedDay >= TODAY_START ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-[#E09B5A]"><CalendarDays className="h-4 w-4" /><span>Treino planejado: <strong>{getWorkoutLabel(selectedDay, cfg)}</strong></span></div>
+              <div className="flex items-center gap-2 text-sm text-[#E09B5A]"><CalendarDays className="h-4 w-4" /><span>Treino planejado: <strong>{resolveMuscle(getWorkoutLabel(selectedDay, cfg), dayMuscleMap) ?? getWorkoutLabel(selectedDay, cfg)}</strong></span></div>
               {cfg?.cardio && (
                 <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-xs space-y-1">
                   <div className="flex items-center gap-1.5 text-orange-400 font-semibold"><Flame className="h-3.5 w-3.5" />Cárdio recomendado</div>
