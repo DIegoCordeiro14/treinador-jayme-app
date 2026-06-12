@@ -413,9 +413,12 @@ export default function ExecutarPage() {
         allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType });
       });
     });
+    // Análises do Coach EDN por exercício (exercise_id -> texto)
+    const coachFeedback: Record<string, string> = {};
+    exercises.forEach((ex, ei) => { const fb = exStates[ei]?.feedback; if (fb) coachFeedback[ex.exercise_id] = fb; });
     // FC média do período do treino — só grava se vier do relógio (Health Connect)
     const avgHr = await fetchAvgHrFromHealthConnect(startedAt.current.getTime(), finishedAt.getTime());
-    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr }).select('id').single();
+    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr, coach_feedback: coachFeedback }).select('id').single();
     if (error || !session) { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
     if (allSets.length > 0) await supabase.from('session_sets').insert(allSets.map(s => ({ ...(s as object), session_id: session.id })));
     clearProgress();

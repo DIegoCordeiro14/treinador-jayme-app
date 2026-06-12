@@ -25,6 +25,8 @@ interface WorkoutSession {
   notes: string;
   workout_day?: { name: string } | null;
   session_sets?: SessionSet[];
+  coach_feedback?: Record<string, string> | null;
+  progression?: Record<string, 'up' | 'same' | 'down' | 'new'>;
 }
 
 function fmtDuration(secs: number | null) {
@@ -90,8 +92,45 @@ export default function HistoricoPage() {
       .eq('completed', true)
       .order('set_number');
 
+    const sets = (data ?? []) as SessionSet[];
+
+    // Progressão: compara o maior peso de cada exercício com a sessão ANTERIOR
+    const progression: Record<string, 'up' | 'same' | 'down' | 'new'> = {};
+    try {
+      const exIds = [...new Set(sets.map(s => s.exercise_id))];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && exIds.length && sess) {
+        const { data: prev } = await supabase
+          .from('session_sets')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .select('exercise_id, weight_kg, workout_sessions!inner(started_at, user_id)')
+          .in('exercise_id', exIds)
+          .eq('completed', true)
+          .eq('workout_sessions.user_id', user.id)
+          .lt('workout_sessions.started_at', sess.started_at);
+        // melhor peso da sessão anterior mais recente, por exercício
+        const prevByEx = new Map<string, { date: string; maxW: number }>();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (prev ?? []).forEach((r: any) => {
+          const d = r.workout_sessions?.started_at as string; const w = Number(r.weight_kg) || 0;
+          const cur = prevByEx.get(r.exercise_id);
+          if (!cur || d > cur.date) prevByEx.set(r.exercise_id, { date: d, maxW: w });
+          else if (d === cur.date && w > cur.maxW) cur.maxW = w;
+        });
+        const curByEx = new Map<string, number>();
+        sets.forEach(s => { const w = Number(s.weight_kg) || 0; curByEx.set(s.exercise_id, Math.max(curByEx.get(s.exercise_id) ?? 0, w)); });
+        curByEx.forEach((w, eid) => {
+          const p = prevByEx.get(eid);
+          if (!p) progression[eid] = 'new';
+          else if (w > p.maxW) progression[eid] = 'up';
+          else if (w < p.maxW) progression[eid] = 'down';
+          else progression[eid] = 'same';
+        });
+      }
+    } catch { /* progressão é opcional */ }
+
     setSessions(prev => prev.map(s =>
-      s.id === sessionId ? { ...s, session_sets: (data ?? []) as SessionSet[] } : s
+      s.id === sessionId ? { ...s, session_sets: sets, progression } : s
     ));
   }
 
@@ -198,13 +237,21 @@ export default function HistoricoPage() {
                     {exerciseMap.size === 0 ? (
                       <p className="text-xs text-zinc-500 text-center py-2">Sem séries registradas nesta sessão</p>
                     ) : (
-                      [...exerciseMap.entries()].map(([id, ex]) => (
+                      [...exerciseMap.entries()].map(([id, ex]) => {
+                        const prog = sess.progression?.[id];
+                        const fb = sess.coach_feedback?.[id];
+                        const progMeta = prog === 'up' ? { t: '↑ Progrediu', c: 'text-green-400 bg-green-500/10' }
+                          : prog === 'down' ? { t: '↓ Caiu', c: 'text-red-400 bg-red-500/10' }
+                          : prog === 'same' ? { t: '→ Manteve', c: 'text-zinc-400 bg-zinc-800' }
+                          : prog === 'new' ? { t: 'Novo', c: 'text-[#D4853A] bg-[#D4853A]/10' } : null;
+                        return (
                         <div key={id}>
-                          <div className="flex items-center gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                             <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', MUSCLE_COLORS[ex.muscle] ?? 'text-zinc-400 bg-zinc-800')}>
                               {ex.muscle}
                             </span>
                             <p className="text-xs font-semibold text-zinc-200">{ex.name}</p>
+                            {progMeta && <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded', progMeta.c)}>{progMeta.t}</span>}
                           </div>
                           <div className="flex flex-wrap gap-1.5 ml-0.5">
                             {ex.sets.map((set, i) => (
@@ -213,8 +260,15 @@ export default function HistoricoPage() {
                               </span>
                             ))}
                           </div>
+                          {fb && (
+                            <div className="mt-1.5 ml-0.5 rounded-lg border border-[#D4853A]/20 bg-[#D4853A]/5 px-2.5 py-1.5">
+                              <p className="text-[10px] font-bold text-[#D4853A] uppercase tracking-wider mb-0.5">Análise do Coach EDN</p>
+                              <p className="text-[11px] text-zinc-300 leading-relaxed">{fb}</p>
+                            </div>
+                          )}
                         </div>
-                      ))
+                        );
+                      })
                     )}
                     {sess.notes && (
                       <p className="text-xs text-zinc-500 italic border-t border-zinc-800 pt-2">{sess.notes}</p>

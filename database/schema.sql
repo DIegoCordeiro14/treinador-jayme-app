@@ -153,6 +153,7 @@ create table workout_sessions (
   duration_seconds int,
   notes text default '',
   total_volume_kg numeric(10,2) default 0
+  coach_feedback jsonb default '{}'::jsonb,
 );
 
 -- ================================================
