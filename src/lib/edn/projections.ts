@@ -96,7 +96,7 @@ export function computeProjections(params: {
         const fatMassKg = (currentWeight * currentBodyFat / 100) + fatDeltaKg;
         projectedBF = parseFloat(Math.max(5, Math.min(45, (fatMassKg / projectedWeight) * 100)).toFixed(1));
         if (currentMuscle != null) {
-          projectedMuscle = parseFloat(Math.max(20, (currentMuscle + muscleDeltaKg).toFixed(1)));
+          projectedMuscle = parseFloat(Math.max(20, currentMuscle + muscleDeltaKg).toFixed(1));
         }
       }
     }

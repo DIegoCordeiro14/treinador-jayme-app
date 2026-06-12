@@ -313,9 +313,9 @@ function ActivityCard({ item, currentUserId, onReact, onToggleComments, comments
               </p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-zinc-400">
-              {d.duration_min && <span>⏱ {d.duration_min as number}min</span>}
-              {d.total_volume_kg && <span>🏋️ {Number(d.total_volume_kg).toFixed(0)}kg volume</span>}
-              {d.sets_count && <span>📋 {d.sets_count as number} séries</span>}
+              {Boolean(d.duration_min) && <span>⏱ {d.duration_min as number}min</span>}
+              {Boolean(d.total_volume_kg) && <span>🏋️ {Number(d.total_volume_kg).toFixed(0)}kg volume</span>}
+              {Boolean(d.sets_count) && <span>📋 {d.sets_count as number} séries</span>}
               {(d.volume_change_pct as number) > 0 && (
                 <span className="text-green-400">+{(d.volume_change_pct as number).toFixed(0)}% vs semana passada</span>
               )}

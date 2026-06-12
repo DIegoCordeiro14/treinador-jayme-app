@@ -16,8 +16,9 @@ import {
 // ─── helpers ──────────────────────────────────────────────────────────────
 function makeRecord(weight: number, date: string) {
   return {
+    exercise_id: 'test-ex',
     session_date: date,
-    sets: [{ set_type: 'topset' as const, weight_kg: weight, reps: 8, rir: 2 }],
+    sets: [{ set_type: 'topset' as const, weight_kg: weight, reps: 8, rir: 2, recorded_at: date }],
   };
 }
 
@@ -35,7 +36,7 @@ describe('linearProgression', () => {
 
   it('retorna mensagem de progressão', () => {
     const result = linearProgression(100, 3, 3, 2.5);
-    expect(result.message).toBeTruthy();
+    expect(result.notes).toBeTruthy();
   });
 });
 
@@ -43,7 +44,7 @@ describe('linearProgression', () => {
 describe('volumeProgression', () => {
   it('mensagem quando abaixo do máximo de séries', () => {
     const result = volumeProgression(100, 3, 5, 2.5);
-    expect(result.message).toBeTruthy();
+    expect(result.notes).toBeTruthy();
   });
 
   it('aumenta carga quando atinge máximo de séries', () => {

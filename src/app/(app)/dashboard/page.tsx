@@ -17,6 +17,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { WorkoutTodayCard } from "@/components/dashboard/workout-today-card";
+import { DeloadBanner } from "@/components/workout/deload-banner";
 import { WeeklyCalendarStrip } from "@/components/dashboard/weekly-calendar-strip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
