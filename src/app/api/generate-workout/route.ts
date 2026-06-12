@@ -371,6 +371,22 @@ Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayC
       day.exercises = (day.exercises ?? []).filter((ex: any) => validIds.has(ex.exerciseId) && !forbiddenIds.has(ex.exerciseId));
     }
 
+    // ─── Isométricos: prescrever por TEMPO (segundos), nunca por reps ──────────
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allIds = [...new Set(parsed.days.flatMap((d: any) => (d.exercises ?? []).map((e: any) => e.exerciseId)))];
+      if (allIds.length) {
+        const { data: isoRows } = await supabase.from('exercises').select('id').eq('is_isometric', true).in('id', allIds as string[]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isoSet = new Set((isoRows ?? []).map((r: any) => r.id));
+        for (const day of parsed.days) {
+          for (const ex of (day.exercises ?? [])) {
+            if (isoSet.has(ex.exerciseId)) { ex.repsMin = 30; ex.repsMax = 60; ex.notes = 'Sustentar 30-60s, técnica limpa'; }
+          }
+        }
+      }
+    } catch { /* não-fatal */ }
+
     return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);

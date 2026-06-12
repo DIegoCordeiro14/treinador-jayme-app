@@ -146,6 +146,7 @@ export interface ExerciseInLibrary {
   difficulty: string;
   isCompound: boolean;
   isMetabolic: boolean;
+  isIsometric: boolean;
 }
 
 // ── Main Context ───────────────────────────────────────────────────────────────
@@ -256,7 +257,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
           id, name, order_index,
           workout_exercises(
             exercise_id, sets, reps_min, reps_max, rest_seconds, notes, order_index,
-            exercises(id, name, muscle_group, equipment, difficulty, is_compound)
+            exercises(id, name, muscle_group, equipment, difficulty, is_compound, is_isometric)
           )
         )
       `)
@@ -266,7 +267,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
 
     // V6.0: Biblioteca completa de exercícios públicos
     supabase.from('exercises')
-      .select('id, name, muscle_group, equipment, difficulty, is_compound, is_metabolic')
+      .select('id, name, muscle_group, equipment, difficulty, is_compound, is_metabolic, is_isometric')
       .eq('is_public', true)
       .order('muscle_group')
       .order('name'),
@@ -307,6 +308,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
             equipment: we.exercises?.equipment ?? '',
             difficulty: we.exercises?.difficulty ?? 'intermediate',
             isCompound: we.exercises?.is_compound ?? false,
+            isIsometric: we.exercises?.is_isometric ?? false,
             sets: we.sets,
             repsMin: we.reps_min,
             repsMax: we.reps_max,
@@ -326,6 +328,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
     difficulty: ex.difficulty,
     isCompound: ex.is_compound,
     isMetabolic: ex.is_metabolic,
+    isIsometric: ex.is_isometric ?? false,
   }));
 
   // ── Body Composition ──────────────────────────────────────────────────────
@@ -614,7 +617,7 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
           lines.push(
             `    ${ex.orderIndex + 1}. [${ex.exerciseId}] ${ex.exerciseName} ` +
             `[${muscle} · ${ex.equipment}${ex.isCompound ? ' · composto' : ''}] ${compound} ` +
-            `${ex.sets}×${ex.repsMin}-${ex.repsMax}rep ${ex.restSeconds}s descanso` +
+            ((ex as any).isIsometric ? `${ex.sets}×${ex.repsMin}-${ex.repsMax}s sustentação (ISOMÉTRICO — sem carga)` : `${ex.sets}×${ex.repsMin}-${ex.repsMax}rep ${ex.restSeconds}s descanso`) +
             (ex.notes ? ` | "${ex.notes}"` : '')
           );
         }
@@ -625,7 +628,7 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
   // ── V6.0: Biblioteca de exercícios para substituição ──────────────────────
   if (options.includeExerciseLibrary && ctx.exerciseLibrary.length > 0) {
     lines.push(``, `[BIBLIOTECA DE EXERCÍCIOS — ${ctx.exerciseLibrary.length} disponíveis para substituição]`);
-    lines.push(`Formato: [ID] Nome (equipment, dificuldade) ★=composto`);
+    lines.push(`Formato: [ID] Nome (equipment, dificuldade) ★=composto [ISO=tempo]=isométrico (prescrever em segundos, sem carga)`);
 
     const byMuscle = new Map<string, ExerciseInLibrary[]>();
     for (const ex of ctx.exerciseLibrary) {
@@ -636,7 +639,7 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
     for (const [muscle, exercises] of byMuscle) {
       const label = MUSCLE_LABELS[muscle] ?? muscle;
       const items = exercises.map(ex =>
-        `[${ex.id}] ${ex.name} (${ex.equipment}, ${ex.difficulty})${ex.isCompound ? '★' : ''}`
+        `[${ex.id}] ${ex.name} (${ex.equipment}, ${ex.difficulty})${ex.isCompound ? '★' : ''}${(ex as any).isIsometric ? ' [ISO=tempo]' : ''}`
       ).join(' | ');
       lines.push(`${label.toUpperCase()}: ${items}`);
     }

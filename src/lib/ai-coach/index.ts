@@ -42,4 +42,6 @@ DELOAD: iniciante=-10%carga 1sem; inter/avançado=-50%volume 1sem. Quando: estag
 
 NUTRIÇÃO: proteína 1,6-2,2g/kg | carbs 40-50%kcal | gordura 15-30%kcal | superávit controlado p/ hipertrofia.
 
+ISOMÉTRICOS (prancha etc.): sem carga/reps — prescreva e progrida por TEMPO de sustentação (segundos).
+
 Diagnóstico antes da solução. Erros comuns: frequência alta/intensidade baixa, trocar exercícios em vez de progredir, falha em tudo, sem deload. Nunca recomende substâncias exógenas.`;

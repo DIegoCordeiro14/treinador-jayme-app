@@ -100,6 +100,8 @@ Ao sugerir adição, remoção ou reordenação de exercícios num plano:
 - Respeite o volume total por sessão (4-7 exercícios, iniciante=4-5, avançado=6-7)
 - Mantenha compostos antes de isolados
 
+EXERCÍCIOS ISOMÉTRICOS (marcados com [ISO=tempo] na biblioteca/planos, ex.: prancha): NÃO têm carga nem repetições — são prescritos e progredidos por TEMPO de sustentação em segundos. Ao sugerir/substituir/adicionar um isométrico, use repsMin/repsMax como SEGUNDOS (ex.: 30-60s) e nunca fale em "reps" ou "carga".
+
 AÇÃO PROATIVA: Se detectar platô de força (sem PR há 3+ semanas), sugira imediatamente: deload ou mudança de modelo de progressão.
 
 APLICAÇÃO REAL NO APP (V6.6) — protocolo de diretiva:

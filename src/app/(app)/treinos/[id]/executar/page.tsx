@@ -113,6 +113,7 @@ export default function ExecutarPage() {
   const [loading, setLoading] = useState(true);
   const [exStates, setExStates] = useState<ExState[]>([]);
   const [prevLoads, setPrevLoads] = useState<Record<string, number>>({});
+  const [prevTimes, setPrevTimes] = useState<Record<string, number>>({}); // isométrico: tempo (s) anterior
   const [ednSuggestions, setEdnSuggestions] = useState<Record<string, { suggestedWeight: number; model: string; stagnant: boolean }>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [phase, setPhase] = useState<'warmup' | 'active' | 'summary'>('warmup');
@@ -160,19 +161,23 @@ export default function ExecutarPage() {
       setExercises(exs);
       if (sessions?.length) {
         const ids = sessions.map(s => s.id);
-        const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg, session_id').in('session_id', ids).eq('completed', true);
+        const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg, reps_done, session_id').in('session_id', ids).eq('completed', true);
         if (ps) {
           const loads: Record<string, number> = {};
           // Agrupar por exercise_id e session para detectar estagnação
           const byEx: Record<string, number[]> = {};
+          const times: Record<string, number> = {};
           ps.forEach(s => {
             const eid = s.exercise_id;
             const w = Number(s.weight_kg);
             if (!byEx[eid]) byEx[eid] = [];
             byEx[eid].push(w);
             if (!loads[eid] || w > loads[eid]) loads[eid] = w;
+            const r = Number((s as any).reps_done) || 0;
+            if (!times[eid] || r > times[eid]) times[eid] = r;
           });
           setPrevLoads(loads);
+          setPrevTimes(times);
           // Calcular sugestões EDN simples
           const suggestions: Record<string, { suggestedWeight: number; model: string; stagnant: boolean }> = {};
           Object.entries(byEx).forEach(([eid, weights]) => {
@@ -656,6 +661,22 @@ export default function ExecutarPage() {
           )}
 
           {/* Sugestão EDN + alerta de estagnação */}
+          {ex && iso && (() => {
+            const pt = prevTimes[ex.exercise_id] ?? 0;
+            const target = pt > 0 ? pt + 5 : ex.reps_max;
+            return (
+              <div className="rounded-lg border px-3 py-2.5 flex items-center gap-3 border-[#D4853A]/20 bg-[#D4853A]/5">
+                <TrendingUp className="h-4 w-4 shrink-0 text-[#D4853A]" />
+                <div>
+                  <p className="text-xs font-bold text-[#E09B5A]">
+                    {pt > 0 ? `Sugestão EDN: sustentar ~${target}s (progrida no tempo)` : `Isométrico — alvo ${ex.reps_min}-${ex.reps_max}s com técnica limpa`}
+                  </p>
+                  <p className="text-[10px] text-zinc-500">{pt > 0 ? `Último: ${pt}s — supere mantendo a técnica` : 'Sem carga e sem reps: progressão por tempo de sustentação'}</p>
+                </div>
+              </div>
+            );
+          })()}
+
           {ex && !iso && ednSuggestions[ex.exercise_id] && (() => {
             const sg = ednSuggestions[ex.exercise_id];
             return (
