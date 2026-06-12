@@ -34,12 +34,14 @@ PROGRESSÃO PRÁTICA:
 - Multiarticulares (supino, agacho, remada): sobe carga quando a Top Set está estável com RIR 1-2.
 - Nunca sobe carga SE a técnica se degradou. Prefira repetições a mais do que quilos a mais com técnica ruim.
 
+ISOMÉTRICOS (prancha, prancha lateral, wall sit, etc.): NÃO têm carga nem repetições. São medidos por TEMPO DE SUSTENTAÇÃO em segundos. Avalie e progrida por tempo (ex.: aumentar de 30s para 45s, ou adicionar carga só em variações com peso). Nunca fale em "reps" para isométrico.
+
 Responda SEMPRE em português do Brasil. Seja direto, objetivo, sem enrolação. Máximo 4 frases. Fale como o Jayme fala: assertivo, técnico mas acessível.`;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mode, exercise, sets_data, target_rir, previous_load } = body;
+    const { mode, exercise, sets_data, target_rir, previous_load, isometric } = body;
 
     if (!mode || !exercise) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -48,23 +50,42 @@ export async function POST(request: NextRequest) {
     let userMessage = '';
 
     if (mode === 'tip') {
-      userMessage = `Estou prestes a fazer: ${exercise.name} (${exercise.muscle_group ?? ''}).
+      if (isometric) {
+        userMessage = `Estou prestes a fazer um exercício ISOMÉTRICO: ${exercise.name} (${exercise.muscle_group ?? ''}).
+Alvo: ${exercise.sets} séries × ${exercise.reps_min}–${exercise.reps_max} SEGUNDOS de sustentação.
+${exercise.notes ? `Notas do plano: ${exercise.notes}` : ''}
+
+Dê UMA dica técnica objetiva (o ponto mais crítico da postura), aponte o erro mais comum, e oriente a progressão POR TEMPO (não por reps).`;
+      } else {
+        userMessage = `Estou prestes a fazer: ${exercise.name} (${exercise.muscle_group ?? ''}).
 Alvo: ${exercise.sets} séries × ${exercise.reps_min}–${exercise.reps_max} reps | RIR alvo: ${target_rir ?? 2}.
 ${exercise.notes ? `Notas do plano: ${exercise.notes}` : ''}
 ${previous_load ? `Última carga registrada: ${previous_load} kg` : 'Primeira vez registrando este exercício.'}
 
 Dê UMA dica técnica objetiva de execução (o ponto mais crítico), aponte o erro mais comum, e se tiver carga anterior sugira se mantém ou ajusta.`;
+      }
 
     } else if (mode === 'feedback') {
-      const setsInfo = (sets_data ?? []).map((s: { weight_kg: number; reps_done: number; rir: number }, i: number) =>
-        `Série ${i + 1}: ${s.weight_kg}kg × ${s.reps_done} reps (RIR ${s.rir ?? '?'})`
-      ).join('\n');
+      if (isometric) {
+        const setsInfo = (sets_data ?? []).map((s: { reps_done: number }, i: number) =>
+          `Série ${i + 1}: ${s.reps_done}s sustentados`
+        ).join('\n');
+        userMessage = `Concluí o exercício ISOMÉTRICO ${exercise.name}:
+Alvo: ${exercise.reps_min}–${exercise.reps_max} segundos de sustentação
+${setsInfo}
 
-      userMessage = `Concluí o exercício ${exercise.name}:
+Avalie por TEMPO: o tempo está adequado? Devo aumentar a sustentação na próxima? Como progredir (segundos ou carga, se aplicável)?`;
+      } else {
+        const setsInfo = (sets_data ?? []).map((s: { weight_kg: number; reps_done: number; rir: number }, i: number) =>
+          `Série ${i + 1}: ${s.weight_kg}kg × ${s.reps_done} reps (RIR ${s.rir ?? '?'})`
+        ).join('\n');
+
+        userMessage = `Concluí o exercício ${exercise.name}:
 Alvo: ${exercise.reps_min}–${exercise.reps_max} reps | RIR alvo: ${target_rir ?? 2}
 ${setsInfo}
 
 Avalie minha performance: a carga está adequada? Devo ajustar algo? O que muda na próxima sessão?`;
+      }
 
     } else {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });

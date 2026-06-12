@@ -88,6 +88,7 @@ create table exercises (
   gif_url text,
   created_by uuid references profiles(id) on delete set null,
   is_public boolean default true,
+  is_isometric boolean default false,
   created_at timestamptz default now()
 );
 

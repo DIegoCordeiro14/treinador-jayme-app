@@ -263,7 +263,7 @@ export default function ExecutarPage() {
     try {
       const res = await fetch('/api/workout-coach', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'tip', exercise: { name: ex.exercise.name, muscle_group: MUSCLE_PT[ex.exercise.muscle_group] ?? ex.exercise.muscle_group, sets: ex.sets, reps_min: ex.reps_min, reps_max: ex.reps_max, notes: ex.notes }, target_rir: 2, previous_load: loads[ex.exercise_id] ?? null }),
+        body: JSON.stringify({ mode: 'tip', exercise: { name: ex.exercise.name, muscle_group: MUSCLE_PT[ex.exercise.muscle_group] ?? ex.exercise.muscle_group, sets: ex.sets, reps_min: ex.reps_min, reps_max: ex.reps_max, notes: ex.notes }, target_rir: 2, previous_load: loads[ex.exercise_id] ?? null, isometric: !!(ex.exercise as any)?.is_isometric }),
       });
       const { message } = await res.json();
       setExStates(p => { const n = [...p]; n[idx] = { ...n[idx], tip: message ?? null, tipLoading: false }; return n; });
@@ -280,7 +280,7 @@ export default function ExecutarPage() {
     try {
       const res = await fetch('/api/workout-coach', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'feedback', exercise: { name: ex.exercise.name, reps_min: ex.reps_min, reps_max: ex.reps_max }, sets_data: done.map(s => ({ weight_kg: parseFloat(s.weight) || 0, reps_done: parseInt(s.reps) || 0, rir: parseInt(s.rir) || 0 })), target_rir: 2 }),
+        body: JSON.stringify({ mode: 'feedback', exercise: { name: ex.exercise.name, reps_min: ex.reps_min, reps_max: ex.reps_max }, sets_data: done.map(s => ({ weight_kg: parseFloat(s.weight) || 0, reps_done: parseInt(s.reps) || 0, rir: parseInt(s.rir) || 0 })), target_rir: 2, isometric: !!(ex.exercise as any)?.is_isometric }),
       });
       const { message } = await res.json();
       setExStates(p => { const n = [...p]; n[idx] = { ...n[idx], feedback: message ?? null, feedbackLoading: false }; return n; });
@@ -408,7 +408,9 @@ export default function ExecutarPage() {
     exercises.forEach((ex, ei) => {
       exStates[ei]?.sets.forEach((s, si) => {
         if (!s.completed) return;
-        const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isoEx = !!(ex.exercise as any)?.is_isometric;
+        const w = isoEx ? 0 : (parseFloat(s.weight) || 0), r = parseInt(s.reps) || 0;
         totalVolume += w * r;
         allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType });
       });
@@ -428,6 +430,8 @@ export default function ExecutarPage() {
 
   const ex = exercises[currentIdx];
   const st = exStates[currentIdx];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const iso = !!(ex?.exercise as any)?.is_isometric; // isométrico: prescrito por tempo (s)
   const doneCount = st?.sets.filter(s => s.completed).length ?? 0;
   const totalVol = exStates.reduce((a, s) => a + s.sets.reduce((b, set) => b + (set.completed ? (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0) : 0), 0), 0);
   const doneEx = exStates.filter(s => s.sets.length > 0 && s.sets.every(s => s.completed)).length;
@@ -516,7 +520,7 @@ export default function ExecutarPage() {
                 <p className="text-xs text-zinc-500">{MUSCLE_PT[e.exercise.muscle_group] ?? e.exercise.muscle_group}</p>
               </div>
             </div>
-            <span className="text-xs text-zinc-400 shrink-0 ml-4">{e.sets}x{e.reps_min}-{e.reps_max}</span>
+            <span className="text-xs text-zinc-400 shrink-0 ml-4">{(e.exercise as any)?.is_isometric ? `${e.sets}× ${e.reps_min}-${e.reps_max}s` : `${e.sets}x${e.reps_min}-${e.reps_max}`}</span>
           </div>
         ))}
       </div>
@@ -644,7 +648,7 @@ export default function ExecutarPage() {
                 <h1 className="text-2xl font-black text-zinc-100 leading-tight">{ex.exercise.name}</h1>
                 <p className="text-sm text-zinc-500 mt-0.5">
                   {MUSCLE_PT[ex.exercise.muscle_group] ?? ex.exercise.muscle_group}
-                  {' · '}{ex.sets}x{ex.reps_min}-{ex.reps_max} reps{' · '}RIR 2
+                  {' · '}{iso ? `${ex.sets}× ${ex.reps_min}-${ex.reps_max}s` : `${ex.sets}x${ex.reps_min}-${ex.reps_max} reps`}{' · '}{iso ? 'isométrico' : 'RIR 2'}
                 </p>
                 {ex.notes && <p className="text-xs text-zinc-600 mt-1 italic">{ex.notes}</p>}
               </div>
@@ -655,7 +659,7 @@ export default function ExecutarPage() {
           )}
 
           {/* Sugestão EDN + alerta de estagnação */}
-          {ex && ednSuggestions[ex.exercise_id] && (() => {
+          {ex && !iso && ednSuggestions[ex.exercise_id] && (() => {
             const sg = ednSuggestions[ex.exercise_id];
             return (
               <div className={cn('rounded-lg border px-3 py-2.5 flex items-center gap-3', sg.stagnant ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-[#D4853A]/20 bg-[#D4853A]/5')}>
@@ -725,8 +729,8 @@ export default function ExecutarPage() {
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
               <div className="grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2 border-b border-zinc-800">
                 <span className="text-[10px] font-bold text-zinc-600 uppercase">Tipo</span>
-                <span className="text-[10px] font-bold text-zinc-500 uppercase">Carga (kg)</span>
-                <span className="text-[10px] font-bold text-zinc-500 uppercase">Reps</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase">{iso ? '' : 'Carga (kg)'}</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase">{iso ? 'Tempo (s)' : 'Reps'}</span>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase">RIR</span>
                 <span />
               </div>
@@ -742,9 +746,13 @@ export default function ExecutarPage() {
                   >
                     {typeConf.label}
                   </button>
-                  <input type="number" step="0.5" placeholder="--" value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
-                  <input type="number" step="1" min="0" placeholder="--" value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
+                  {iso ? (
+                    <span className="text-center text-xs text-zinc-600">—</span>
+                  ) : (
+                    <input type="number" step="0.5" placeholder="--" value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
+                  )}
+                  <input type="number" step={iso ? 5 : 1} min="0" placeholder={iso ? "seg" : "--"} value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   <select value={s.rir} onChange={e => updateSet(currentIdx, si, 'rir', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
