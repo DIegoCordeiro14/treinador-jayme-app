@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Play, Plus, Trash2, Clock, ChevronLeft, Dumbbell, Sparkles,
-  AlertCircle, ChevronDown, ChevronUp, TrendingUp, BarChart2, Loader2,
+  AlertCircle, ChevronDown, ChevronUp, TrendingUp, BarChart2, Loader2, PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -120,6 +120,7 @@ export default function PlanDetailPage() {
   const [addExerciseDialog, setAddExerciseDialog] = useState<string|null>(null);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState("");
+  const [exSearch, setExSearch] = useState("");
   const [sets, setSets] = useState(3);
   const [repsMin, setRepsMin] = useState(8);
   const [repsMax, setRepsMax] = useState(12);
@@ -560,14 +561,20 @@ export default function PlanDetailPage() {
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label>Exercício</Label>
-              <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar exercício..." /></SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {allExercises.map(ex=>(
-                    <SelectItem key={ex.id} value={ex.id}>{ex.name} — {MUSCLE_GROUP_LABELS[ex.muscle_group]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input placeholder="Buscar por nome..." value={exSearch} onChange={e=>setExSearch(e.target.value)} />
+              <div className="max-h-52 overflow-y-auto rounded-lg border border-zinc-800 divide-y divide-zinc-800/60">
+                {allExercises.filter(ex=>ex.name.toLowerCase().includes(exSearch.trim().toLowerCase())).slice(0,120).map(ex=>(
+                  <button key={ex.id} type="button" onClick={()=>setSelectedExerciseId(ex.id)}
+                    className={cn("w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 transition-colors",
+                      selectedExerciseId===ex.id ? "bg-[#D4853A]/15 text-[#E09B5A]" : "text-zinc-300 hover:bg-zinc-800")}>
+                    <span className="truncate">{ex.name} <span className="text-zinc-500">· {MUSCLE_GROUP_LABELS[ex.muscle_group]}</span></span>
+                    {ex.youtube_url && <PlayCircle className="h-3.5 w-3.5 text-zinc-500 shrink-0" />}
+                  </button>
+                ))}
+                {allExercises.filter(ex=>ex.name.toLowerCase().includes(exSearch.trim().toLowerCase())).length===0 && (
+                  <p className="px-3 py-3 text-xs text-zinc-500 text-center">Nenhum exercício encontrado.</p>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Séries</Label><Input type="number" value={sets} onChange={e=>setSets(Number(e.target.value))} min={1} max={10}/></div>
@@ -577,7 +584,7 @@ export default function PlanDetailPage() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={()=>setAddExerciseDialog(null)}>Cancelar</Button>
-              <Button className="flex-1" onClick={()=>addExerciseDialog&&addExercise(addExerciseDialog)}>Adicionar</Button>
+              <Button className="flex-1" disabled={!selectedExerciseId} onClick={()=>addExerciseDialog&&addExercise(addExerciseDialog)}>Adicionar</Button>
             </div>
           </div>
         </DialogContent>
