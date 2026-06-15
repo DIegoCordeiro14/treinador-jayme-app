@@ -45,6 +45,7 @@ export interface TrainingState {
   activePlanGoal: string | null;
   daysPerWeek: number;
   topExercises: { name: string; topSetKg: number }[];
+  avgHrRecent: number | null;
 }
 
 export interface NutritionState {
@@ -224,7 +225,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
       .order('log_date', { ascending: true }),
 
     supabase.from('workout_sessions')
-      .select('id, started_at, total_volume_kg')
+      .select('id, started_at, total_volume_kg, avg_hr, max_hr')
       .eq('user_id', userId).gte('started_at', d28.toISOString())
       .order('started_at', { ascending: false }),
 
@@ -384,6 +385,9 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
     }
   }
   const topExercises = Array.from(exMap.entries()).slice(0, 3).map(([id, kg]) => ({ name: id, topSetKg: kg }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hrVals = (allSessions as any[]).map(x => Number(x?.avg_hr)).filter(x => Number.isFinite(x) && x > 0);
+  const avgHrRecent = hrVals.length ? Math.round(hrVals.reduce((a, b) => a + b, 0) / hrVals.length) : null;
 
   // ── Nutrition ─────────────────────────────────────────────────────────────
   const food = foodLogs14 ?? [];
@@ -468,6 +472,7 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
       activePlanGoal: activePlan?.goal ?? null,
       daysPerWeek: daysPerWeekPlan,
       topExercises,
+      avgHrRecent,
     },
     nutrition: {
       daysLoggedLast14: daysLogged,
@@ -568,6 +573,7 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
     `Último treino: ${t.daysSinceLastWorkout === 0 ? 'hoje' : t.daysSinceLastWorkout >= 100 ? 'nunca (primeiro treino — novo usuário)' : 'há ' + t.daysSinceLastWorkout + ' dia(s)'}`,
     `Volume semana: ${t.weeklyVolumeKg}kg | semana anterior: ${t.prevWeekVolumeKg}kg${t.volumeDeltaPct !== null ? ` (${t.volumeDeltaPct > 0 ? '+' : ''}${t.volumeDeltaPct}%)` : ''}`,
     t.avgRir !== null ? `RIR médio: ${t.avgRir} ${t.avgRir < 1 ? '(MUITO PRÓXIMO DA FALHA)' : ''}` : null,
+    t.avgHrRecent !== null ? `FC média recente (relógio): ${t.avgHrRecent} bpm` : null,
     t.plateauDetected ? `⚠️ PLATÔ DE PESO DETECTADO (14d sem variação significativa)` : null,
     t.activePlanName ? `Plano ativo: ${t.activePlanName} (${GOAL_LABELS[t.activePlanGoal ?? ''] ?? t.activePlanGoal ?? ''}, ${t.daysPerWeek}x/sem)` : null,
     ``,

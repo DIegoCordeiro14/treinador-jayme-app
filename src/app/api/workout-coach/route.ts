@@ -36,12 +36,14 @@ PROGRESSÃO PRÁTICA:
 
 ISOMÉTRICOS (prancha, prancha lateral, wall sit, etc.): NÃO têm carga nem repetições. São medidos por TEMPO DE SUSTENTAÇÃO em segundos. Avalie e progrida por tempo (ex.: aumentar de 30s para 45s, ou adicionar carga só em variações com peso). Nunca fale em "reps" para isométrico.
 
+FREQUÊNCIA CARDÍACA (quando informada, vem do relógio): use-a para avaliar esforço/recuperação. FC alta nas séries de isolado pode indicar descanso curto; FC muito baixa num composto pesado pode indicar carga leve. Cite a FC só se for relevante para a recomendação.
+
 Responda SEMPRE em português do Brasil. Seja direto, objetivo, sem enrolação. Máximo 4 frases. Fale como o Jayme fala: assertivo, técnico mas acessível.`;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mode, exercise, sets_data, target_rir, previous_load, isometric } = body;
+    const { mode, exercise, sets_data, target_rir, previous_load, isometric, avg_hr } = body;
 
     if (!mode || !exercise) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -72,7 +74,7 @@ Dê UMA dica técnica objetiva de execução (o ponto mais crítico), aponte o e
         ).join('\n');
         userMessage = `Concluí o exercício ISOMÉTRICO ${exercise.name}:
 Alvo: ${exercise.reps_min}–${exercise.reps_max} segundos de sustentação
-${setsInfo}
+${setsInfo}${avg_hr ? `\nFC atual (relógio): ${avg_hr} bpm` : ''}
 
 Avalie por TEMPO: o tempo está adequado? Devo aumentar a sustentação na próxima? Como progredir (segundos ou carga, se aplicável)?`;
       } else {
@@ -82,7 +84,7 @@ Avalie por TEMPO: o tempo está adequado? Devo aumentar a sustentação na próx
 
         userMessage = `Concluí o exercício ${exercise.name}:
 Alvo: ${exercise.reps_min}–${exercise.reps_max} reps | RIR alvo: ${target_rir ?? 2}
-${setsInfo}
+${setsInfo}${avg_hr ? `\nFC atual (relógio): ${avg_hr} bpm` : ''}
 
 Avalie minha performance: a carga está adequada? Devo ajustar algo? O que muda na próxima sessão?`;
       }

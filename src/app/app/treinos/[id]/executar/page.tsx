@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
-  Pause, Square, PlayCircle, Info, Activity,
+  Pause, Square, PlayCircle, Info, Activity, Heart, Flame,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
 import { RestTimer } from '@/components/workout/rest-timer';
-import { fetchAvgHrFromHealthConnect } from '@/lib/wearables/avg-hr';
+import { fetchWorkoutMetrics, fetchLiveHr, type WorkoutMetrics } from '@/lib/wearables/workout-metrics';
 
 type SetType = 'aquecimento' | 'feeder' | 'top' | 'working';
 interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; }
@@ -121,6 +121,8 @@ export default function ExecutarPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [liveHr, setLiveHr] = useState<number | null>(null);
+  const [metrics, setMetrics] = useState<WorkoutMetrics | null>(null);
   const [preCheck, setPreCheck] = useState<PreCheck | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -285,7 +287,7 @@ export default function ExecutarPage() {
     try {
       const res = await fetch('/api/workout-coach', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'feedback', exercise: { name: ex.exercise.name, reps_min: ex.reps_min, reps_max: ex.reps_max }, sets_data: done.map(s => ({ weight_kg: parseFloat(s.weight) || 0, reps_done: parseInt(s.reps) || 0, rir: parseInt(s.rir) || 0 })), target_rir: 2, isometric: !!(ex.exercise as any)?.is_isometric }),
+        body: JSON.stringify({ mode: 'feedback', exercise: { name: ex.exercise.name, reps_min: ex.reps_min, reps_max: ex.reps_max }, sets_data: done.map(s => ({ weight_kg: parseFloat(s.weight) || 0, reps_done: parseInt(s.reps) || 0, rir: parseInt(s.rir) || 0 })), target_rir: 2, isometric: !!(ex.exercise as any)?.is_isometric, avg_hr: liveHr }),
       });
       const { message } = await res.json();
       setExStates(p => { const n = [...p]; n[idx] = { ...n[idx], feedback: message ?? null, feedbackLoading: false }; return n; });
@@ -326,6 +328,16 @@ export default function ExecutarPage() {
   syncElapsedRef.current = syncElapsed;
   setCountingRef.current = setCounting;
   saveProgressRef.current = saveProgress;
+
+  // FC "quase ao vivo" do relógio durante o treino (Health Connect, best-effort)
+  useEffect(() => {
+    if (phase !== 'active') { return; }
+    let alive = true;
+    const tick = async () => { const hr = await fetchLiveHr(); if (alive && hr) setLiveHr(hr); };
+    tick();
+    const id = setInterval(tick, 45000);
+    return () => { alive = false; clearInterval(id); };
+  }, [phase]);
 
   function startWorkout() {
     startedAt.current = new Date();
@@ -424,8 +436,10 @@ export default function ExecutarPage() {
     const coachFeedback: Record<string, string> = {};
     exercises.forEach((ex, ei) => { const fb = exStates[ei]?.feedback; if (fb) coachFeedback[ex.exercise_id] = fb; });
     // FC média do período do treino — só grava se vier do relógio (Health Connect)
-    const avgHr = await fetchAvgHrFromHealthConnect(startedAt.current.getTime(), finishedAt.getTime());
-    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr, coach_feedback: coachFeedback }).select('id').single();
+    const m = await fetchWorkoutMetrics(startedAt.current.getTime(), finishedAt.getTime());
+    setMetrics(m);
+    const avgHr = m.avgHr;
+    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr, max_hr: m.maxHr, calories_burned: m.calories, coach_feedback: coachFeedback }).select('id').single();
     if (error || !session) { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
     if (allSets.length > 0) await supabase.from('session_sets').insert(allSets.map(s => ({ ...(s as object), session_id: session.id })));
     clearProgress();
@@ -556,6 +570,21 @@ export default function ExecutarPage() {
           </div>
         ))}
       </div>
+      {metrics && (metrics.avgHr || metrics.maxHr || metrics.calories) && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'FC media', value: metrics.avgHr ? `${metrics.avgHr}` : '—', icon: <Heart className="h-4 w-4" />, color: 'text-red-400' },
+            { label: 'FC max', value: metrics.maxHr ? `${metrics.maxHr}` : '—', icon: <Heart className="h-4 w-4" />, color: 'text-red-400' },
+            { label: 'Calorias', value: metrics.calories ? `${metrics.calories}` : '—', icon: <Flame className="h-4 w-4" />, color: 'text-orange-400' },
+          ].map(s2 => (
+            <div key={s2.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
+              <div className={cn('flex justify-center mb-1.5', s2.color)}>{s2.icon}</div>
+              <p className={cn('text-xl font-black', s2.color)}>{s2.value}</p>
+              <p className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wider">{s2.label}{(s2.label !== 'Calorias') ? ' bpm' : ' kcal'}</p>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
         {exercises.map((e, i) => {
           const s = exStates[i]; const done = s?.sets.filter(x => x.completed).length ?? 0;
@@ -603,6 +632,7 @@ export default function ExecutarPage() {
             <div className="flex items-center gap-1.5 text-zinc-300 mr-1">
               <Clock className={cn('h-3.5 w-3.5', isPaused ? 'text-yellow-500' : 'text-zinc-500')} />
               <span className={cn('font-mono font-bold text-sm tabular-nums', isPaused && 'text-yellow-400')}>{fmtTime(elapsed)}</span>
+              {liveHr != null && (<span className="flex items-center gap-1 ml-2 text-red-400"><Heart className="h-3.5 w-3.5 fill-current" /><span className="font-mono font-bold text-sm tabular-nums">{liveHr}</span></span>)}
             </div>
             {!isPaused ? (
               <button onClick={pauseWorkout} title="Pausar" className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-yellow-400 transition-colors">
