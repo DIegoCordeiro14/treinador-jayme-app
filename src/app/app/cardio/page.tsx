@@ -22,6 +22,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AutopilotCard from '@/components/edn/autopilot-card';
 
 const RunningTracker = dynamic(() => import('@/components/cardio/running-tracker'), { ssr: false });
+const RunDetailModal = dynamic(() => import('@/components/cardio/run-detail-modal'), { ssr: false });
+import type { RunDetail } from '@/components/cardio/run-detail-modal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CardioSession {
@@ -99,6 +101,7 @@ export default function CardioPage() {
   const [sessions, setSessions] = useState<CardioSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTracker, setShowTracker] = useState(false);
+  const [detailRun, setDetailRun] = useState<RunDetail | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
@@ -242,6 +245,10 @@ export default function CardioPage() {
 
   if (showTracker) return (
     <RunningTracker onClose={() => setShowTracker(false)} onSaved={() => { setShowTracker(false); load(); }} />
+  );
+
+  if (detailRun) return (
+    <RunDetailModal run={detailRun} onClose={() => setDetailRun(null)} />
   );
 
   return (
@@ -509,7 +516,16 @@ export default function CardioPage() {
               const pace = paceFromSession(s);
               const dt = sessionDate(s);
               return (
-                <div key={s.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <div key={s.id}
+                  onClick={() => s.distance_km ? setDetailRun({
+                    coordinates: s.gps_track?.coordinates ?? [],
+                    distanceKm: s.distance_km ?? 0,
+                    durationMin: s.duration_min,
+                    paceLabel: pace ? formatPace(pace) : '--:--',
+                    dateLabel: format(dt, "dd 'de' MMM", { locale: ptBR }),
+                    calories: s.calories_burned ?? null,
+                  }) : undefined}
+                  className={cn("rounded-xl border border-zinc-800 bg-zinc-900 p-4", s.distance_km && "cursor-pointer hover:border-zinc-700 transition-colors")}>
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="flex items-center gap-2">
@@ -538,6 +554,7 @@ export default function CardioPage() {
                     {s.calories_burned && <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-orange-400" />{s.calories_burned} kcal</span>}
                     {s.perceived_effort && <span className="flex items-center gap-1"><Star className="h-3 w-3 text-yellow-400" />{s.perceived_effort}/10</span>}
                     {s.gps_track && <span className="flex items-center gap-1 text-[#D4853A]"><MapPin className="h-3 w-3" />GPS</span>}
+                    {s.distance_km && <span className="ml-auto text-[#E09B5A] font-medium">{s.gps_track ? 'Toque: replay · story' : 'Toque: story'}</span>}
                   </div>
 
                   {s.notes && <p className="text-xs text-zinc-500 mt-2 italic">{s.notes}</p>}
