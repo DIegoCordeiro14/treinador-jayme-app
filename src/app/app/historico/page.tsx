@@ -43,6 +43,20 @@ const MUSCLE_COLORS: Record<string, string> = {
   glutes: 'text-pink-400 bg-pink-500/10', abs: 'text-cyan-400 bg-cyan-500/10',
 };
 
+// Renderiza **negrito** (e remove os asteriscos) — usado nas análises do Coach
+function MdBold({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.startsWith('**') && p.endsWith('**')
+          ? <strong key={i} className="font-semibold text-zinc-100">{p.slice(2, -2)}</strong>
+          : <span key={i}>{p}</span>
+      )}
+    </>
+  );
+}
+
 export default function HistoricoPage() {
   const supabase = createClient();
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
@@ -263,7 +277,7 @@ export default function HistoricoPage() {
                           {fb && (
                             <div className="mt-1.5 ml-0.5 rounded-lg border border-[#D4853A]/20 bg-[#D4853A]/5 px-2.5 py-1.5">
                               <p className="text-[10px] font-bold text-[#D4853A] uppercase tracking-wider mb-0.5">Análise do Coach EDN</p>
-                              <p className="text-[11px] text-zinc-300 leading-relaxed">{fb}</p>
+                              <p className="text-[11px] text-zinc-300 leading-relaxed whitespace-pre-line"><MdBold text={fb} /></p>
                             </div>
                           )}
                         </div>
