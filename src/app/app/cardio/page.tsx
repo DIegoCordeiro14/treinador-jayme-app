@@ -6,7 +6,7 @@ import {
   Flame, Plus, X, Clock, Zap, BarChart2, Loader2, MapPin,
   Activity, TrendingUp, Target, Award, AlertTriangle, ChevronRight,
   Heart, Footprints, Mountain, Star, RefreshCw, Play, Calendar,
-  CheckCircle2, Sparkles, Radio,
+  CheckCircle2, Sparkles, Radio, Watch,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -24,6 +24,7 @@ import AutopilotCard from '@/components/edn/autopilot-card';
 const RunningTracker = dynamic(() => import('@/components/cardio/running-tracker'), { ssr: false });
 const RunDetailModal = dynamic(() => import('@/components/cardio/run-detail-modal'), { ssr: false });
 import type { RunDetail } from '@/components/cardio/run-detail-modal';
+import { fetchWatchRuns, runIntensity, type WatchRun } from '@/lib/wearables/import-runs';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CardioSession {
@@ -102,6 +103,10 @@ export default function CardioPage() {
   const [loading, setLoading] = useState(true);
   const [showTracker, setShowTracker] = useState(false);
   const [detailRun, setDetailRun] = useState<RunDetail | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importRuns, setImportRuns] = useState<WatchRun[]>([]);
+  const [importingId, setImportingId] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
@@ -130,6 +135,41 @@ export default function CardioPage() {
   }, [supabase]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function openImport() {
+    setShowImport(true); setImportLoading(true); setImportRuns([]);
+    const r = await fetchWatchRuns();
+    setImportLoading(false);
+    if (!r.ok) { toast.error(r.error ?? 'Não foi possível ler o relógio'); setShowImport(false); return; }
+    if (r.runs.length === 0) { toast('Nenhuma corrida com rota encontrada no relógio (últimos 21 dias).'); }
+    setImportRuns(r.runs);
+  }
+
+  async function importRun(run: WatchRun) {
+    setImportingId(run.externalId);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setImportingId(null); return; }
+    // evita duplicar a mesma corrida
+    const { data: dup } = await supabase.from('cardio_sessions').select('id').eq('user_id', user.id).eq('performed_at', run.startedAt).maybeSingle();
+    if (dup) { toast('Essa corrida já foi importada.'); setImportingId(null); return; }
+    const { error } = await supabase.from('cardio_sessions').insert({
+      user_id: user.id,
+      performed_at: run.startedAt,
+      type: run.type,
+      duration_min: run.durationMin,
+      intensity: runIntensity(run.distanceKm, run.durationMin),
+      distance_km: run.distanceKm || null,
+      calories_burned: run.calories,
+      avg_hr: run.avgHr,
+      gps_track: run.coordinates.length > 1 ? { coordinates: run.coordinates, max_speed_kmh: 0 } : null,
+      notes: 'Importado do relógio',
+    });
+    setImportingId(null);
+    if (error) { toast.error('Erro ao importar'); return; }
+    toast.success('Corrida importada do relógio!');
+    setShowImport(false);
+    load();
+  }
 
   async function saveSession() {
     setSaving(true);
@@ -263,6 +303,9 @@ export default function CardioPage() {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setShowLog(true)} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" /> Registrar
+          </Button>
+          <Button size="sm" variant="outline" onClick={openImport} className="gap-1.5">
+            <Watch className="h-3.5 w-3.5" /> Relógio
           </Button>
           <Button size="sm" onClick={() => setShowTracker(true)} className="gap-1.5 bg-orange-500 hover:bg-orange-400 text-white border-0">
             <Play className="h-3.5 w-3.5 fill-current" /> Correr
@@ -654,6 +697,51 @@ export default function CardioPage() {
       </Tabs>
 
       {/* ── Log modal ────────────────────────────────────────────── */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Watch className="h-4 w-4 text-[#D4853A]" />
+                <p className="font-semibold text-zinc-100">Importar do relógio</p>
+              </div>
+              <button onClick={() => setShowImport(false)} className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              {importLoading ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-zinc-500">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#D4853A]" />
+                  <p className="text-sm">Lendo corridas do Health Connect…</p>
+                </div>
+              ) : importRuns.length === 0 ? (
+                <div className="text-center py-8 text-zinc-500">
+                  <p className="text-sm">Nenhuma corrida com rota encontrada (últimos 21 dias).</p>
+                  <p className="text-xs mt-1">Confirme que o relógio sincronizou o treino — com a rota — no Health Connect.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {importRuns.map(run => (
+                    <div key={run.externalId} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-zinc-100">{run.type}</span>
+                          {run.coordinates.length > 1 && <span className="flex items-center gap-1 text-[10px] text-[#D4853A]"><MapPin className="h-3 w-3" />rota</span>}
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-0.5">{format(parseISO(run.startedAt), "dd 'de' MMM · HH:mm", { locale: ptBR })}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{run.distanceKm > 0 ? `${run.distanceKm.toFixed(2)} km · ` : ''}{run.durationMin} min{run.avgHr ? ` · ${run.avgHr} bpm` : ''}</p>
+                      </div>
+                      <Button size="sm" disabled={importingId === run.externalId} onClick={() => importRun(run)} className="shrink-0 bg-orange-500 hover:bg-orange-400 text-white border-0">
+                        {importingId === run.externalId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Importar'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showLog && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl max-h-[90vh] overflow-y-auto">
