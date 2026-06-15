@@ -367,7 +367,7 @@ export default function TreinosPage() {
                         {plan.description}
                       </p>
                     )}
-                    <div className="grid grid-cols-3 gap-2 mt-1">
+                    <div className="grid grid-cols-2 gap-2 mt-1">
                       <div className="rounded-lg bg-black/20 py-2.5 px-2 text-center">
                         <p className="text-xl font-black text-[#D4853A] leading-none">{plan.days_per_week}</p>
                         <p className="text-[10px] text-zinc-500 mt-1">dias/sem</p>
@@ -376,10 +376,10 @@ export default function TreinosPage() {
                         <p className="text-xl font-black text-[#D4853A] leading-none">{totalExercises}</p>
                         <p className="text-[10px] text-zinc-500 mt-1">exercícios</p>
                       </div>
-                      <div className="rounded-lg bg-black/20 py-2.5 px-1.5 text-center overflow-hidden min-w-0">
-                        <p className="text-[10px] font-black text-[#D4853A] leading-tight mt-1 whitespace-nowrap">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</p>
-                        <p className="text-[10px] text-zinc-500 mt-1.5">objetivo</p>
-                      </div>
+                    </div>
+                    <div className="mt-2 rounded-lg bg-black/20 px-3 py-2 flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-zinc-500 shrink-0">Objetivo</span>
+                      <span className="text-sm font-black text-[#D4853A] text-right">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</span>
                     </div>
                   </div>
 
