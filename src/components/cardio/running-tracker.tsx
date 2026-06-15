@@ -288,6 +288,25 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     };
   }, [syncElapsed, flushBuffer, syncSession, requestWakeLock, releaseWakeLock, updateSessionStatus]);
 
+  // Botão "voltar" (Android): durante a corrida NÃO encerra — minimiza o app e
+  // mantém o GPS rodando em segundo plano (serviço nativo). Fora da corrida, fecha.
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const App = (typeof window !== 'undefined' ? (window as any).Capacitor?.Plugins?.App : null);
+    if (!App?.addListener) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let handle: any;
+    App.addListener('backButton', () => {
+      const st = statusRef.current;
+      if (st === 'running' || st === 'acquiring' || st === 'paused') {
+        try { App.minimizeApp?.(); } catch { /* */ }
+      } else {
+        onClose();
+      }
+    }).then((h: unknown) => { handle = h; });
+    return () => { try { handle?.remove?.(); } catch { /* */ } };
+  }, [onClose]);
+
 
   // Ao abrir, se houver uma corrida não finalizada (running/paused), restaura
   // automaticamente em estado PAUSADO, com tempo, distância e trajeto — sem
