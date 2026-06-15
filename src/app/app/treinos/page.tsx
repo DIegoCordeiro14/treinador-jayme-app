@@ -377,7 +377,7 @@ export default function TreinosPage() {
                         <p className="text-[10px] text-zinc-500 mt-1">exercícios</p>
                       </div>
                       <div className="rounded-lg bg-black/20 py-2.5 px-1.5 text-center overflow-hidden min-w-0">
-                        <p className="text-[11px] font-black text-[#D4853A] leading-tight mt-1 break-words">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</p>
+                        <p className="text-[10px] font-black text-[#D4853A] leading-tight mt-1 whitespace-nowrap">{GOAL_LABELS[plan.goal as keyof typeof GOAL_LABELS] ?? plan.goal}</p>
                         <p className="text-[10px] text-zinc-500 mt-1.5">objetivo</p>
                       </div>
                     </div>
