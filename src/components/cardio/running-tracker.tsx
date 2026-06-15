@@ -296,14 +296,19 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     if (!App?.addListener) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let handle: any;
-    App.addListener('backButton', () => {
-      const st = statusRef.current;
-      if (st === 'running' || st === 'acquiring' || st === 'paused') {
-        try { App.minimizeApp?.(); } catch { /* */ }
-      } else {
-        onClose();
-      }
-    }).then((h: unknown) => { handle = h; });
+    const onBack = () => {
+      try {
+        const st = statusRef.current;
+        if (st === 'running' || st === 'acquiring' || st === 'paused') App.minimizeApp?.();
+        else onClose();
+      } catch { /* */ }
+    };
+    try {
+      // addListener pode devolver Promise<handle> OU o handle direto, dependendo do plugin
+      const res = App.addListener('backButton', onBack);
+      if (res && typeof res.then === 'function') res.then((h: unknown) => { handle = h; }).catch(() => {});
+      else handle = res;
+    } catch { /* não bloqueia a corrida se o plugin falhar */ }
     return () => { try { handle?.remove?.(); } catch { /* */ } };
   }, [onClose]);
 
