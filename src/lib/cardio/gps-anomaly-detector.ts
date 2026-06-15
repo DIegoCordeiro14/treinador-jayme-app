@@ -70,6 +70,15 @@ export class GpsAnomalyDetector {
   }): AnomalyResult {
     const { speedKmh, prevSpeedKmh, dtSec, bearingChangeDeg, timestamp } = p;
 
+    // Ponto esparso (volta de background, tela bloqueada, GPS lento): o intervalo
+    // grande NÃO é um spike (spikes são saltos instantâneos, dt < 3s). Confia no
+    // ponto e mantém a velocidade plausível na janela — assim o km "alcança"
+    // ao desbloquear, em vez de ser descartado.
+    if (dtSec >= 4) {
+      this.overLimitSince = null;
+      return { ok: true };
+    }
+
     // Módulo 2 — velocidade fisiológica (exceção: sustentada ≥ 5 s = real)
     if (speedKmh > this.maxSpeed) {
       if (this.overLimitSince == null) this.overLimitSince = timestamp;
