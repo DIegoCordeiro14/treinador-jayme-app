@@ -38,6 +38,7 @@ export default function RunDetailModal({ run, onClose }: Props) {
   const idxRef = useRef(0);
   const [replaying, setReplaying] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [recording, setRecording] = useState(false);
 
   const pts = run.coordinates ?? [];
   const hasRoute = pts.length > 1;
@@ -206,6 +207,127 @@ export default function RunDetailModal({ run, onClose }: Props) {
     }
   }, [pts, hasRoute, run]);
 
+  // ── Exportar VÍDEO do replay para Story (canvas + MediaRecorder) ───────────
+  const exportVideo = useCallback(async () => {
+    if (!hasRoute) { toast.error('Sem trajeto de GPS para gerar o vídeo'); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof MediaRecorder === 'undefined' || !(document.createElement('canvas') as any).captureStream) {
+      toast.error('Gravação de vídeo não suportada neste aparelho'); return;
+    }
+    setRecording(true);
+    try {
+      const W = 720, H = 1280;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { toast.error('Falha ao gerar o vídeo'); setRecording(false); return; }
+
+      // projeção da rota num box do canvas
+      const lats = pts.map(p => p.lat), lngs = pts.map(p => p.lng);
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+      const meanLat = (minLat + maxLat) / 2;
+      const kx = Math.cos((meanLat * Math.PI) / 180);
+      const spanX = Math.max(1e-6, (maxLng - minLng) * kx);
+      const spanY = Math.max(1e-6, (maxLat - minLat));
+      const boxX = 70, boxY = 250, boxW = W - 140, boxH = 520;
+      const scale = Math.min(boxW / spanX, boxH / spanY);
+      const offX = boxX + (boxW - spanX * scale) / 2;
+      const offY = boxY + (boxH - spanY * scale) / 2;
+      const proj = (p: { lat: number; lng: number }) => ({ x: offX + (p.lng - minLng) * kx * scale, y: offY + (maxLat - p.lat) * scale });
+      const projected = pts.map(proj);
+
+      const drawWatermark = () => {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#D4853A'; ctx.font = '700 italic 38px sans-serif';
+        ctx.fillText('Coach EDN', 70, 130);
+        ctx.fillStyle = '#8B949E'; ctx.font = '400 24px sans-serif';
+        ctx.fillText(run.dateLabel, 70, 168);
+        // distância
+        ctx.fillStyle = '#FFFFFF'; ctx.font = '900 italic 150px sans-serif';
+        const dist = run.distanceKm.toFixed(2);
+        ctx.fillText(dist, 62, 990);
+        ctx.fillStyle = '#D4853A'; ctx.font = '700 italic 60px sans-serif';
+        ctx.fillText('km', 62 + ctx.measureText(dist).width + 20, 990);
+        // tempo · pace · kcal
+        const statY = 1100;
+        const stat = (x: number, label: string, value: string) => {
+          ctx.fillStyle = '#FFFFFF'; ctx.font = '800 italic 52px sans-serif'; ctx.fillText(value, x, statY);
+          ctx.fillStyle = '#8B949E'; ctx.font = '500 22px sans-serif'; ctx.fillText(label, x, statY + 34);
+        };
+        stat(70, 'TEMPO', fmtDur(run.durationMin));
+        stat(320, 'PACE /KM', run.paceLabel);
+        if (run.calories) stat(560, 'KCAL', String(run.calories));
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#586069'; ctx.font = '400 22px sans-serif';
+        ctx.fillText('Corrida registrada no Coach EDN', W / 2, H - 50);
+        ctx.textAlign = 'left';
+      };
+
+      const drawFrame = (progress: number) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#0D1117'); g.addColorStop(1, '#161B22');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        // rota completa (fantasma)
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(212,133,58,0.18)'; ctx.lineWidth = 14;
+        ctx.beginPath(); projected.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.stroke();
+        // rota percorrida até progress
+        const upto = Math.max(1, Math.floor(progress * (projected.length - 1)));
+        ctx.strokeStyle = '#D4853A'; ctx.lineWidth = 7;
+        ctx.beginPath(); for (let i = 0; i <= upto; i++) { const q = projected[i]; i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); } ctx.stroke();
+        // ponto inicial + cabeça
+        ctx.fillStyle = '#5A8A6A'; ctx.beginPath(); ctx.arc(projected[0].x, projected[0].y, 10, 0, Math.PI * 2); ctx.fill();
+        const head = projected[upto];
+        ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(head.x, head.y, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#D4853A'; ctx.beginPath(); ctx.arc(head.x, head.y, 7, 0, Math.PI * 2); ctx.fill();
+        drawWatermark();
+      };
+
+      drawFrame(0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stream = (canvas as any).captureStream(30) as MediaStream;
+      const types = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      const mime = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } }) || '';
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 6_000_000 } : undefined);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      const done = new Promise<Blob>(res => { rec.onstop = () => res(new Blob(chunks, { type: rec.mimeType || 'video/webm' })); });
+      rec.start();
+      const durMs = 6500, start = performance.now();
+      await new Promise<void>(resolve => {
+        const loop = (t: number) => {
+          const p = Math.min(1, (t - start) / durMs);
+          drawFrame(p);
+          if (p < 1) requestAnimationFrame(loop); else setTimeout(() => { try { rec.stop(); } catch { /* */ } resolve(); }, 400);
+        };
+        requestAnimationFrame(loop);
+      });
+      const blob = await done;
+      const ext = (rec.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+      const file = new File([blob], `corrida-${run.distanceKm.toFixed(2)}km.${ext}`, { type: blob.type });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nav = navigator as any;
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        try {
+          await nav.share({ files: [file], title: 'Minha corrida', text: `${run.distanceKm.toFixed(2)} km · ${fmtDur(run.durationMin)} · ${run.paceLabel}/km` });
+          setRecording(false);
+          return;
+        } catch { /* cancelado → baixa */ }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = file.name; a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Vídeo salvo! Poste no seu story 🔥');
+    } catch {
+      toast.error('Erro ao gerar o vídeo');
+    } finally {
+      setRecording(false);
+    }
+  }, [pts, hasRoute, run]);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
@@ -238,12 +360,13 @@ export default function RunDetailModal({ run, onClose }: Props) {
             </button>
           )
         )}
-        <button onClick={exportStory} disabled={exporting} className="w-full py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-black flex items-center justify-center gap-2">
-          {exporting ? 'Gerando…' : (<><Share2 className="h-5 w-5" /> Exportar para Story</>)}
+        <button onClick={exportVideo} disabled={recording || !hasRoute} className="w-full py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-black flex items-center justify-center gap-2">
+          {recording ? 'Gravando o vídeo…' : (<><Share2 className="h-5 w-5" /> Exportar vídeo para Story</>)}
         </button>
-        <p className="text-[11px] text-zinc-600 text-center flex items-center justify-center gap-1">
-          <Download className="h-3 w-3" /> Gera uma imagem 9:16 com rota, km, tempo e pace
-        </p>
+        <button onClick={exportStory} disabled={exporting} className="w-full py-2.5 rounded-2xl border border-zinc-700 text-zinc-300 font-semibold flex items-center justify-center gap-2 text-sm">
+          {exporting ? 'Gerando…' : (<><Download className="h-4 w-4" /> Salvar imagem (9:16)</>)}
+        </button>
+        <p className="text-[11px] text-zinc-600 text-center">Vídeo do replay com rota + km, tempo e pace por cima.</p>
       </div>
     </div>
   );
