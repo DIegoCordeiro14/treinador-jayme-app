@@ -138,7 +138,9 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
       mapRef.current = m;
       setMapReady(true);
-      if (pendingRestoreRef.current && pointsRef.current.length) {
+      // Redesenha o trajeto ao ficar pronto — cobre restauração e pontos que
+      // chegaram antes do mapa carregar (evita 'não marcar em tempo real').
+      if (pointsRef.current.length) {
         pointsRef.current.forEach((pp, i) => renderPoint(pp.lat, pp.lng, i === 0));
         pendingRestoreRef.current = false;
       }

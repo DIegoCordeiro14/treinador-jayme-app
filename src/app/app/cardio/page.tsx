@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AutopilotCard from '@/components/edn/autopilot-card';
+import { ScreenErrorBoundary } from '@/components/error-boundary';
 
 const RunningTracker = dynamic(() => import('@/components/cardio/running-tracker'), { ssr: false });
 const RunDetailModal = dynamic(() => import('@/components/cardio/run-detail-modal'), { ssr: false });
@@ -284,11 +285,15 @@ export default function CardioPage() {
   );
 
   if (showTracker) return (
-    <RunningTracker onClose={() => setShowTracker(false)} onSaved={() => { setShowTracker(false); load(); }} />
+    <ScreenErrorBoundary onReset={() => setShowTracker(false)}>
+      <RunningTracker onClose={() => setShowTracker(false)} onSaved={() => { setShowTracker(false); load(); }} />
+    </ScreenErrorBoundary>
   );
 
   if (detailRun) return (
-    <RunDetailModal run={detailRun} onClose={() => setDetailRun(null)} />
+    <ScreenErrorBoundary onReset={() => setDetailRun(null)}>
+      <RunDetailModal run={detailRun} onClose={() => setDetailRun(null)} />
+    </ScreenErrorBoundary>
   );
 
   return (
