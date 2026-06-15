@@ -87,6 +87,9 @@ export default function NutricaoPage() {
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
   const [savingWeight, setSavingWeight] = useState(false);
+  const [showMealModal, setShowMealModal] = useState(false);
+  const [savingMeal, setSavingMeal] = useState(false);
+  const [mealForm, setMealForm] = useState({ name: '', time: '', calories_pct: '', focus: '', example: '' });
   const [activeTab, setActiveTab] = useState('coach');
 
   // ── Plano Nutricional EDN (card unificado) ──
@@ -156,6 +159,33 @@ export default function NutricaoPage() {
     setWeightForm({ weight_kg: '', body_fat_pct: '' });
     setShowWeightModal(false);
     load();
+  }
+
+  // ── Refeições do plano (schedule_config.nutrition.meals) ──────────────────
+  async function persistMeals(newMeals: NonNullable<NutritionPlan['meals']>) {
+    if (!activePlanId) { toast.error('Nenhum plano ativo'); return false; }
+    const { data: row } = await supabase.from('workout_plans').select('schedule_config').eq('id', activePlanId).maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cfg = ((row as any)?.schedule_config) ?? {};
+    const nutrition = { ...(cfg.nutrition ?? plan ?? {}), meals: newMeals };
+    const { error } = await supabase.from('workout_plans').update({ schedule_config: { ...cfg, nutrition } }).eq('id', activePlanId);
+    if (error) { toast.error('Erro ao salvar refeição'); return false; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setPlan(prev => ({ ...((prev ?? {}) as any), meals: newMeals }));
+    return true;
+  }
+  async function addMeal() {
+    const name = mealForm.name.trim();
+    if (!name) { toast.error('Informe o nome da refeição'); return; }
+    setSavingMeal(true);
+    const meal = { name, time: mealForm.time.trim() || '—', calories_pct: parseInt(mealForm.calories_pct) || 0, focus: mealForm.focus.trim(), example: mealForm.example.trim() };
+    const ok = await persistMeals([...(plan?.meals ?? []), meal]);
+    setSavingMeal(false);
+    if (ok) { toast.success('Refeição adicionada!'); setMealForm({ name: '', time: '', calories_pct: '', focus: '', example: '' }); setShowMealModal(false); }
+  }
+  async function deleteMeal(idx: number) {
+    const ok = await persistMeals((plan?.meals ?? []).filter((_, i) => i !== idx));
+    if (ok) toast.success('Refeição removida');
   }
 
   // Mockup: hero escuro com borda âmbar para todos os objetivos
@@ -446,14 +476,21 @@ export default function NutricaoPage() {
             {plan ? 'Regenerar plano com IA' : 'Gerar plano nutricional com IA'}
           </Button>
 
-          {plan?.meals && plan.meals.length > 0 && (
+          {plan && (
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-between text-sm font-semibold text-zinc-400 uppercase tracking-wide"
-                onClick={() => setShowMeals(v => !v)}>
-                <span>Distribuicao de Refeicoes ({plan.meals!.length}x/dia)</span>
-                {showMeals ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-              {showMeals && (
+              <div className="flex items-center justify-between gap-2">
+                <button className="flex items-center gap-2 text-sm font-semibold text-zinc-400 uppercase tracking-wide"
+                  onClick={() => setShowMeals(v => !v)}>
+                  <span>Distribuicao de Refeicoes ({plan.meals?.length ?? 0}x/dia)</span>
+                  {showMeals ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                <Button size="sm" variant="outline" onClick={() => setShowMealModal(true)} className="gap-1.5 shrink-0">
+                  <Plus className="h-3.5 w-3.5" /> Refeição
+                </Button>
+              </div>
+              {showMeals && ((plan.meals?.length ?? 0) === 0 ? (
+                <p className="text-xs text-zinc-600 text-center py-4 border border-dashed border-zinc-800 rounded-xl">Nenhuma refeição cadastrada. Toque em "+ Refeição" para adicionar.</p>
+              ) : (
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
                   {plan.meals!.map((meal, i) => (
                     <div key={i} className="p-4">
@@ -465,6 +502,7 @@ export default function NutricaoPage() {
                         <div className="flex items-center gap-2 text-xs text-zinc-500">
                           <Clock className="h-3 w-3" /><span>{meal.time}</span>
                           <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-medium">{meal.calories_pct}%</span>
+                          <button onClick={() => deleteMeal(i)} title="Remover" className="p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-400/10"><X className="h-3.5 w-3.5" /></button>
                         </div>
                       </div>
                       <p className="text-xs text-zinc-400 ml-7 mb-0.5">{meal.focus}</p>
@@ -472,7 +510,7 @@ export default function NutricaoPage() {
                     </div>
                   ))}
                 </div>
-              )}
+              ))}
             </div>
           )}
 
@@ -709,6 +747,60 @@ export default function NutricaoPage() {
                 <Button variant="outline" className="flex-1" onClick={() => setShowWeightModal(false)}>Cancelar</Button>
                 <Button className="flex-1" onClick={logWeight} disabled={savingWeight || !weightForm.weight_kg}>
                   {savingWeight ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Salvar'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add meal modal ──────────────────────────────────── */}
+      {showMealModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-zinc-900 border border-zinc-800 p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-semibold text-zinc-100">Nova refeição</p>
+              <button onClick={() => setShowMealModal(false)} className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1.5">Nome *</label>
+                <input type="text" placeholder="Ex.: Almoço" value={mealForm.name}
+                  onChange={e => setMealForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1.5">Horário</label>
+                  <input type="text" placeholder="12h30" value={mealForm.time}
+                    onChange={e => setMealForm(f => ({ ...f, time: e.target.value }))}
+                    className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1.5">% calorias</label>
+                  <input type="number" min="0" max="100" placeholder="30" value={mealForm.calories_pct}
+                    onChange={e => setMealForm(f => ({ ...f, calories_pct: e.target.value }))}
+                    className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1.5">Foco — opcional</label>
+                <input type="text" placeholder="Proteína + carbo complexo" value={mealForm.focus}
+                  onChange={e => setMealForm(f => ({ ...f, focus: e.target.value }))}
+                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1.5">Exemplo de alimentos — opcional</label>
+                <input type="text" placeholder="150g frango, arroz, salada" value={mealForm.example}
+                  onChange={e => setMealForm(f => ({ ...f, example: e.target.value }))}
+                  className="w-full h-10 rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4853A]" />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setShowMealModal(false)}>Cancelar</Button>
+                <Button className="flex-1" onClick={addMeal} disabled={savingMeal || !mealForm.name.trim()}>
+                  {savingMeal ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Adicionar'}
                 </Button>
               </div>
             </div>
