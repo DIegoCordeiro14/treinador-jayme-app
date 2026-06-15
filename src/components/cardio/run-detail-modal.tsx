@@ -25,6 +25,48 @@ function fmtDur(totalMin: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onloadend = () => res(String(r.result).split(',')[1] ?? '');
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+// Salva no aparelho e abre o compartilhamento. No APK (Capacitor) usa os plugins
+// nativos Filesystem + FileOpener/Share; no navegador cai para Web Share/download.
+async function saveOrShare(blob: Blob, filename: string, mime: string, text: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cap = (typeof window !== 'undefined' ? (window as any).Capacitor : null);
+  if (cap?.isNativePlatform?.() && cap?.Plugins?.Filesystem) {
+    try {
+      const FS = cap.Plugins.Filesystem;
+      const b64 = await blobToBase64(blob);
+      await FS.writeFile({ path: filename, data: b64, directory: 'CACHE' });
+      const { uri } = await FS.getUri({ path: filename, directory: 'CACHE' });
+      const Share = cap.Plugins.Share;
+      const FO = cap.Plugins.FileOpener;
+      if (Share?.share) { try { await Share.share({ url: uri, title: 'Minha corrida', text }); return 'shared'; } catch { /* */ } }
+      if (FO?.open) { try { await FO.open({ filePath: uri, contentType: mime }); return 'opened'; } catch { /* */ } }
+      // por último: grava em Documentos para ficar acessível
+      try { await FS.writeFile({ path: filename, data: b64, directory: 'DOCUMENTS' }); return 'saved'; } catch { /* */ }
+      return 'cache';
+    } catch { /* cai para o caminho web */ }
+  }
+  // Navegador
+  const file = new File([blob], filename, { type: mime });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nav = navigator as any;
+  if (nav.canShare && nav.canShare({ files: [file] })) {
+    try { await nav.share({ files: [file], title: 'Minha corrida', text }); return 'shared'; } catch { /* */ }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  return 'downloaded';
+}
+
 export default function RunDetailModal({ run, onClose }: Props) {
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
@@ -184,22 +226,9 @@ export default function RunDetailModal({ run, onClose }: Props) {
 
       const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/png'));
       if (!blob) { toast.error('Falha ao gerar imagem'); setExporting(false); return; }
-      const file = new File([blob], `corrida-${run.distanceKm.toFixed(2)}km.png`, { type: 'image/png' });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nav = navigator as any;
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        try {
-          await nav.share({ files: [file], title: 'Minha corrida', text: `${run.distanceKm.toFixed(2)} km · ${fmtDur(run.durationMin)} · ${run.paceLabel}/km` });
-          setExporting(false);
-          return;
-        } catch { /* usuário cancelou ou não suportado → baixa */ }
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = file.name; a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Imagem salva! Poste no seu story 🔥');
+      const stats = `${run.distanceKm.toFixed(2)} km · ${fmtDur(run.durationMin)} · ${run.paceLabel}/km`;
+      const r = await saveOrShare(blob, `corrida-${run.distanceKm.toFixed(2)}km.png`, 'image/png', stats);
+      toast.success(r === 'saved' ? 'Imagem salva em Documentos!' : r === 'downloaded' ? 'Imagem baixada!' : 'Imagem pronta — escolha onde postar 🔥');
     } catch {
       toast.error('Erro ao exportar');
     } finally {
@@ -300,22 +329,9 @@ export default function RunDetailModal({ run, onClose }: Props) {
       });
       const blob = await done;
       const ext = (rec.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
-      const file = new File([blob], `corrida-${run.distanceKm.toFixed(2)}km.${ext}`, { type: blob.type });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nav = navigator as any;
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        try {
-          await nav.share({ files: [file], title: 'Minha corrida', text: `${run.distanceKm.toFixed(2)} km · ${fmtDur(run.durationMin)} · ${run.paceLabel}/km` });
-          setRecording(false);
-          return;
-        } catch { /* cancelado → baixa */ }
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = file.name; a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Vídeo salvo! Poste no seu story 🔥');
+      const stats = `${run.distanceKm.toFixed(2)} km · ${fmtDur(run.durationMin)} · ${run.paceLabel}/km`;
+      const r = await saveOrShare(blob, `corrida-${run.distanceKm.toFixed(2)}km.${ext}`, blob.type || 'video/webm', stats);
+      toast.success(r === 'saved' ? 'Vídeo salvo em Documentos!' : r === 'downloaded' ? 'Vídeo baixado!' : 'Vídeo pronto — escolha onde postar 🔥');
     } catch {
       toast.error('Erro ao gerar o vídeo');
     } finally {
