@@ -350,7 +350,8 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
           setGpsAccuracy(raw.accuracy != null ? Math.round(raw.accuracy) : null);
           if (!clean.accepted) return;
           const isFirst = pointsRef.current.length === 0;
-          if (isFirst) setStatus('running');
+          // Sai de 'buscando' assim que QUALQUER ponto e aceito (inclui retomada apos pausa/background)
+          if (statusRef.current === 'acquiring') setStatus('running');
           autoPauseRef.current?.update(clean.speedKmh, raw.timestamp);
           if (clean.segmentKm > 0 && !autoPausedRef.current) {
             distRef.current += clean.segmentKm; setDistance(distRef.current);
