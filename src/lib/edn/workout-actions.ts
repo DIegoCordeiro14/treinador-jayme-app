@@ -18,6 +18,7 @@ export type WorkoutActionType =
   | 'substitute_exercise'
   | 'add_exercise'
   | 'remove_exercise'
+  | 'set_day_exercises'
   | 'reschedule_workouts';
 
 export interface WorkoutAction {
@@ -32,6 +33,8 @@ export interface WorkoutAction {
   repsMin?: number;
   repsMax?: number;
   restSeconds?: number;
+  /** montar um dia inteiro: lista completa de exercícios */
+  exercises?: Array<{ exerciseId: string; sets?: number; repsMin?: number; repsMax?: number; restSeconds?: number }>;
   /** reprogramação de calendário */
   pattern?: number[];                       // dias da semana 1=Seg ... 7=Dom
   dayAssignments?: Record<string, string>;  // weekday -> rótulo (ex: "legs/abs")
@@ -135,6 +138,35 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       });
       if (error) return { ok: false, message: `Adição falhou: ${error.message}` };
       return { ok: true, message: `**${newName}** adicionado ao treino.` };
+    }
+
+    // ── Montar o dia inteiro (importar treino do Coach para o plano) ─────────
+    case 'set_day_exercises': {
+      if (!a.dayId || !Array.isArray(a.exercises) || a.exercises.length === 0)
+        return { ok: false, message: 'Montagem: faltam dayId ou a lista de exercícios.' };
+      if (!(await ownsDay(supabase, userId, a.dayId)))
+        return { ok: false, message: 'Montagem: dia não encontrado ou não pertence a você.' };
+      // valida quais IDs existem na biblioteca
+      const ids = a.exercises.map(e => e.exerciseId).filter(Boolean);
+      const { data: valid } = await supabase.from('exercises').select('id').in('id', ids);
+      const validSet = new Set((valid ?? []).map((r: any) => r.id));
+      const rows = a.exercises
+        .filter(e => validSet.has(e.exerciseId))
+        .map((e, i) => ({
+          workout_day_id: a.dayId,
+          exercise_id: e.exerciseId,
+          sets: clampInt(e.sets, 1, 10, 3),
+          reps_min: clampInt(e.repsMin, 1, 50, 8),
+          reps_max: clampInt(e.repsMax, 1, 50, 12),
+          rest_seconds: clampInt(e.restSeconds, 10, 600, 90),
+          order_index: i,
+        }));
+      if (rows.length === 0) return { ok: false, message: 'Montagem: nenhum exercício válido (IDs não conferem com a biblioteca).' };
+      // substitui o dia inteiro pelos exercícios montados
+      await supabase.from('workout_exercises').delete().eq('workout_day_id', a.dayId).then(() => {}, () => {});
+      const { error } = await supabase.from('workout_exercises').insert(rows);
+      if (error) return { ok: false, message: `Montagem falhou: ${error.message}` };
+      return { ok: true, message: `Treino montado no plano: ${rows.length} exercício(s).` };
     }
 
     // ── Remover exercício ───────────────────────────────────────────────────
