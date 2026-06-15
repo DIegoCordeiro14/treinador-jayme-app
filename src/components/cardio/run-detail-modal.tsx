@@ -239,10 +239,8 @@ export default function RunDetailModal({ run, onClose }: Props) {
 
       const drawWatermark = () => {
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#D4853A'; ctx.font = '700 italic 38px sans-serif';
-        ctx.fillText('Coach EDN', 70, 130);
-        ctx.fillStyle = '#8B949E'; ctx.font = '400 24px sans-serif';
-        ctx.fillText(run.dateLabel, 70, 168);
+        ctx.fillStyle = '#8B949E'; ctx.font = '400 26px sans-serif';
+        ctx.fillText(run.dateLabel, 70, 150);
         // distância
         ctx.fillStyle = '#FFFFFF'; ctx.font = '900 italic 150px sans-serif';
         const dist = run.distanceKm.toFixed(2);
@@ -258,9 +256,6 @@ export default function RunDetailModal({ run, onClose }: Props) {
         stat(70, 'TEMPO', fmtDur(run.durationMin));
         stat(320, 'PACE /KM', run.paceLabel);
         if (run.calories) stat(560, 'KCAL', String(run.calories));
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#586069'; ctx.font = '400 22px sans-serif';
-        ctx.fillText('Corrida registrada no Coach EDN', W / 2, H - 50);
         ctx.textAlign = 'left';
       };
 
