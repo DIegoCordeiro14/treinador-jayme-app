@@ -36,11 +36,19 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
   const hc = cap?.Plugins?.HealthPlugin;
   if (!hc?.queryWorkouts) return { ok: false, runs: [], error: 'Integração de saúde indisponível neste app. Atualize o APK.' };
   try {
+    // IMPORTANTE: inicializa o healthConnectClient (senão o queryWorkouts lança
+    // "lateinit property healthConnectClient has not been initialized").
+    try {
+      const avail = await hc.isHealthAvailable?.();
+      if (avail && avail.available === false) {
+        return { ok: false, runs: [], error: 'Google Health Connect não está instalado/configurado neste aparelho.' };
+      }
+    } catch { /* segue tentando */ }
     try {
       await hc.requestHealthPermissions?.({
         permissions: ['READ_WORKOUTS', 'READ_HEART_RATE', 'READ_DISTANCE', 'READ_TOTAL_CALORIES', 'READ_ACTIVE_CALORIES', 'READ_EXERCISE_ROUTE'],
       });
-    } catch { /* segue mesmo assim */ }
+    } catch { /* permissão pode ter sido negada — segue e o query trata */ }
 
     const end = new Date();
     const startD = new Date(end.getTime() - daysBack * 86400000);
