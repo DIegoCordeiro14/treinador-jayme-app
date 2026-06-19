@@ -23,6 +23,8 @@ Tríceps: extensão total, cotovelo parado. Controle excêntrico.
 Leg Press / Hack: pés na largura dos ombros, não deixe o lombar decolar.
 Glúteos / Hip Thrust: quadril vai para cima, não arqueia lombar. Aperta glúteo no topo.
 
+REGRA DE OURO DA ANÁLISE: avalie SEMPRE pelas repetições REALMENTE executadas em cada série (não pelo alvo proposto). Compare o que foi feito com o alvo: se o aluno fez MAIS reps que o proposto com RIR alto, a carga está leve; se fez MENOS que o alvo, a carga pode estar pesada ou houve fadiga; observe a queda de reps série a série. Cite os números reais que o aluno fez.
+
 GESTÃO DE FADIGA:
 - RIR reportado 3+ com muitas reps sobrando: aumentar carga agora ou na próxima sessão
 - RIR reportado 0 cedo (série 1 ou 2): carga muito alta, risco de falha prematura
@@ -86,7 +88,7 @@ Avalie por TEMPO: o tempo está adequado? Devo aumentar a sustentação na próx
 Alvo: ${exercise.reps_min}–${exercise.reps_max} reps | RIR alvo: ${target_rir ?? 2}
 ${setsInfo}${avg_hr ? `\nFC atual (relógio): ${avg_hr} bpm` : ''}
 
-Avalie minha performance: a carga está adequada? Devo ajustar algo? O que muda na próxima sessão?`;
+Avalie minha performance considerando as REPETIÇÕES QUE EU REALMENTE FIZ acima (compare com o alvo: fiz mais ou menos?). A carga está adequada? Devo ajustar algo? O que muda na próxima sessão?`;
       }
 
     } else {
