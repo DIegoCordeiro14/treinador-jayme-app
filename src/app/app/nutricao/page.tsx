@@ -83,6 +83,8 @@ export default function NutricaoPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [coachData, setCoachData] = useState<{ analysis: CoachAnalysis; smart_macros: SmartMacros; current_weight: number | null; target_weight: number | null; weight_trend: number | null; bio: any } | null>(null);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [bioWeights, setBioWeights] = useState<any[]>([]);
   const [showMeals, setShowMeals] = useState(true);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
@@ -106,14 +108,16 @@ export default function NutricaoPage() {
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [{ data: planData }, { data: logs }] = await Promise.all([
+    const [{ data: planData }, { data: logs }, { data: bio }] = await Promise.all([
       supabase.from('workout_plans').select('id, schedule_config, goal').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('body_weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
+      supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(30),
     ]);
     setPlan((planData?.schedule_config as any)?.nutrition ?? null);
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
     setWeightLogs((logs as WeightLog[]) ?? []);
+    setBioWeights(bio ?? []);
     setLoading(false);
   }, [supabase]);
 
@@ -191,14 +195,25 @@ export default function NutricaoPage() {
   // Mockup: hero escuro com borda âmbar para todos os objetivos
   const gradientClass = 'from-[#1A1005] to-[#0D1520] border border-[#D4853A]/25';
 
-  // Weight chart data
-  const weightChartData = [...weightLogs].reverse().slice(-14).map(l => ({
-    date: format(parseISO(l.log_date), 'dd/MM', { locale: ptBR }),
-    peso: l.weight_kg,
-    bf: l.body_fat_pct,
+  // Peso unificado: registros manuais + histórico da BIOIMPEDÂNCIA (balança).
+  // Bioimpedância tem prioridade no mesmo dia. Evita registrar peso 2x.
+  const weightSeries = (() => {
+    const byDay = new Map<string, { t: number; peso: number; bf: number | null }>();
+    weightLogs.forEach(l => { if (l.weight_kg != null) { const d = parseISO(l.log_date); byDay.set(format(d, 'yyyy-MM-dd'), { t: d.getTime(), peso: l.weight_kg, bf: l.body_fat_pct ?? null }); } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bioWeights.forEach((b: any) => { if (b?.weight_kg != null && b?.measured_at) { const d = parseISO(b.measured_at); byDay.set(format(d, 'yyyy-MM-dd'), { t: d.getTime(), peso: Number(b.weight_kg), bf: b.body_fat_pct != null ? Number(b.body_fat_pct) : null }); } });
+    return Array.from(byDay.values()).sort((a, b) => a.t - b.t);
+  })();
+  const latestWeightEntry = weightSeries.length ? weightSeries[weightSeries.length - 1] : null;
+
+  // Weight chart data (série unificada)
+  const weightChartData = weightSeries.slice(-14).map(x => ({
+    date: format(new Date(x.t), 'dd/MM', { locale: ptBR }),
+    peso: x.peso,
+    bf: x.bf,
   }));
 
-  const currentWeight = weightLogs[0]?.weight_kg ?? coachData?.current_weight ?? null;
+  const currentWeight = latestWeightEntry?.peso ?? coachData?.current_weight ?? null;
   const analysis = coachData?.analysis;
   const smartMacros = coachData?.smart_macros;
 
@@ -583,11 +598,11 @@ export default function NutricaoPage() {
           </button>
 
           {/* Current stats */}
-          {weightLogs.length > 0 && (
+          {latestWeightEntry && (
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Peso Atual', value: weightLogs[0].weight_kg + ' kg', icon: <Scale className="h-4 w-4" />, color: 'text-[#D4853A]' },
-                { label: 'BF Atual', value: weightLogs[0].body_fat_pct ? weightLogs[0].body_fat_pct + '%' : '—', icon: <Activity className="h-4 w-4" />, color: 'text-orange-400' },
+                { label: 'Peso Atual', value: latestWeightEntry.peso + ' kg', icon: <Scale className="h-4 w-4" />, color: 'text-[#D4853A]' },
+                { label: 'BF Atual', value: latestWeightEntry.bf ? latestWeightEntry.bf + '%' : '—', icon: <Activity className="h-4 w-4" />, color: 'text-orange-400' },
                 { label: 'Peso Meta', value: coachData?.target_weight ? coachData.target_weight + ' kg' : '—', icon: <Target className="h-4 w-4" />, color: 'text-green-400' },
                 { label: 'Tendencia 14d', value: coachData?.weight_trend != null ? (coachData.weight_trend > 0 ? '+' : '') + coachData.weight_trend.toFixed(1) + ' kg' : '—', icon: coachData?.weight_trend != null && coachData.weight_trend < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />, color: coachData?.weight_trend != null && coachData.weight_trend < 0 ? 'text-orange-400' : 'text-green-400' },
               ].map(s => (
@@ -623,7 +638,7 @@ export default function NutricaoPage() {
           )}
 
           {/* Weight log history */}
-          {weightLogs.length > 0 && (
+          {latestWeightEntry && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Histórico de Peso</p>

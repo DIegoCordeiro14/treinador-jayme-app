@@ -383,7 +383,15 @@ export default function EvolucaoPage() {
   }
 
   // ── Derived data ────────────────────────────────────────────
-  const weightData = measurements.filter((m) => m.weight_kg).map((m) => ({ date: format(parseISO(m.date), 'dd/MM', { locale: ptBR }), peso: m.weight_kg }));
+  // Peso unificado: medições manuais + histórico da BIOIMPEDÂNCIA (balança).
+  // A bioimpedância tem prioridade no mesmo dia. Evita registrar peso 2x.
+  const weightData = (() => {
+    const byDay = new Map<string, { t: number; peso: number }>();
+    measurements.forEach((m) => { if (m.weight_kg != null) { const d = parseISO(m.date); byDay.set(format(d, 'yyyy-MM-dd'), { t: d.getTime(), peso: m.weight_kg }); } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bioList.forEach((b: any) => { if (b?.weight_kg != null && b?.measured_at) { const d = parseISO(b.measured_at); byDay.set(format(d, 'yyyy-MM-dd'), { t: d.getTime(), peso: Number(b.weight_kg) }); } });
+    return Array.from(byDay.values()).sort((a, b) => a.t - b.t).map((x) => ({ date: format(new Date(x.t), 'dd/MM', { locale: ptBR }), peso: x.peso }));
+  })();
   const volumeData = sessions.slice(-20).map((s) => ({ date: format(parseISO(s.started_at), 'dd/MM', { locale: ptBR }), volume: Math.round(s.total_volume_kg) }));
   const latest = measurements[measurements.length - 1];
   const prev = measurements[measurements.length - 2];
