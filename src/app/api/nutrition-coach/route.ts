@@ -33,9 +33,15 @@ export async function POST(_req: NextRequest) {
       supabase.from('cardio_sessions').select('distance_km').eq('user_id', user.id).gte('created_at', new Date(Date.now() - 14 * 86400000).toISOString()),
     ]);
 
+    const _sessions = workoutSessions ?? [];
+    const _cardioKm = (cardioSessions ?? []).reduce((s, c) => s + (c.distance_km ?? 0), 0);
+    const _volume = _sessions.reduce((s, w) => s + (w.total_volume_kg ?? 0), 0);
+    const _sessions7 = _sessions.filter(w => new Date(w.started_at).getTime() >= Date.now() - 7 * 86400000).length;
+
     // ── FONTE ÚNICA: Nutrition Autopilot ──────────────────────────────────────
     const targets = computeNutritionTargets({
       bio: bio ?? null,
+      training: { sessionsLast7: _sessions7, weeklyVolumeKg: _volume / 2, cardioKmThisWeek: _cardioKm },
       profile: {
         weight_kg: profile?.weight_kg ?? null,
         height_cm: profile?.height_cm ?? null,
@@ -80,6 +86,9 @@ export async function POST(_req: NextRequest) {
 Peso: ${currentWeight}kg${targetWeight ? ` → meta ${targetWeight}kg` : ''}${weightTrend !== null ? ` (14d: ${weightTrend > 0 ? '+' : ''}${weightTrend}kg)` : ''}
 Bio: BF=${bio?.body_fat_pct ?? '?'}% músculo=${bio?.skeletal_muscle_mass_kg ?? '?'}kg TMB=${targets.tmbKcal}kcal
 Treino 14d: ${weekWorkouts} sessões volume=${Math.round(weekVolume)}kg cardio=${weekCardioKm.toFixed(1)}km
+FASE NUTRICIONAL: ${targets.phaseLabel} — ${targets.phaseReason}
+ALINHAMENTO TREINO: ${targets.trainingAlignment ?? 'sem observação específica'}
+DAY TYPES (carbo): alta=${targets.dayTypes[0].carbsG}g · moderado=${targets.dayTypes[1].carbsG}g · descanso=${targets.dayTypes[2].carbsG}g
 ALVOS OFICIAIS (Autopilot EDN — use EXATAMENTE estes números, não recalcule):
 TDEE=${tdee}kcal · Meta=${targetCal}kcal (${calorieAdj >= 0 ? '+' : ''}${calorieAdj}kcal) · Proteína=${proteinG}g (${targets.proteinGPerKg}g/kg) · Carbs=${carbsG}g · Gordura=${fatG}g`;
 
@@ -95,7 +104,7 @@ TDEE=${tdee}kcal · Meta=${targetCal}kcal (${calorieAdj >= 0 ? '+' : ''}${calori
           content: `${ctx}
 
 JSON puro (sem markdown):
-{"status":"otimo|bom|atencao|critico","headline":"frase curta","summary":"2 frases com números","calorie_recommendation":{"tdee":${tdee},"target":${targetCal},"surplus_deficit":${calorieAdj},"rationale":"explicação"},"macro_targets":{"protein_g":${proteinG},"carbs_g":${carbsG},"fat_g":${fatG},"protein_per_kg":${targets.proteinGPerKg}},"carb_cycling":{"heavy_training":${carbCycling.heavy_training},"light_training":${carbCycling.light_training},"rest_day":${carbCycling.rest_day},"rationale":"ciclagem EDN"},"alerts":[{"type":"info","message":"observação específica"}],"plateau_detected":false,"plateau_reason":null,"weight_projection":{"in_30d":${projection.in_30d},"in_60d":${projection.in_60d},"in_90d":${projection.in_90d}},"nutrient_timing":{"pre_workout":"carbs 1h antes","post_workout":"proteína+carbs rápidos","rest_day":"proteína distribuída","before_bed":"caseína ou ovo"},"priority_action":"ação mais importante","edn_principle":"princípio EDN aplicado"}
+{"status":"otimo|bom|atencao|critico","phase":"${targets.phaseLabel}","headline":"frase curta","why_this_plan":"explique em 1-2 frases por que essa estratégia para ESTE atleta agora","summary":"2 frases com números","calorie_recommendation":{"tdee":${tdee},"target":${targetCal},"surplus_deficit":${calorieAdj},"rationale":"explicação"},"macro_targets":{"protein_g":${proteinG},"carbs_g":${carbsG},"fat_g":${fatG},"protein_per_kg":${targets.proteinGPerKg}},"carb_cycling":{"heavy_training":${carbCycling.heavy_training},"light_training":${carbCycling.light_training},"rest_day":${carbCycling.rest_day},"rationale":"ciclagem EDN"},"alerts":[{"type":"info","message":"observação específica"}],"plateau_detected":false,"plateau_reason":null,"weight_projection":{"in_30d":${projection.in_30d},"in_60d":${projection.in_60d},"in_90d":${projection.in_90d}},"nutrient_timing":{"pre_workout":"carbs 1h antes","post_workout":"proteína+carbs rápidos","rest_day":"proteína distribuída","before_bed":"caseína ou ovo"},"priority_action":"ação mais importante","edn_principle":"princípio EDN aplicado"}
 
 Escreva os textos com base na análise; mantenha os números como estão. APENAS JSON.`
         }],
@@ -153,11 +162,18 @@ Escreva os textos com base na análise; mantenha os números como estão. APENAS
       ...carbCycling,
     };
     analysis.weight_projection = projection;
+    analysis.phase = targets.phaseLabel;
+    analysis.phase_reason = targets.phaseReason;
+    if (!analysis.why_this_plan) analysis.why_this_plan = targets.whyThisPlan.join(' ');
+    analysis.day_types = targets.dayTypes;
 
     return Response.json({
       analysis,
       smart_macros: smartMacros,
       autopilot: targets,
+      phase: targets.phaseLabel,
+      why_this_plan: targets.whyThisPlan,
+      day_types: targets.dayTypes,
       current_weight: currentWeight,
       target_weight: targetWeight ?? null,
       weight_trend: weightTrend,

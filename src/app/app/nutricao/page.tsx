@@ -100,10 +100,20 @@ export default function NutricaoPage() {
     tmbKcal: number; tdeeKcal: number; activityFactor: number; targetKcal: number;
     goalAdjustmentKcal: number; proteinG: number; proteinGPerKg: number; carbsG: number;
     fatG: number; waterMl: number; source: string; explanation: string[];
+    phase?: string; phaseLabel?: string; phaseReason?: string; whyThisPlan?: string[];
+    dayTypes?: { kind: string; label: string; kcal: number; carbsG: number; proteinG: number; fatG: number; note: string }[];
+    trainingAlignment?: string | null;
   } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [nutriScore, setNutriScore] = useState<{ score: number; label: string; breakdown: { label: string; points: number; max: number }[] } | null>(null);
+  const [nutriSignals, setNutriSignals] = useState<{ level: string; title: string; message: string }[]>([]);
   const [showWhy, setShowWhy] = useState(false);
   useEffect(() => {
-    fetch('/api/autopilot').then(r => r.json()).then(d => setAutoNutri(d?.nutrition ?? null)).catch(() => {});
+    fetch('/api/autopilot').then(r => r.json()).then(d => {
+      setAutoNutri(d?.nutrition ?? null);
+      setNutriScore(d?.nutritionScore ?? null);
+      setNutriSignals(d?.nutritionSignals ?? []);
+    }).catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
@@ -242,6 +252,7 @@ export default function NutricaoPage() {
           <Utensils className="h-5 w-5 text-[#D4853A]" />
           <span className="text-base font-extrabold italic">Plano Nutricional EDN</span>
           <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
+            {autoNutri?.phaseLabel && <span className="text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold">Fase: {autoNutri.phaseLabel}</span>}
             {plan && <span className="text-[10px] bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
             {autoNutri?.source === 'bioimpedance_tmb' && (
               <span className="text-[10px] text-zinc-500 bg-black/30 px-2 py-0.5 rounded-full">TMB medida pela bioimpedância</span>
@@ -284,20 +295,33 @@ export default function NutricaoPage() {
                       ? <>TMB {autoNutri.tmbKcal} kcal · TDEE {autoNutri.tdeeKcal} kcal (×{autoNutri.activityFactor}) · {autoNutri.goalAdjustmentKcal === 0 ? 'manutenção' : `${autoNutri.goalAdjustmentKcal > 0 ? '+' : ''}${autoNutri.goalAdjustmentKcal} kcal pelo objetivo`}</>
                       : <>TDEE estimado: {tdee ?? '—'} kcal</>}
                   </p>
-                  {autoNutri?.explanation && autoNutri.explanation.length > 0 && (
+                  {((autoNutri?.whyThisPlan && autoNutri.whyThisPlan.length > 0) || (autoNutri?.explanation && autoNutri.explanation.length > 0)) && (
                     <button onClick={() => setShowWhy(v => !v)} className="mt-2 text-[11px] text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1">
                       <ChevronDown className={cn('h-3 w-3 transition-transform', showWhy && 'rotate-180')} />
-                      Como o Coach chegou nesses números?
+                      Por que esse plano?
                     </button>
                   )}
                 </div>
               </div>
 
-              {showWhy && autoNutri?.explanation && (
-                <div className="mb-3 rounded-lg bg-black/25 border border-white/[0.06] p-3 space-y-1">
-                  {autoNutri.explanation.map((e, i) => (
-                    <p key={i} className="text-[11px] text-zinc-400 leading-relaxed">• {e}</p>
-                  ))}
+              {showWhy && autoNutri && (
+                <div className="mb-3 rounded-lg bg-black/25 border border-white/[0.06] p-3 space-y-2">
+                  {autoNutri.whyThisPlan && autoNutri.whyThisPlan.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-wide text-[#7FB58F] font-bold">Estratégia para você</p>
+                      {autoNutri.whyThisPlan.map((e, i) => (
+                        <p key={i} className="text-[11px] text-zinc-300 leading-relaxed">{e}</p>
+                      ))}
+                    </div>
+                  )}
+                  {autoNutri.explanation && autoNutri.explanation.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-white/[0.06]">
+                      <p className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold">Como chegamos nos números</p>
+                      {autoNutri.explanation.map((e, i) => (
+                        <p key={i} className="text-[11px] text-zinc-400 leading-relaxed">• {e}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -317,6 +341,54 @@ export default function NutricaoPage() {
                   </div>
                 )}
               </div>
+
+              {/* Day types — periodização nutricional */}
+              {autoNutri?.dayTypes && autoNutri.dayTypes.length === 3 && (
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {autoNutri.dayTypes.map((d) => (
+                    <div key={d.kind} className="rounded-lg bg-black/25 border border-white/[0.06] p-2 text-center">
+                      <p className="text-[10px] font-bold text-zinc-300 leading-tight">{d.label}</p>
+                      <p className="text-sm font-black italic text-[#D4853A] mt-1">{d.kcal}<span className="text-[9px] font-bold text-zinc-500"> kcal</span></p>
+                      <p className="text-[10px] text-[#A67C3A] mt-0.5">{d.carbsG}g carbo</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Nutrition Score */}
+              {nutriScore && (
+                <div className="mt-4 rounded-lg bg-black/25 border border-white/[0.06] p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-wide">Nutrition Score</span>
+                    <span className="text-lg font-black italic text-[#5A8A6A]">{nutriScore.score}<span className="text-[10px] text-zinc-500 font-bold">/100 · {nutriScore.label}</span></span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {nutriScore.breakdown.map((b, i) => (
+                      <div key={i}>
+                        <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5"><span>{b.label}</span><span>{b.points}/{b.max}</span></div>
+                        <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                          <div className="h-full rounded-full bg-[#5A8A6A]" style={{ width: `${Math.round((b.points / b.max) * 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sinais de ajuste automático */}
+              {nutriSignals.length > 0 && nutriSignals[0].title !== 'Sem ajustes necessários' && (
+                <div className="mt-3 space-y-2">
+                  {nutriSignals.map((sig, i) => (
+                    <div key={i} className={cn('rounded-lg border p-2.5',
+                      sig.level === 'positivo' ? 'bg-[#5A8A6A]/10 border-[#5A8A6A]/30' :
+                      sig.level === 'atencao' ? 'bg-[#8B5A5A]/10 border-[#8B5A5A]/30' :
+                      'bg-black/25 border-white/[0.06]')}>
+                      <p className="text-[11px] font-bold text-zinc-200">{sig.title}</p>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed mt-0.5">{sig.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           );
         })()}
