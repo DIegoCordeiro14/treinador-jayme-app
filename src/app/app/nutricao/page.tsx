@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils'; 
 import { toast } from 'sonner';
+import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -128,16 +129,32 @@ export default function NutricaoPage() {
     setSavingRace(false);
     if (error) { toast.error('Erro ao salvar prova'); return; }
     toast.success(dateVal ? 'Prova salva — modo endurance ativado.' : 'Prova removida.');
-    fetch('/api/autopilot').then(r => r.json()).then(d => setIntel(d?.intelligence ?? null)).catch(() => {});
+    loadAutopilot();
   }
-  useEffect(() => {
-    fetch('/api/autopilot').then(r => r.json()).then(d => {
+  const loadAutopilot = useCallback(() => {
+    return fetch('/api/autopilot').then(r => r.json()).then(d => {
       setAutoNutri(d?.nutrition ?? null);
       setNutriScore(d?.nutritionScore ?? null);
       setNutriSignals(d?.nutritionSignals ?? []);
       setIntel(d?.intelligence ?? null);
       if (d?.intelligence?.race) { setRaceDate(d.intelligence.race.date ?? ''); setRaceName(d.intelligence.race.name ?? ''); }
     }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    (async () => {
+      // Atualiza HRV/sono do dia (relógio) antes de calcular, no app nativo, 1x/dia
+      try {
+        if (isNativeShell()) {
+          const KEY = 'wearable_autosync_date';
+          const today = new Date().toISOString().slice(0, 10);
+          if (localStorage.getItem(KEY) !== today) {
+            const r = await autoSync();
+            if (r.ok) localStorage.setItem(KEY, today);
+          }
+        }
+      } catch { /* ignora — segue com o último dado disponível */ }
+      await loadAutopilot();
+    })();
     supabase.from('nutrition_decisions').select('id, decided_at, change_applied, reason, result').order('decided_at', { ascending: false }).limit(5)
       .then(({ data }) => { if (data) setDecisions(data); }, () => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
