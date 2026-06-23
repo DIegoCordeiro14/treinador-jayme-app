@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
@@ -422,11 +423,18 @@ export default function ExecutarPage() {
     // Análises do Coach EDN por exercício (exercise_id -> texto)
     const coachFeedback: Record<string, string> = {};
     exercises.forEach((ex, ei) => { const fb = exStates[ei]?.feedback; if (fb) coachFeedback[ex.exercise_id] = fb; });
-    const { data: session, error } = await supabase.from('workout_sessions').insert({ user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', coach_feedback: coachFeedback }).select('id').single();
-    if (error || !session) { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
-    if (allSets.length > 0) await supabase.from('session_sets').insert(allSets.map(s => ({ ...(s as object), session_id: session.id })));
+    const sessionId = newId();
+    const sessionRow = { id: sessionId, user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', coach_feedback: coachFeedback };
+    const setRows = allSets.map(s => ({ id: newId(), ...(s as object), session_id: sessionId }));
+    const inserts = [
+      { table: 'workout_sessions', rows: [sessionRow] },
+      ...(setRows.length > 0 ? [{ table: 'session_sets', rows: setRows }] : []),
+    ];
+    const result = await insertOrQueue(supabase, inserts, 'Treino');
+    if (result === 'error') { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
     clearProgress();
-    toast.success('Treino salvo!');
+    if (result === 'queued') toast.success('Treino salvo offline — será enviado ao reconectar.');
+    else { toast.success('Treino salvo!'); flushQueue(supabase).catch(() => {}); }
     router.push(`/app/treinos/${id}`);
   }
 

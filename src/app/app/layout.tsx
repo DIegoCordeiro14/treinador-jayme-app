@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ApkUpdateBanner } from "@/components/edn/apk-update-banner";
 import { FirstLaunchPermissions } from "@/components/edn/first-launch-permissions";
+import { OfflineQueueFlusher } from "@/components/edn/offline-queue-flusher";
 import type { Profile } from "@/types";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Primeiro uso: solicita todas as permissões (só no APK nativo) */}
       <FirstLaunchPermissions />
+
+      {/* Reenvio automático de registros salvos offline */}
+      <OfflineQueueFlusher />
 
       {/* Main content */}
       <main className="md:ml-60 min-h-screen pb-20 md:pb-0">

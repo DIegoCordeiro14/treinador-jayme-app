@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio, Heart, Rss, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GpsFilter, computePaces, fmtPace as fmtPaceLib } from '@/lib/cardio/gps-filter';
@@ -518,17 +519,20 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     const runStartTs = pointsRef.current[0]?.timestamp ?? (Date.now() - elapsedRef.current * 1000);
     const avgHr = await fetchAvgHrFromHealthConnect(runStartTs, Date.now());
     if (avgHr) setAvgBpm(String(avgHr));
-    const { error } = await supabase.from('cardio_sessions').insert({
+    const cardioRow = {
+      id: newId(),
       user_id: user.id, type: 'Corrida', duration_min: durationMin, intensity,
       calories_burned: calories > 0 ? calories : null,
       gps_track: { coordinates: pointsRef.current, max_speed_kmh: Math.round(maxSpeedRef.current * 10) / 10 },
       distance_km: Math.round(km * 1000) / 1000,
       avg_hr: avgHr,
-    });
-    if (error) { toast.error('Erro ao salvar corrida'); setStatus('finished'); return; }
+    };
+    const result = await insertOrQueue(supabase, [{ table: 'cardio_sessions', rows: [cardioRow] }], 'Corrida');
+    if (result === 'error') { toast.error('Erro ao salvar corrida'); setStatus('finished'); return; }
     void releaseWakeLock();
     await cleanupSession();
-    toast.success(`Corrida salva! ${km.toFixed(2)} km em ${fmtTime(elapsedRef.current)}`);
+    if (result === 'queued') toast.success(`Corrida salva offline (${km.toFixed(2)} km) — será enviada ao reconectar.`);
+    else { toast.success(`Corrida salva! ${km.toFixed(2)} km em ${fmtTime(elapsedRef.current)}`); flushQueue(supabase).catch(() => {}); }
     onSaved();
     setStatus('saved');
   }
