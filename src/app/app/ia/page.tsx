@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -30,10 +31,22 @@ export default function IAPage() {
   const [conversations, setConversations] = useState<{ id: string; created_at: string; messages: AIMessage[] }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const searchParams = useSearchParams();
+  const askSentRef = useRef(false);
 
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Prompt pré-preenchido vindo de outra tela (?ask=...) — envia uma vez
+  useEffect(() => {
+    const ask = searchParams.get('ask');
+    if (ask && !askSentRef.current) {
+      askSentRef.current = true;
+      sendMessage(ask);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

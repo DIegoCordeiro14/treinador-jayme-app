@@ -19,7 +19,8 @@ export type WorkoutActionType =
   | 'add_exercise'
   | 'remove_exercise'
   | 'set_day_exercises'
-  | 'reschedule_workouts';
+  | 'reschedule_workouts'
+  | 'set_goal';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -38,6 +39,8 @@ export interface WorkoutAction {
   /** reprogramação de calendário */
   pattern?: number[];                       // dias da semana 1=Seg ... 7=Dom
   dayAssignments?: Record<string, string>;  // weekday -> rótulo (ex: "legs/abs")
+  /** mudança de objetivo/fase nutricional (ajuste recomendado pelos sinais) */
+  goal?: string;                            // fat_loss | definition | hypertrophy | mass_gain | recomposition | performance | maintenance
 }
 
 export interface WorkoutActionResult {
@@ -226,6 +229,21 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       if (error) return { ok: false, message: `Reprogramação falhou: ${error.message}` };
       const dias = (pattern as number[]).map((d: number) => ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][d]).join(', ');
       return { ok: true, message: `Calendário reprogramado: treinos em ${dias}.` };
+    }
+
+    // ── Mudar objetivo/fase nutricional (recalcula macros automaticamente) ────
+    case 'set_goal': {
+      const allowed = ['fat_loss', 'definition', 'hypertrophy', 'mass_gain', 'recomposition', 'performance', 'maintenance'];
+      const goal = (a.goal ?? '').toLowerCase();
+      if (!allowed.includes(goal))
+        return { ok: false, message: `Objetivo inválido. Use um de: ${allowed.join(', ')}.` };
+      const label: Record<string, string> = {
+        fat_loss: 'Emagrecimento (Cutting)', definition: 'Definição', hypertrophy: 'Hipertrofia',
+        mass_gain: 'Ganho de massa (Lean Bulk)', recomposition: 'Recomposição', performance: 'Performance', maintenance: 'Manutenção',
+      };
+      const { error } = await supabase.from('profiles').update({ main_goal: goal }).eq('id', userId);
+      if (error) return { ok: false, message: `Não foi possível mudar o objetivo: ${error.message}` };
+      return { ok: true, message: `Objetivo atualizado para ${label[goal]} — macros e calorias recalculados automaticamente.` };
     }
 
     default:

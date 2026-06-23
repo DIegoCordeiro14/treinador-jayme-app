@@ -385,6 +385,14 @@ export default function NutricaoPage() {
                       'bg-black/25 border-white/[0.06]')}>
                       <p className="text-[11px] font-bold text-zinc-200">{sig.title}</p>
                       <p className="text-[11px] text-zinc-400 leading-relaxed mt-0.5">{sig.message}</p>
+                      {sig.level === 'atencao' && (
+                        <a
+                          href={`/app/ia?ask=${encodeURIComponent(`Detectei este sinal na minha nutrição: "${sig.title} — ${sig.message}". Considerando meu objetivo e meus dados, o que você recomenda ajustar? Se fizer sentido, pode aplicar a mudança.`)}`}
+                          className="inline-flex items-center gap-1 mt-2 text-[11px] font-bold text-[#D4853A] hover:text-[#E09B5A]"
+                        >
+                          <Brain className="h-3 w-3" /> Ajustar com o Coach
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>

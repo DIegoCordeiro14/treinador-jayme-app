@@ -249,6 +249,7 @@ export default function EvolucaoPage() {
 
   // forms
   const [measForm, setMeasForm] = useState({ weight_kg: '', body_fat_pct: '', arm_cm: '', chest_cm: '', waist_cm: '', thigh_cm: '' });
+  const [scoreHist, setScoreHist] = useState<{ phase: string; series: { week: string; score: number }[]; windows: { d14: { score: number; label: string }; d30: { score: number; label: string }; d60: { score: number; label: string } } } | null>(null);
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportGeneratedAt, setReportGeneratedAt] = useState<string | null>(null);
@@ -262,6 +263,9 @@ export default function EvolucaoPage() {
   });
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetch('/api/nutrition-score-history').then(r => r.json()).then(d => { if (d && !d.error) setScoreHist(d); }).catch(() => {});
+  }, []);
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -582,6 +586,35 @@ export default function EvolucaoPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                </div>
+              )}
+
+              {/* Nutrition Score histórico */}
+              {scoreHist && scoreHist.series.length > 0 && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-zinc-300">Nutrition Score</h3>
+                    <span className="text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold capitalize">{scoreHist.phase}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([['14 dias', scoreHist.windows.d14], ['30 dias', scoreHist.windows.d30], ['60 dias', scoreHist.windows.d60]] as const).map(([label, w]) => (
+                      <div key={label} className="rounded-lg bg-black/30 border border-white/[0.06] p-2 text-center">
+                        <p className="text-[10px] text-zinc-500">{label}</p>
+                        <p className="text-xl font-black italic text-[#5A8A6A] leading-tight">{w.score}</p>
+                        <p className="text-[9px] text-zinc-400">{w.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <LineChart data={scoreHist.series}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1C2933" />
+                      <XAxis dataKey="week" tick={{ fill: '#607D8B', fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} tick={{ fill: '#607D8B', fontSize: 11 }} />
+                      <Tooltip contentStyle={{ background: '#0D1117', border: '1px solid #2C3E4A', color: '#F0F4F6', fontSize: 12 }} />
+                      <ReferenceLine y={60} stroke="#5A8A6A" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: 'Bom', fill: '#5A8A6A', fontSize: 10, position: 'insideTopRight' }} />
+                      <Line type="monotone" dataKey="score" name="Score" stroke="#5A8A6A" strokeWidth={2} dot={{ r: 3, fill: '#5A8A6A' }} connectNulls />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </>

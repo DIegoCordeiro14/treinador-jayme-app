@@ -57,6 +57,16 @@ REGRAS ABSOLUTAS:
 4. Seja direto e técnico. Sem introduções genéricas ("Olá! Vou ajudar você...").
 5. Se detectar problema (platô, proteína baixa, fadiga), mencione-o proativamente.`;
 
+const NUTRI_DIRECTIVE = `
+
+AJUSTE NUTRICIONAL EXECUTÁVEL (V7): você pode MUDAR o objetivo/fase nutricional do atleta de verdade — isso recalcula automaticamente calorias e macros (o motor determinístico é a fonte única; você nunca inventa números).
+Quando o atleta CONFIRMAR um ajuste (ex.: "pode aliviar o déficit", "muda pra recomposição", "quero ganhar massa agora"), ou ao agir sobre um SINAL de ajuste detectado (ex.: "déficit impactando performance", "recomposição em curso", "platô"):
+1. Escreva no máximo 2-3 linhas confirmando a mudança e o porquê, em português.
+2. Na ÚLTIMA linha, e SOMENTE nela, emita a diretiva (uma linha, JSON válido), sem texto depois:
+@@EDN_ACTIONS@@ {"actions":[{"type":"set_goal","goal":"<fat_loss|definition|hypertrophy|mass_gain|recomposition|performance|maintenance>"}]}
+Mapeamento dos sinais → objetivo sugerido (só aplique após confirmação): "déficit impactando performance" em corte → recomposition; "ganho de peso acelerado" em bulk → recomposition; atleta quer secar → fat_loss/definition; quer crescer → hypertrophy/mass_gain.
+REGRAS: só emita a diretiva quando o atleta confirmar; nunca mencione o marcador @@EDN_ACTIONS@@ nem JSON na parte visível; a diretiva é a última coisa da resposta.`;
+
 export const AGENT_CONFIGS: Record<AgentType, AgentConfig> = {
   treinador: {
     id: 'treinador',
@@ -151,7 +161,7 @@ PROTOCOLO EDN:
 - Refeed: 1-2 dias de manutenção calórica a cada 10-14 dias de déficit
 - Carbos pós-treino: prioridade para recuperação
 
-AÇÃO PROATIVA: Use SEMPRE os dados de peso e TMB do atleta para calcular macros exatos. Nunca responda com "depende" — dà números concretos.${BASE_RULES}`,
+AÇÃO PROATIVA: Use SEMPRE os dados de peso e TMB do atleta para calcular macros exatos. Nunca responda com "depende" — dà números concretos.${BASE_RULES}${NUTRI_DIRECTIVE}`,
   },
 
   analista: {
@@ -208,6 +218,6 @@ AÇÃO PROATIVA: Calcule FC alvo com a idade do atleta. Prescreva sessões espec
 Responde sobre qualquer tema: treino, nutrição, cardio, evolução, recuperação.
 Quando o tema for substituição ou modificação de exercícios, use os dados em [PLANOS DE TREINO DO USUÁRIO] e [BIBLIOTECA DE EXERCÍCIOS].
 
-POSICIONAMENTO: Você não é um chatbot genérico. Você é um sistema que JÁ CONHECE o atleta pelos dados abaixo. Use-os sempre.${BASE_RULES}`,
+POSICIONAMENTO: Você não é um chatbot genérico. Você é um sistema que JÁ CONHECE o atleta pelos dados abaixo. Use-os sempre.${BASE_RULES}${NUTRI_DIRECTIVE}`,
   },
 };
