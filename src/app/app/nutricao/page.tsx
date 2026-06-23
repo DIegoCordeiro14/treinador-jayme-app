@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils'; 
 import { toast } from 'sonner';
+import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -152,14 +153,16 @@ export default function NutricaoPage() {
     setSavingWeight(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('body_weight_logs').upsert({
+    const weightRow = {
       user_id: user.id, log_date: format(new Date(), 'yyyy-MM-dd'),
       weight_kg: parseFloat(weightForm.weight_kg),
       body_fat_pct: weightForm.body_fat_pct ? parseFloat(weightForm.body_fat_pct) : null,
-    }, { onConflict: 'user_id,log_date' });
+    };
+    const result = await insertOrQueue(supabase, [{ table: 'body_weight_logs', rows: [weightRow], onConflict: 'user_id,log_date' }], 'Peso');
     setSavingWeight(false);
-    if (error) { toast.error('Erro ao registrar'); return; }
-    toast.success('Peso registrado!');
+    if (result === 'error') { toast.error('Erro ao registrar'); return; }
+    toast.success(result === 'queued' ? 'Peso salvo offline — será enviado ao reconectar.' : 'Peso registrado!');
+    if (result === 'sent') flushQueue(supabase).catch(() => {});
     setWeightForm({ weight_kg: '', body_fat_pct: '' });
     setShowWeightModal(false);
     load();

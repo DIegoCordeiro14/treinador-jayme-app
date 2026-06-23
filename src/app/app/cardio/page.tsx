@@ -18,6 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AutopilotCard from '@/components/edn/autopilot-card';
 import { ScreenErrorBoundary } from '@/components/error-boundary';
@@ -176,7 +177,8 @@ export default function CardioPage() {
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('cardio_sessions').insert({
+    const cardioRow = {
+      id: newId(),
       user_id: user.id,
       type: form.type,
       duration_min: parseInt(form.duration_min) || 0,
@@ -189,10 +191,12 @@ export default function CardioPage() {
       elevation_gain_m: form.elevation_gain_m ? parseFloat(form.elevation_gain_m) : null,
       perceived_effort: form.perceived_effort ? parseInt(form.perceived_effort) : null,
       notes: form.notes || null,
-    });
+    };
+    const result = await insertOrQueue(supabase, [{ table: 'cardio_sessions', rows: [cardioRow] }], 'Atividade');
     setSaving(false);
-    if (error) { toast.error('Erro ao registrar'); return; }
-    toast.success('Atividade registrada!');
+    if (result === 'error') { toast.error('Erro ao registrar'); return; }
+    toast.success(result === 'queued' ? 'Atividade salva offline — será enviada ao reconectar.' : 'Atividade registrada!');
+    if (result === 'sent') flushQueue(supabase).catch(() => {});
     setForm({ type: 'Corrida', duration_min: '30', intensity: 'moderada', distance_km: '', calories_burned: '', avg_heart_rate: '', max_heart_rate: '', cadence_spm: '', elevation_gain_m: '', perceived_effort: '', notes: '' });
     setShowLog(false);
     load();

@@ -11,6 +11,7 @@ const KEY = 'edn_offline_queue_v1';
 export interface QueuedInsert {
   table: string;
   rows: Record<string, unknown>[];
+  onConflict?: string; // se definido, usa upsert(...) em vez de insert(...)
 }
 
 export interface QueuedTx {
@@ -92,7 +93,9 @@ export async function flushQueue(supabase: SupabaseClient): Promise<number> {
     for (const ins of tx.inserts) {
       if (!ins.rows?.length) continue;
       try {
-        const { error } = await supabase.from(ins.table).insert(ins.rows);
+        const { error } = ins.onConflict
+          ? await supabase.from(ins.table).upsert(ins.rows, { onConflict: ins.onConflict })
+          : await supabase.from(ins.table).insert(ins.rows);
         // 23505 = PK duplicada (já inserido num envio anterior) -> idempotente
         if (error && error.code !== '23505') {
           if (isNetworkError(error)) {
@@ -128,7 +131,9 @@ export async function insertOrQueue(
   try {
     for (const ins of inserts) {
       if (!ins.rows?.length) continue;
-      const { error } = await supabase.from(ins.table).insert(ins.rows);
+      const { error } = ins.onConflict
+        ? await supabase.from(ins.table).upsert(ins.rows, { onConflict: ins.onConflict })
+        : await supabase.from(ins.table).insert(ins.rows);
       if (error) {
         if (isNetworkError(error)) {
           enqueueTx({ label, inserts });

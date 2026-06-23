@@ -11,6 +11,7 @@ import { ProjectionCompare } from '@/components/evolucao/projection-compare';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -286,9 +287,10 @@ export default function EvolucaoPage() {
     if (measForm.chest_cm) payload.chest_cm = parseFloat(String(measForm.chest_cm).replace(',', '.')) || null;
     if (measForm.waist_cm) payload.waist_cm = parseFloat(String(measForm.waist_cm).replace(',', '.')) || null;
     if (measForm.thigh_cm) payload.thigh_cm = parseFloat(String(measForm.thigh_cm).replace(',', '.')) || null;
-    const { error } = await supabase.from('body_measurements').insert(payload);
-    if (error) { toast.error('Erro ao salvar medidas'); return; }
-    toast.success('Medidas registradas!');
+    const result = await insertOrQueue(supabase, [{ table: 'body_measurements', rows: [{ id: newId(), ...payload }] }], 'Medidas');
+    if (result === 'error') { toast.error('Erro ao salvar medidas'); return; }
+    toast.success(result === 'queued' ? 'Medidas salvas offline — serão enviadas ao reconectar.' : 'Medidas registradas!');
+    if (result === 'sent') flushQueue(supabase).catch(() => {});
     setShowMeasDialog(false);
     setMeasForm({ weight_kg: '', body_fat_pct: '', arm_cm: '', chest_cm: '', waist_cm: '', thigh_cm: '' });
     load();
@@ -357,9 +359,10 @@ export default function EvolucaoPage() {
       lean_mass_kg: num('lean_mass_kg'),
       fat_mass_kg: num('fat_mass_kg'),
     };
-    const { error } = await supabase.from('bioimpedance_data').insert(payload);
-    if (error) { toast.error('Erro ao salvar bioimpedância: ' + error.message); return; }
-    toast.success('Bioimpedância registrada! Recalculando macros nutricionais…');
+    const bioResult = await insertOrQueue(supabase, [{ table: 'bioimpedance_data', rows: [{ id: newId(), ...payload }] }], 'Bioimpedância');
+    if (bioResult === 'error') { toast.error('Erro ao salvar bioimpedância'); return; }
+    if (bioResult === 'sent') flushQueue(supabase).catch(() => {});
+    toast.success(bioResult === 'queued' ? 'Bioimpedância salva offline — será enviada ao reconectar.' : 'Bioimpedância registrada! Recalculando macros nutricionais…');
     setShowBioDialog(false);
     // Disparar recálculo automático de nutrição em background
     const { data: { user: u } } = await supabase.auth.getUser();
