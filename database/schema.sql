@@ -1041,3 +1041,7 @@ drop policy if exists "Users manage own nutrition decisions" on public.nutrition
 create policy "Users manage own nutrition decisions" on public.nutrition_decisions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists idx_nutrition_decisions_user on public.nutrition_decisions(user_id, decided_at desc);
+
+-- ── V7.2: Prova futura (ativa o modo endurance da nutrição) ─────────────────
+alter table public.profiles add column if not exists target_race_date date;
+alter table public.profiles add column if not exists target_race_name text;

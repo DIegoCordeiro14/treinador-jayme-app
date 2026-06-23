@@ -112,12 +112,31 @@ export default function NutricaoPage() {
   const [decisions, setDecisions] = useState<{ id: string; decided_at: string; change_applied: string; reason: string | null; result: string | null }[]>([]);
   const [showWhy, setShowWhy] = useState(false);
   const [showSim, setShowSim] = useState(false);
+  const [raceDate, setRaceDate] = useState('');
+  const [raceName, setRaceName] = useState('');
+  const [savingRace, setSavingRace] = useState(false);
+  async function saveRace(overrideDate?: string, overrideName?: string) {
+    const dateVal = overrideDate !== undefined ? overrideDate : raceDate;
+    const nameVal = overrideName !== undefined ? overrideName : raceName;
+    setSavingRace(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingRace(false); return; }
+    const { error } = await supabase.from('profiles').update({
+      target_race_date: dateVal || null,
+      target_race_name: nameVal || null,
+    }).eq('id', user.id);
+    setSavingRace(false);
+    if (error) { toast.error('Erro ao salvar prova'); return; }
+    toast.success(dateVal ? 'Prova salva — modo endurance ativado.' : 'Prova removida.');
+    fetch('/api/autopilot').then(r => r.json()).then(d => setIntel(d?.intelligence ?? null)).catch(() => {});
+  }
   useEffect(() => {
     fetch('/api/autopilot').then(r => r.json()).then(d => {
       setAutoNutri(d?.nutrition ?? null);
       setNutriScore(d?.nutritionScore ?? null);
       setNutriSignals(d?.nutritionSignals ?? []);
       setIntel(d?.intelligence ?? null);
+      if (d?.intelligence?.race) { setRaceDate(d.intelligence.race.date ?? ''); setRaceName(d.intelligence.race.name ?? ''); }
     }).catch(() => {});
     supabase.from('nutrition_decisions').select('id, decided_at, change_applied, reason, result').order('decided_at', { ascending: false }).limit(5)
       .then(({ data }) => { if (data) setDecisions(data); }, () => {});
@@ -416,7 +435,8 @@ export default function NutricaoPage() {
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-[#5A8A6A]" />
             <span className="text-base font-extrabold italic text-zinc-100">Seu momento atual</span>
-            {intel.cycle?.label && <span className="ml-auto text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold">{intel.cycle.label}</span>}
+            {intel.usedWearable && <span className="ml-auto text-[10px] bg-[#2C3E4A] text-[#8FA3AD] px-2 py-0.5 rounded-full font-semibold">⌚ relógio</span>}
+            {intel.cycle?.label && <span className={cn("text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold", !intel.usedWearable && "ml-auto")}>{intel.cycle.label}</span>}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5">
@@ -475,6 +495,22 @@ export default function NutricaoPage() {
           )}
         </div>
       )}
+
+      {/* Prova futura (ativa o modo endurance) */}
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <p className="text-sm font-bold text-zinc-100 mb-2 flex items-center gap-1.5"><Activity className="h-4 w-4 text-[#5A8A6A]" />Prova futura</p>
+        {intel?.race ? (
+          <p className="text-[11px] text-zinc-400 mb-2">{intel.race.name ? `${intel.race.name} · ` : ''}{new Date(intel.race.date).toLocaleDateString('pt-BR')} — faltam {intel.race.weeks} semana(s). Modo endurance ativo.</p>
+        ) : (
+          <p className="text-[11px] text-zinc-500 mb-2">Defina uma prova (corrida, ciclismo, triathlon) para o Coach priorizar carboidrato e recuperação automaticamente.</p>
+        )}
+        <div className="flex flex-wrap gap-2 items-center">
+          <input type="date" value={raceDate} onChange={(e) => setRaceDate(e.target.value)} className="bg-black/30 border border-zinc-700 rounded-lg px-2 py-1.5 text-[12px] text-zinc-100" />
+          <input type="text" value={raceName} onChange={(e) => setRaceName(e.target.value)} placeholder="Nome (opcional)" className="flex-1 min-w-[120px] bg-black/30 border border-zinc-700 rounded-lg px-2 py-1.5 text-[12px] text-zinc-100" />
+          <button onClick={() => saveRace()} disabled={savingRace} className="px-3 py-1.5 rounded-lg bg-[#D4853A] hover:bg-[#E09B5A] disabled:opacity-60 text-white text-[12px] font-bold">Salvar</button>
+          {intel?.race && <button onClick={() => { setRaceDate(''); setRaceName(''); saveRace('', ''); }} className="px-2 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-[12px]">Remover</button>}
+        </div>
+      </div>
 
       {/* Diagnóstico + Simulador */}
       {intel?.diagnosis && (
