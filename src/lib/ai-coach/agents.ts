@@ -63,7 +63,7 @@ AJUSTE NUTRICIONAL EXECUTÁVEL (V7): você pode MUDAR o objetivo/fase nutriciona
 Quando o atleta CONFIRMAR um ajuste (ex.: "pode aliviar o déficit", "muda pra recomposição", "quero ganhar massa agora"), ou ao agir sobre um SINAL de ajuste detectado (ex.: "déficit impactando performance", "recomposição em curso", "platô"):
 1. Escreva no máximo 2-3 linhas confirmando a mudança e o porquê, em português.
 2. Na ÚLTIMA linha, e SOMENTE nela, emita a diretiva (uma linha, JSON válido), sem texto depois:
-@@EDN_ACTIONS@@ {"actions":[{"type":"set_goal","goal":"<fat_loss|definition|hypertrophy|mass_gain|recomposition|performance|maintenance>"}]}
+@@EDN_ACTIONS@@ {"actions":[{"type":"set_goal","goal":"<fat_loss|definition|hypertrophy|mass_gain|recomposition|performance|maintenance>","reason":"<motivo curto do ajuste>"}]}
 Mapeamento dos sinais → objetivo sugerido (só aplique após confirmação): "déficit impactando performance" em corte → recomposition; "ganho de peso acelerado" em bulk → recomposition; atleta quer secar → fat_loss/definition; quer crescer → hypertrophy/mass_gain.
 REGRAS: só emita a diretiva quando o atleta confirmar; nunca mencione o marcador @@EDN_ACTIONS@@ nem JSON na parte visível; a diretiva é a última coisa da resposta.`;
 

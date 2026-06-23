@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { computeNutritionTargets, detectNutritionAdjustments, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
+import { deriveAthleteCycle, computeTrainingDemand, recoveryNutritionAdvice, enduranceMode, diagnoseProgress, simulateAdjustments, buildMoment, type RecoveryCategory } from '@/lib/edn/nutrition-intelligence';
 import { computeCardioPrescription } from '@/lib/edn/cardio-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 
@@ -29,7 +30,7 @@ export async function GET(_req: NextRequest) {
   const [{ data: profile }, { data: bio }, { data: plan }, { data: sessions7 }, { data: cardioWeek }, { data: weightLogs30 }, { data: bios2 }, { data: sessions14v }, { data: foodDays }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('weight_kg, height_cm, age, gender, main_goal, weekly_frequency, work_type, cardio_frequency, meals_per_day, sleep_hours, sleep_quality, stress_level, calorie_target, water_target_ml, profile_completion_pct')
+      .select('weight_kg, height_cm, age, gender, main_goal, weekly_frequency, work_type, cardio_frequency, meals_per_day, sleep_hours, sleep_quality, stress_level, calorie_target, water_target_ml, profile_completion_pct, experience_level')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -41,7 +42,7 @@ export async function GET(_req: NextRequest) {
       .maybeSingle(),
     supabase
       .from('workout_plans')
-      .select('created_at, days_per_week')
+      .select('created_at, days_per_week, schedule_config')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle(),
@@ -186,10 +187,47 @@ export async function GET(_req: NextRequest) {
     loggedDays, periodDays: 14,
   }) : null;
 
+  // ── V7.2: Nutrition Intelligence (decisão esportiva) ─────────────────────
+  const recCat = (recovery?.category ?? 'moderate') as RecoveryCategory;
+  // Treino de hoje (a partir do schedule do plano ativo)
+  const jsDay = new Date().getDay();           // 0=Dom..6=Sáb
+  const ednToday = jsDay === 0 ? 7 : jsDay;     // 1=Seg..7=Dom
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sched: any = (plan as any)?.schedule_config ?? null;
+  const pattern: number[] = Array.isArray(sched?.pattern) ? sched.pattern : [];
+  const isRestDay = pattern.length > 0 ? !pattern.includes(ednToday) : false;
+  const todayLabel: string | null = sched?.day_assignments?.[String(ednToday)] ?? null;
+  const labelLc = (todayLabel ?? '').toLowerCase();
+  const todayHasCardio = /cardio|corrida|run|bike|ciclismo/.test(labelLc);
+
+  let intelligence: Record<string, unknown> | null = null;
+  if (nutrition && nutritionScore) {
+    const cycle = deriveAthleteCycle({
+      phase: nutrition.phase, recoveryCategory: recCat,
+      bodyFatPct: bio?.body_fat_pct ?? null,
+      cardioKmThisWeek: cardioKmWeek, sessionsLast7: sessions7?.length ?? 0,
+      upcomingRaceWeeks: null,
+    });
+    const todayDemand = computeTrainingDemand({ isRestDay, todayLabel, todayHasCardio, cardioKmToday: null, recoveryCategory: recCat });
+    const recoveryAdvice = recoveryNutritionAdvice({ recoveryCategory: recCat, recoveryScore: recovery?.score ?? 60, sessionsLast7: sessions7?.length ?? 0, phase: nutrition.phase });
+    const endurance = enduranceMode({ cardioKmThisWeek: cardioKmWeek, upcomingRaceWeeks: null });
+    const diagnosis = diagnoseProgress({ phase: nutrition.phase, weightTrendKg, bfTrendPct, strengthTrendPct, periodDays: 30 });
+    const trendPerWeek = weightTrendKg != null ? Math.round((weightTrendKg / (30 / 7)) * 100) / 100 : null;
+    const simulations = simulateAdjustments({ phase: nutrition.phase, tdeeKcal: nutrition.tdeeKcal, weightTrendKgPerWeek: trendPerWeek });
+    const moment = buildMoment({
+      phaseLabel: nutrition.phaseLabel, cycleLabel: cycle.label,
+      score: nutritionScore.score, scoreLabel: nutritionScore.label,
+      recoveryCategory: recCat, scoreBreakdown: nutritionScore.breakdown,
+      sex: profile?.gender ?? null, experience: (profile as any)?.experience_level ?? null,
+    });
+    intelligence = { cycle, todayDemand, todayLabel, isRestDay, recoveryAdvice, endurance, diagnosis, simulations, moment };
+  }
+
   return Response.json({
     nutrition,
     nutritionSignals,
     nutritionScore,
+    intelligence,
     nutritionTrends: { weightTrendKg, bfTrendPct, strengthTrendPct },
     cardio,
     recovery,

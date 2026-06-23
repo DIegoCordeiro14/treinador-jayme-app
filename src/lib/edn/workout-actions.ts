@@ -41,6 +41,8 @@ export interface WorkoutAction {
   dayAssignments?: Record<string, string>;  // weekday -> rótulo (ex: "legs/abs")
   /** mudança de objetivo/fase nutricional (ajuste recomendado pelos sinais) */
   goal?: string;                            // fat_loss | definition | hypertrophy | mass_gain | recomposition | performance | maintenance
+  /** motivo registrado no histórico de decisões da IA */
+  reason?: string;
 }
 
 export interface WorkoutActionResult {
@@ -241,8 +243,20 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
         fat_loss: 'Emagrecimento (Cutting)', definition: 'Definição', hypertrophy: 'Hipertrofia',
         mass_gain: 'Ganho de massa (Lean Bulk)', recomposition: 'Recomposição', performance: 'Performance', maintenance: 'Manutenção',
       };
+      // objetivo anterior (para o histórico de decisões)
+      const { data: prev } = await supabase.from('profiles').select('main_goal').eq('id', userId).maybeSingle();
+      const fromGoal = (prev as any)?.main_goal ?? null;
       const { error } = await supabase.from('profiles').update({ main_goal: goal }).eq('id', userId);
       if (error) return { ok: false, message: `Não foi possível mudar o objetivo: ${error.message}` };
+      // Histórico de decisões da IA (Módulo 8 — não-fatal se a tabela faltar)
+      try {
+        await supabase.from('nutrition_decisions').insert({
+          user_id: userId, source: 'coach_ia',
+          reason: a.reason ?? null,
+          change_applied: `Objetivo: ${fromGoal ?? '—'} → ${goal}`,
+          from_goal: fromGoal, to_goal: goal,
+        });
+      } catch { /* tabela pode não existir ainda */ }
       return { ok: true, message: `Objetivo atualizado para ${label[goal]} — macros e calorias recalculados automaticamente.` };
     }
 

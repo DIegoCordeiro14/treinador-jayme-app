@@ -1022,3 +1022,22 @@ $$ language plpgsql security definer;
 
 grant execute on function refresh_leaderboards_now() to anon, authenticated;
 grant execute on function refresh_user_leaderboard(uuid, text, date, date) to anon, authenticated;
+
+-- ── V7.2: Histórico de decisões nutricionais da IA ──────────────────────────
+create table if not exists public.nutrition_decisions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  decided_at timestamptz not null default now(),
+  source text not null default 'coach_ia',
+  reason text,
+  change_applied text not null,
+  from_goal text,
+  to_goal text,
+  result text,
+  created_at timestamptz not null default now()
+);
+alter table public.nutrition_decisions enable row level security;
+drop policy if exists "Users manage own nutrition decisions" on public.nutrition_decisions;
+create policy "Users manage own nutrition decisions" on public.nutrition_decisions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_nutrition_decisions_user on public.nutrition_decisions(user_id, decided_at desc);

@@ -5,7 +5,7 @@ import {
   Utensils, Apple, Zap, Droplets, Clock, CheckCircle2, Sparkles,
   RefreshCw, ChevronDown, ChevronUp, TrendingUp, TrendingDown,
   AlertTriangle, Target, Scale, Activity, BarChart2, Plus, X,
-  Flame, Info, ArrowRight, Award, Brain,
+  Flame, Info, ArrowRight, Award, Brain, Heart,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -107,13 +107,21 @@ export default function NutricaoPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [nutriScore, setNutriScore] = useState<{ score: number; label: string; breakdown: { label: string; points: number; max: number }[] } | null>(null);
   const [nutriSignals, setNutriSignals] = useState<{ level: string; title: string; message: string }[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [intel, setIntel] = useState<any>(null);
+  const [decisions, setDecisions] = useState<{ id: string; decided_at: string; change_applied: string; reason: string | null; result: string | null }[]>([]);
   const [showWhy, setShowWhy] = useState(false);
+  const [showSim, setShowSim] = useState(false);
   useEffect(() => {
     fetch('/api/autopilot').then(r => r.json()).then(d => {
       setAutoNutri(d?.nutrition ?? null);
       setNutriScore(d?.nutritionScore ?? null);
       setNutriSignals(d?.nutritionSignals ?? []);
+      setIntel(d?.intelligence ?? null);
     }).catch(() => {});
+    supabase.from('nutrition_decisions').select('id, decided_at, change_applied, reason, result').order('decided_at', { ascending: false }).limit(5)
+      .then(({ data }) => { if (data) setDecisions(data); }, () => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const load = useCallback(async () => {
@@ -401,6 +409,132 @@ export default function NutricaoPage() {
           );
         })()}
       </div>
+
+      {/* ════ V7.2 — Seu momento atual ════ */}
+      {intel?.moment && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-[#5A8A6A]" />
+            <span className="text-base font-extrabold italic text-zinc-100">Seu momento atual</span>
+            {intel.cycle?.label && <span className="ml-auto text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold">{intel.cycle.label}</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5">
+              <p className="text-[10px] text-zinc-500">Fase</p>
+              <p className="text-sm font-bold text-zinc-100">{intel.moment.phase}</p>
+            </div>
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5">
+              <p className="text-[10px] text-zinc-500">Score · Evolução</p>
+              <p className="text-sm font-bold text-[#5A8A6A]">{intel.moment.score} · {intel.moment.evolution}</p>
+            </div>
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5">
+              <p className="text-[10px] text-zinc-500">Principal limitador</p>
+              <p className="text-sm font-bold text-[#D4853A]">{intel.moment.limiter}</p>
+            </div>
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5">
+              <p className="text-[10px] text-zinc-500">Próxima ação</p>
+              <p className="text-[12px] font-semibold text-zinc-200 leading-tight">{intel.moment.nextAction}</p>
+            </div>
+          </div>
+          {intel.cycle?.objective && <p className="text-[11px] text-zinc-400">🎯 {intel.cycle.objective} · <span className="text-zinc-500">{intel.cycle.priority}</span></p>}
+          {intel.moment.personalNote && <p className="text-[10px] text-zinc-500">{intel.moment.personalNote}</p>}
+        </div>
+      )}
+
+      {/* Demanda do treino de hoje */}
+      {intel?.todayDemand && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-[#D4853A]" />
+              <span className="text-sm font-bold text-zinc-100">Demanda de hoje{intel.todayLabel ? ` · ${intel.todayLabel}` : intel.isRestDay ? ' · Descanso' : ''}</span>
+            </div>
+            <span className="text-sm font-black italic text-[#D4853A]">{intel.todayDemand.score}<span className="text-[10px] text-zinc-500">/100 · {intel.todayDemand.level}</span></span>
+          </div>
+          <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mb-2">
+            <div className="h-full rounded-full bg-gradient-to-r from-[#5A8A6A] via-[#A67C3A] to-[#D4853A]" style={{ width: `${intel.todayDemand.score}%` }} />
+          </div>
+          <p className="text-[11px] text-zinc-400 leading-relaxed">{intel.todayDemand.strategy}</p>
+        </div>
+      )}
+
+      {/* Recuperação + Endurance */}
+      {(intel?.recoveryAdvice?.active || intel?.endurance?.active) && (
+        <div className="space-y-2">
+          {intel?.recoveryAdvice?.active && (
+            <div className="rounded-2xl border border-[#8B5A5A]/30 bg-[#8B5A5A]/10 p-3">
+              <p className="text-[11px] font-bold text-zinc-100 flex items-center gap-1.5"><Heart className="h-3.5 w-3.5 text-[#C97B7B]" />{intel.recoveryAdvice.title}</p>
+              <p className="text-[11px] text-zinc-300 leading-relaxed mt-0.5">{intel.recoveryAdvice.message}</p>
+            </div>
+          )}
+          {intel?.endurance?.active && (
+            <div className="rounded-2xl border border-[#5A8A6A]/30 bg-[#5A8A6A]/10 p-3">
+              <p className="text-[11px] font-bold text-zinc-100 flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-[#7FB58F]" />Endurance · {intel.endurance.phase}</p>
+              <p className="text-[11px] text-zinc-300 leading-relaxed mt-0.5">{intel.endurance.note}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Diagnóstico + Simulador */}
+      {intel?.diagnosis && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-bold text-zinc-100 mb-1.5 flex items-center gap-1.5"><BarChart2 className="h-4 w-4 text-[#5A8A6A]" />Diagnóstico</p>
+          <div className="space-y-0.5 mb-2">
+            {intel.diagnosis.diagnosis.map((dline: string, i: number) => (
+              <p key={i} className="text-[11px] text-zinc-400">• {dline}</p>
+            ))}
+          </div>
+          <p className="text-[12px] text-zinc-200"><span className="font-bold">Conclusão:</span> {intel.diagnosis.conclusion}</p>
+          <p className="text-[12px] text-[#D4853A] mt-0.5"><span className="font-bold">Ação:</span> {intel.diagnosis.action}</p>
+          {intel.simulations?.length > 0 && (
+            <>
+              <button onClick={() => setShowSim(v => !v)} className="mt-2 text-[11px] text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1">
+                <ChevronDown className={cn('h-3 w-3 transition-transform', showSim && 'rotate-180')} />
+                Simular antes de aplicar
+              </button>
+              {showSim && (
+                <div className="mt-2 space-y-2">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {intel.simulations.map((opt: any) => (
+                    <div key={opt.id} className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-semibold text-zinc-100">{opt.label}</p>
+                        <p className="text-[10px] text-zinc-500">{opt.note}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={cn('text-sm font-black italic', opt.predictedPerWeekKg < 0 ? 'text-[#5A8A6A]' : opt.predictedPerWeekKg > 0 ? 'text-[#D4853A]' : 'text-zinc-400')}>
+                          {opt.predictedPerWeekKg > 0 ? '+' : ''}{opt.predictedPerWeekKg}<span className="text-[9px] text-zinc-500">kg/sem</span>
+                        </p>
+                        <a href={`/app/ia?ask=${encodeURIComponent(`Quero simular este ajuste nutricional: "${opt.label}" (previsão ${opt.predictedPerWeekKg}kg/semana). Faz sentido para meu objetivo atual? Se sim, pode aplicar.`)}`} className="text-[10px] font-bold text-[#D4853A] hover:text-[#E09B5A]">Aplicar com o Coach →</a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Histórico de decisões da IA */}
+      {decisions.length > 0 && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-bold text-zinc-100 mb-2 flex items-center gap-1.5"><Brain className="h-4 w-4 text-[#7FB58F]" />Decisões da IA</p>
+          <div className="space-y-2">
+            {decisions.map((dec) => (
+              <div key={dec.id} className="flex items-start gap-2">
+                <span className="text-[10px] text-zinc-500 shrink-0 mt-0.5">{new Date(dec.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                <div className="min-w-0">
+                  <p className="text-[12px] text-zinc-200">{dec.change_applied}</p>
+                  {dec.reason && <p className="text-[10px] text-zinc-500">Motivo: {dec.reason}</p>}
+                  {dec.result && <p className="text-[10px] text-[#5A8A6A]">Resultado: {dec.result}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-zinc-900 border border-zinc-800 w-full">
