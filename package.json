@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:nutrition": "tsc src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-engine.js"
   },
   "dependencies": {
     "next": "14.2.0",
