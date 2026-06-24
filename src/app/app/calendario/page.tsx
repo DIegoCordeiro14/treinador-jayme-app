@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Sparkles, CalendarDays, Loader2, X, Flame, Utensils, Dumbbell } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { planWeek, type RecoveryCategory } from '@/lib/edn/training-periodization-engine';
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay,
@@ -97,6 +98,7 @@ export default function CalendarioPage() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [planTab, setPlanTab] = useState<'cardio' | 'nutrition'>('cardio');
   const [allowWeekends, setAllowWeekends] = useState(true);
+  const [recCat, setRecCat] = useState<RecoveryCategory | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -105,6 +107,9 @@ export default function CalendarioPage() {
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   useEffect(() => { loadData(); }, [currentMonth]);
+  useEffect(() => {
+    fetch('/api/athlete-360').then(r => r.json()).then(d => { const c = d?.athleteState?.recoveryState?.category; if (c) setRecCat(c); }).catch(() => {});
+  }, []);
 
   async function loadData() {
     setLoading(true);
@@ -214,6 +219,37 @@ export default function CalendarioPage() {
           </Button>
         )}
       </div>
+
+      {cfg?.pattern && cfg.pattern.length > 0 && (() => {
+        const week = planWeek({
+          pattern: cfg.pattern, dayAssignments: cfg.day_assignments ?? {},
+          cardioDays: [], todayWeekday: jsToEdn(getDay(new Date())),
+          recoveryCategory: recCat ?? 'good',
+        });
+        return (
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-[#D4853A]" />
+              <span className="text-base font-extrabold italic text-zinc-100">Semana do atleta</span>
+              {recCat && <span className="ml-auto text-[10px] bg-black/30 text-zinc-400 px-2 py-0.5 rounded-full">Recuperação: {recCat}</span>}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {week.map((d) => (
+                <div key={d.weekday} className={cn('rounded-lg border p-1.5 text-center',
+                  d.adapted ? 'bg-[#8B5A5A]/10 border-[#8B5A5A]/30' :
+                  d.type === 'treino' ? 'bg-[#D4853A]/10 border-[#D4853A]/25' :
+                  d.type === 'cardio' ? 'bg-[#5A8A6A]/10 border-[#5A8A6A]/25' : 'bg-black/20 border-white/[0.06]')}>
+                  <p className="text-[10px] font-bold text-zinc-300">{d.label.split(':')[0]}</p>
+                  <p className="text-[9px] text-zinc-400 leading-tight">{d.label.split(':')[1]?.trim()}</p>
+                </div>
+              ))}
+            </div>
+            {week.find((d) => d.adapted) && (
+              <p className="text-[11px] text-[#C97B7B]">⚠ {week.find((d) => d.adapted)!.adapted}</p>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4"><p className="text-2xl font-bold text-green-400">{stats.total}</p><p className="text-xs text-zinc-500 mt-0.5">Treinos no mês</p></div>

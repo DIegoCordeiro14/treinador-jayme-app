@@ -1,4 +1,5 @@
 import { detectWeakPoint, type MuscleVolume } from '@/lib/edn/athlete-intelligence-engine';
+import { analyzeWorkoutContext } from '@/lib/edn/workout-intelligence-engine';
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
@@ -171,6 +172,7 @@ export async function POST(req: NextRequest) {
 
     // ─── V8: Weak Point Engine — músculo atrasado pelo histórico (60d) ────────
     let weakPointStr = '';
+    let weakMuscle: string | null = null;
     try {
       const since = new Date(Date.now() - 60 * 86400000).toISOString();
       const { data: wpSets } = await supabase
@@ -192,9 +194,18 @@ export async function POST(req: NextRequest) {
       const muscles: MuscleVolume[] = Object.entries(acc).map(([muscle, v]) => ({ muscle, recentVolume: Math.round(v.recent), priorVolume: Math.round(v.prior), sessions: v.days.size }));
       const wp = detectWeakPoint(muscles);
       if (wp.recommendation && wp.weakest) {
+        weakMuscle = wp.weakest.muscle;
         weakPointStr = `\nPONTO FRACO (histórico 60d): ${wp.weakest.muscle} evoluiu ${wp.weakest.evolutionPct}% (atrasado). ESPECIALIZE este grupo: +1 frequência na semana, exercícios novos/variados e maior volume efetivo para ele.`;
       }
     } catch { /* sem histórico suficiente — segue sem weak point */ }
+
+    // ─── V8.1: Diretrizes do Workout Intelligence Engine (determinístico) ─────
+    const guidelines = analyzeWorkoutContext({
+      sex, age: profileData?.age ?? null, bodyFatPct: effectiveBF ?? null, goal: effectiveObjective,
+      experience: effectiveExperience, weeklyVolumeKg: null, volumeTrendPct: null, weakMuscle,
+      recoveryCategory: 'good', equipment: profileData?.available_equipment ?? null, limitations: profileData?.limitations ?? null,
+    });
+    const guidelinesStr = `\nDIRETRIZES EDN (motor): ${guidelines.emphasis}. Reps ${guidelines.repRange}, descanso ${guidelines.restSeconds}. ${guidelines.volumeNote}${guidelines.priorities.length ? ` Priorizar: ${guidelines.priorities.join('; ')}.` : ''}${guidelines.cautions.length ? ` Cuidados: ${guidelines.cautions.join('; ')}.` : ''}`;
 
     // ─── V3.2: Sex-based muscle group priority string ─────────────────────────
     const muscleOrder = sex ? getSexMuscleOrder(sex, aestheticGoal ?? undefined) : null;
@@ -355,7 +366,7 @@ export async function POST(req: NextRequest) {
 
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 

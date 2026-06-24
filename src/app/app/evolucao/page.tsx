@@ -249,6 +249,8 @@ export default function EvolucaoPage() {
 
   // forms
   const [measForm, setMeasForm] = useState({ weight_kg: '', body_fat_pct: '', arm_cm: '', chest_cm: '', waist_cm: '', thigh_cm: '' });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [progress, setProgress] = useState<any>(null);
   const [scoreHist, setScoreHist] = useState<{ phase: string; series: { week: string; score: number }[]; windows: { d14: { score: number; label: string }; d30: { score: number; label: string }; d60: { score: number; label: string } } } | null>(null);
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -265,6 +267,7 @@ export default function EvolucaoPage() {
   useEffect(() => { load(); }, []);
   useEffect(() => {
     fetch('/api/nutrition-score-history').then(r => r.json()).then(d => { if (d && !d.error) setScoreHist(d); }).catch(() => {});
+    fetch('/api/progress-intelligence').then(r => r.json()).then(d => { if (d && !d.error) setProgress(d); }).catch(() => {});
   }, []);
 
   async function load() {
@@ -477,6 +480,36 @@ export default function EvolucaoPage() {
           </div>
         ))}
       </div>
+
+      {progress?.diagnosis && progress.diagnosis.status !== 'dados_insuficientes' && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-[#5A8A6A]" />
+            <span className="text-base font-extrabold italic text-zinc-100">Estado atual do atleta</span>
+            <span className={cn('ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold',
+              progress.diagnosis.status === 'perda_muscular' ? 'bg-[#8B5A5A]/20 text-[#C97B7B]' :
+              progress.diagnosis.status === 'plato' ? 'bg-[#A67C3A]/20 text-[#D4A85A]' : 'bg-[#5A8A6A]/20 text-[#7FB58F]')}>
+              {progress.diagnosis.title}
+            </span>
+          </div>
+          {progress.diagnosis.bodyLine && <p className="text-[12px] text-zinc-300">📊 {progress.diagnosis.bodyLine}</p>}
+          <p className="text-[12px] text-zinc-400 leading-relaxed">{progress.diagnosis.message}</p>
+          <p className="text-[12px] text-[#D4853A] font-semibold flex items-start gap-1"><ArrowRight className="h-3.5 w-3.5 shrink-0 mt-0.5" />{progress.diagnosis.nextAdjustment}</p>
+          {Array.isArray(progress.projection) && progress.projection.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {progress.projection.map((p: any) => (
+                <div key={p.day} className="rounded-lg bg-black/30 border border-white/[0.06] p-2 text-center">
+                  <p className="text-[10px] text-zinc-500">{p.day} dias</p>
+                  <p className="text-sm font-black italic text-zinc-100">{p.weightKg}kg</p>
+                  {p.bfPct != null && <p className="text-[10px] text-[#D4853A]">BF {p.bfPct}%</p>}
+                  {p.leanKg != null && <p className="text-[10px] text-[#7FB58F]">magra {p.leanKg}kg</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-zinc-900 border border-zinc-800">
