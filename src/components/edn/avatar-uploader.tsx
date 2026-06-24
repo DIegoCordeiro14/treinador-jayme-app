@@ -5,7 +5,7 @@
  * grava a URL pública em profiles.avatar_url e atualiza a UI em tempo real.
  */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Camera, Trash2, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createClient } from '@/lib/supabase/client';
@@ -26,6 +26,8 @@ export function AvatarUploader({ initialUrl, name, onChange }: AvatarUploaderPro
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState<string | null>(initialUrl ?? null);
   const [busy, setBusy] = useState(false);
+  // Sincroniza quando o perfil carrega depois da montagem (initialUrl muda de undefined → URL real)
+  useEffect(() => { setUrl(initialUrl ?? null); }, [initialUrl]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
