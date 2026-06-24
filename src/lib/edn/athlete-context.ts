@@ -15,6 +15,8 @@ import { subDays, differenceInDays, parseISO, startOfWeek, format } from 'date-f
 //  Types
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { canonicalGoal, goalLabel, goalCalorieAdjustment } from './goal';
+
 export interface BodyComposition {
   weightKg: number | null;
   bodyFatPct: number | null;
@@ -397,10 +399,8 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
   const avgProt = food.length > 0 ? Math.round(food.reduce((s: number, l: any) => s + (l.protein_g ?? 0), 0) / Math.max(daysLogged, 1)) : null;
   const targetProt = currentWeight ? Math.round(currentWeight * 2.0) : null;
   const tdeeEst = tmb ? estimateTdee(tmb, allSessions.length / 4, (cardio14 ?? []).reduce((s: number, c: any) => s + (c.distance_km ?? 0), 0) / 2) : null;
-  const primaryGoal = (profile as any)?.main_goal ?? (profile as any)?.goal ?? 'hypertrophy';
-  const _cut = primaryGoal === 'fat_loss' || primaryGoal === 'weight_loss';
-  const _bulk = primaryGoal === 'hypertrophy' || primaryGoal === 'mass_gain' || primaryGoal === 'lean_bulk';
-  const calorieAdj = _cut ? -500 : primaryGoal === 'definition' ? -450 : primaryGoal === 'recomposition' ? -150 : _bulk ? 300 : 0;
+  const primaryGoal = canonicalGoal((profile as any)?.main_goal ?? (profile as any)?.goal);
+  const calorieAdj = tdeeEst ? goalCalorieAdjustment(primaryGoal, tdeeEst) : 0;
   const targetCal = (profile as any)?.calorie_target ?? (tdeeEst ? tdeeEst + calorieAdj : null);
 
   // ── Cardio ────────────────────────────────────────────────────────────────
@@ -593,7 +593,7 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
     `Score: ${r.score}/100 | Deload recomendado: ${r.deloadRecommended ? 'SIM' : 'não'}`,
     ``,
     `[OBJETIVOS]`,
-    `Principal: ${GOAL_LABELS[g.primary] ?? g.primary}`,
+    `Principal (OFICIAL — do perfil): ${goalLabel(g.primary)}`,
     g.aesthetic ? `Estético: ${g.aesthetic}` : null,
     g.weakPoint ? `Ponto fraco prioritário: ${g.weakPoint}` : null,
     g.targetWeightKg ? `Meta de peso: ${g.targetWeightKg}kg` : null,
@@ -610,7 +610,7 @@ export function serializeAthleteContext(ctx: AthleteContext, options: SerializeO
     lines.push(`INSTRUÇÃO: Use os IDs de exercício abaixo para referenciar substituições e modificações.`);
 
     for (const plan of ctx.workoutPlans) {
-      lines.push(``, `▸ Plano: "${plan.name}"${plan.isActive ? ' [ATIVO]' : ''} | ${plan.daysPerWeek}x/sem | ${GOAL_LABELS[plan.goal] ?? plan.goal} | ID: ${plan.id}`);
+      lines.push(``, `▸ Plano: "${plan.name}"${plan.isActive ? ' [ATIVO]' : ''} | ${plan.daysPerWeek}x/sem | foco do plano: ${goalLabel(plan.goal)} (o objetivo OFICIAL é o do perfil acima) | ID: ${plan.id}`);
 
       for (const day of plan.days) {
         const exCount = day.exercises.length;
