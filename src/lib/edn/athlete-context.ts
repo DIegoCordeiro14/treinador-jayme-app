@@ -398,7 +398,9 @@ export async function buildAthleteContext(userId: string): Promise<AthleteContex
   const targetProt = currentWeight ? Math.round(currentWeight * 2.0) : null;
   const tdeeEst = tmb ? estimateTdee(tmb, allSessions.length / 4, (cardio14 ?? []).reduce((s: number, c: any) => s + (c.distance_km ?? 0), 0) / 2) : null;
   const primaryGoal = (profile as any)?.main_goal ?? (profile as any)?.goal ?? 'hypertrophy';
-  const calorieAdj = primaryGoal === 'weight_loss' ? -500 : primaryGoal === 'definition' ? -250 : primaryGoal === 'hypertrophy' ? 300 : 0;
+  const _cut = primaryGoal === 'fat_loss' || primaryGoal === 'weight_loss';
+  const _bulk = primaryGoal === 'hypertrophy' || primaryGoal === 'mass_gain' || primaryGoal === 'lean_bulk';
+  const calorieAdj = _cut ? -500 : primaryGoal === 'definition' ? -450 : primaryGoal === 'recomposition' ? -150 : _bulk ? 300 : 0;
   const targetCal = (profile as any)?.calorie_target ?? (tdeeEst ? tdeeEst + calorieAdj : null);
 
   // ── Cardio ────────────────────────────────────────────────────────────────
