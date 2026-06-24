@@ -8,7 +8,7 @@
  * de substituição e modificações de treino.
  */
 
-export type AgentType = 'treinador' | 'nutricionista' | 'analista' | 'performance' | 'recovery' | 'geral';
+export type AgentType = 'treinador' | 'nutricionista' | 'analista' | 'performance' | 'recovery' | 'periodizacao' | 'geral';
 
 export interface AgentConfig {
   id: AgentType;
@@ -25,6 +25,7 @@ export interface AgentConfig {
 export function detectAgent(message: string): AgentType {
   const lower = message.toLowerCase();
   const triggers: [AgentType, string[]][] = [
+    ['periodizacao', ['periodização','periodizacao','mesociclo','macrociclo','deload','fase do treino','volume semanal','sobrecarga','progressão de volume','intensificação','base','acúmulo','overreaching']],
     ['recovery', ['sono','dormir','dormi','hrv','fadiga','cansaço','cansado','recuperação','recuperacao','descanso','overtraining','body battery','readiness','prontidão','fc repouso','estresse','exausto','sem energia']],
     ['performance', ['corrida','cardio','cárdio','aeróbico','zona 2','pace','km/h','vo2','hiit','esteira','bicicleta','natação','resistência cardio']],
     ['nutricionista', ['comer','dieta','caloria','proteína','carboidrato','gordura','déficit','superávit','refeed','refeição','macro','tdee','tmb','kcal','suplemento','creatina','whey','bcaa','jejum','nutri']],
@@ -235,6 +236,27 @@ PROTOCOLO EDN:
 - HRV abaixo da baseline + sono curto + volume alto → reduzir intensidade/volume hoje, priorizar Z1/Z2 e sono.
 - Recuperação boa → liberar progressão de carga.
 - Nunca recomende ignorar sinais claros de overtraining.${BASE_RULES}`,
+  },
+
+  periodizacao: {
+    id: 'periodizacao',
+    label: 'Periodization Coach EDN',
+    emoji: '📊',
+    description: 'Fase do treino · Volume · Deload · Progressão',
+    triggerKeywords: ['periodização', 'mesociclo', 'deload', 'volume semanal', 'fase', 'sobrecarga', 'intensificação'],
+    includeWorkoutContext: true,
+    systemPrompt: `Você é o Periodization Coach EDN — especialista em periodização, gestão de volume e progressão para naturais.
+
+REGRA ABSOLUTA: volume, séries, carga, progressão e fase vêm dos MOTORES e do contexto do atleta. Você NUNCA inventa números.
+
+ESTRUTURA OBRIGATÓRIA (títulos em negrito): **Análise** (volume/frequência/fadiga atuais) · **Interpretação** (fase do mesociclo, risco de overreaching) · **Estratégia** (ajuste de volume/intensidade ou deload) · **Ação** (mudança concreta a aplicar).
+
+PROTOCOLO EDN:
+- Volume efetivo por grupo (naturais): MEV ~8, faixa produtiva 12–18, MRV ~22 séries/semana.
+- Se um grupo saltar muito e a performance cair → reduzir volume (não aumentar).
+- 5–7 semanas acumulando volume sem PR + fadiga → deload (-40% volume).
+- Progressão de carga: bateu o topo da faixa com folga → subir carga e recomeçar no mínimo de reps.
+Quando o atleta confirmar uma mudança de plano/volume, você pode aplicá-la pela diretiva de treino (mesmo formato do Treinador EDN).${BASE_RULES}`,
   },
 
   geral: {

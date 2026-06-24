@@ -281,6 +281,8 @@ export default function EvolucaoPage() {
   const [measForm, setMeasForm] = useState({ weight_kg: '', body_fat_pct: '', arm_cm: '', chest_cm: '', waist_cm: '', thigh_cm: '' });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [progress, setProgress] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [volumeVerdicts, setVolumeVerdicts] = useState<any[]>([]);
   const [scoreHist, setScoreHist] = useState<{ phase: string; series: { week: string; score: number }[]; windows: { d14: { score: number; label: string }; d30: { score: number; label: string }; d60: { score: number; label: string } } } | null>(null);
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -298,6 +300,7 @@ export default function EvolucaoPage() {
   useEffect(() => {
     fetch('/api/nutrition-score-history').then(r => r.json()).then(d => { if (d && !d.error) setScoreHist(d); }).catch(() => {});
     fetch('/api/progress-intelligence').then(r => r.json()).then(d => { if (d && !d.error) setProgress(d); }).catch(() => {});
+    fetch('/api/volume-analysis').then(r => r.json()).then(d => { if (Array.isArray(d?.verdicts)) setVolumeVerdicts(d.verdicts); }).catch(() => {});
   }, []);
 
   async function load() {
@@ -715,7 +718,28 @@ export default function EvolucaoPage() {
         </TabsContent>
 
         {/* Volume tab */}
-        <TabsContent value="volume" className="mt-4">
+        <TabsContent value="volume" className="mt-4 space-y-4">
+          {volumeVerdicts.length > 0 && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+              <h3 className="font-semibold text-zinc-100 mb-1">Volume inteligente (séries/semana)</h3>
+              <p className="text-xs text-zinc-500 mb-3">Por grupo muscular · semana atual vs anterior</p>
+              <div className="space-y-2">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {volumeVerdicts.map((v: any) => (
+                  <div key={v.muscle} className={cn('rounded-lg border p-2.5',
+                    v.status === 'excessivo' ? 'bg-[#8B5A5A]/10 border-[#8B5A5A]/30' :
+                    v.status === 'abaixo' ? 'bg-[#A67C3A]/10 border-[#A67C3A]/30' :
+                    v.status === 'alto' ? 'bg-[#D4853A]/10 border-[#D4853A]/25' : 'bg-[#5A8A6A]/10 border-[#5A8A6A]/25')}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-zinc-100">{v.muscle}</span>
+                      <span className="text-xs text-zinc-400">{v.setsThisWeek} séries{v.changePct != null ? ` · ${v.changePct > 0 ? '+' : ''}${v.changePct}%` : ''} · <span className="uppercase font-semibold">{v.status}</span></span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">{v.note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
             <h3 className="font-semibold text-zinc-100 mb-4">Volume por Sessão (kg)</h3>
             {volumeData.length === 0 ? (
