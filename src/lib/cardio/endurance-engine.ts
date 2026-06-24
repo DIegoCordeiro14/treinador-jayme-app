@@ -241,3 +241,11 @@ export function buildRunnerMoment(i: RunnerMomentInput): RunnerMoment {
     nextWorkout: i.nextWorkout,
   };
 }
+
+// ── Cardio Score (0–100) para o EDN 360 ─────────────────────────────────────
+export function computeCardioScore(i: { cardioSessions7: number; targetSessions?: number; loadRisk: CardioLoadResult['risk'] }): number {
+  const target = i.targetSessions ?? 3;
+  const consistency = Math.round(Math.min(1, i.cardioSessions7 / Math.max(1, target)) * 70);
+  const loadBonus = i.loadRisk === 'ideal' ? 30 : i.loadRisk === 'baixo' ? 18 : i.loadRisk === 'elevado' ? 10 : 0;
+  return Math.max(0, Math.min(100, consistency + loadBonus));
+}

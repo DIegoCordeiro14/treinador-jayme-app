@@ -23,10 +23,15 @@ const ring = (v: number) => v >= 80 ? 'text-[#5A8A6A]' : v >= 60 ? 'text-[#D4853
 export function AthleteCentral() {
   const [edn, setEdn] = useState<Edn360 | null>(null);
   const [wp, setWp] = useState<WeakPoint | null>(null);
+  const [briefLine, setBriefLine] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/athlete-360').then(r => r.json()).then(d => {
       if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); }
+    }).catch(() => {});
+    fetch('/api/daily-briefing').then(r => r.json()).then(d => {
+      const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
+      if (line) setBriefLine(String(line).replace(/\*\*(.*?)\*\*/g, '$1'));
     }).catch(() => {});
   }, []);
 
@@ -45,6 +50,7 @@ export function AthleteCentral() {
         <span className="text-base font-extrabold italic text-zinc-100">Central do Atleta</span>
         <span className="ml-auto text-lg font-black italic text-[#D4853A]">{edn.overall}<span className="text-[10px] text-zinc-500 font-bold">/100 · EDN 360</span></span>
       </div>
+      {briefLine && <p className="text-[11px] text-zinc-400 leading-relaxed -mt-1">{briefLine}</p>}
       <div className="grid grid-cols-4 gap-2">
         {pillars.map((p) => (
           <div key={p.label} className="rounded-lg bg-black/30 border border-white/[0.06] p-2 text-center">
