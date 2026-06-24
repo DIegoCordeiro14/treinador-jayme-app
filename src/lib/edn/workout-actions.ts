@@ -24,7 +24,10 @@ export type WorkoutActionType =
   | 'adjust_volume'
   | 'create_deload'
   | 'remember'
-  | 'create_workout_plan';
+  | 'create_workout_plan'
+  | 'replace_workout_day'
+  | 'increase_muscle_volume'
+  | 'upgrade_training_level';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -58,6 +61,8 @@ export interface WorkoutAction {
   setActive?: boolean;
   description?: string;
   days?: Array<{ name: string; dayOfWeek?: number; exercises?: Array<{ exerciseId: string; sets?: number; repsMin?: number; repsMax?: number; restSeconds?: number }> }>;
+  /** grupo muscular alvo (increase_muscle_volume): chave da biblioteca (chest, back, legs...) */
+  muscleGroup?: string;
 }
 
 export interface WorkoutActionResult {
@@ -97,6 +102,11 @@ async function ownsPlan(supabase: any, userId: string, planId: string): Promise<
 async function exerciseName(supabase: any, exerciseId: string): Promise<string | null> {
   const { data } = await supabase.from('exercises').select('id, name').eq('id', exerciseId).maybeSingle();
   return data ? (data as any).name : null;
+}
+
+async function activePlanId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase.from('workout_plans').select('id').eq('user_id', userId).eq('is_active', true).maybeSingle();
+  return data ? (data as any).id : null;
 }
 
 async function logCoachDecision(supabase: any, userId: string, domain: string, decision: string, reason?: string): Promise<void> {
@@ -365,6 +375,55 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       await logCoachDecision(supabase, userId, 'treino', `Plano criado: "${name}" (${dpw}x/sem, ${a.days.length} dias, ${totalEx} exercícios)`, a.reason);
 
       return { ok: true, message: `Plano "${name}" criado com ${a.days.length} dia(s) e ${totalEx} exercício(s)${a.setActive ? ' — definido como ativo' : ''}.` };
+    }
+
+    // ── Trocar (regerar) um dia de treino — mesma semântica de set_day_exercises
+    case 'replace_workout_day': {
+      return applyOne(supabase, userId, { ...a, type: 'set_day_exercises' });
+    }
+
+    // ── Aumentar volume de um grupo muscular no plano ativo ───────────────────
+    case 'increase_muscle_volume': {
+      const mg = (a.muscleGroup ?? '').toLowerCase();
+      if (!mg) return { ok: false, message: 'Volume por músculo: falta muscleGroup.' };
+      const planId = a.planId ?? (await activePlanId(supabase, userId));
+      if (!planId) return { ok: false, message: 'Volume por músculo: nenhum plano ativo.' };
+      const { data: days } = await supabase.from('workout_days').select('id').eq('plan_id', planId);
+      const dayIds = (days ?? []).map((d: any) => d.id);
+      if (!dayIds.length) return { ok: false, message: 'Volume por músculo: plano sem dias.' };
+      const { data: exs } = await supabase
+        .from('workout_exercises')
+        .select('id, sets, exercise:exercises!inner(muscle_group)')
+        .in('workout_day_id', dayIds)
+        .eq('exercise.muscle_group', mg);
+      if (!exs || !exs.length) return { ok: false, message: `Volume por músculo: nenhum exercício de ${mg} no plano.` };
+      const delta = a.setsDelta ?? 1;
+      let changed = 0;
+      for (const e of exs as any[]) {
+        const next = clampInt(e.sets + delta, 1, 10, e.sets);
+        if (next !== e.sets) { const { error } = await supabase.from('workout_exercises').update({ sets: next }).eq('id', e.id); if (!error) changed++; }
+      }
+      await logCoachDecision(supabase, userId, 'treino', `Volume de ${mg} ${delta > 0 ? '+' : ''}${delta} série(s) em ${changed} exercício(s)`, a.reason);
+      return { ok: changed > 0, message: changed > 0 ? `Volume de ${mg} ajustado (+${delta} série) em ${changed} exercício(s).` : 'Nenhum exercício alterado.' };
+    }
+
+    // ── Subir o nível do treino (mais volume/intensidade) ─────────────────────
+    case 'upgrade_training_level': {
+      const planId = a.planId ?? (await activePlanId(supabase, userId));
+      if (!planId) return { ok: false, message: 'Upgrade: nenhum plano ativo.' };
+      const { data: days } = await supabase.from('workout_days').select('id').eq('plan_id', planId);
+      const dayIds = (days ?? []).map((d: any) => d.id);
+      if (!dayIds.length) return { ok: false, message: 'Upgrade: plano sem dias.' };
+      const { data: exs } = await supabase.from('workout_exercises').select('id, sets, rest_seconds').in('workout_day_id', dayIds);
+      let changed = 0;
+      for (const e of (exs ?? []) as any[]) {
+        const nextSets = clampInt(e.sets + 1, 1, 10, e.sets);
+        const nextRest = clampInt((e.rest_seconds ?? 90) - 10, 30, 600, e.rest_seconds ?? 90);
+        const { error } = await supabase.from('workout_exercises').update({ sets: nextSets, rest_seconds: nextRest }).eq('id', e.id);
+        if (!error) changed++;
+      }
+      await logCoachDecision(supabase, userId, 'treino', `Upgrade de nível: +1 série e -10s descanso em ${changed} exercício(s)`, a.reason);
+      return { ok: changed > 0, message: changed > 0 ? `Treino avançado: +1 série e densidade maior em ${changed} exercício(s).` : 'Nenhum exercício alterado.' };
     }
 
     default:

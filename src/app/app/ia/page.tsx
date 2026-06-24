@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X, History } from 'lucide-react';
+import { Bot, Send, Plus, Trash2, Brain, RefreshCw, X, History, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -35,6 +35,25 @@ export default function IAPage() {
   const askSentRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [central, setCentral] = useState<any>(null);
+  const fichaRef = useRef<HTMLInputElement>(null);
+  const [importingFicha, setImportingFicha] = useState(false);
+  async function importFicha(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = '';
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { alert('Imagem muito grande (máx 8MB).'); return; }
+    setImportingFicha(true);
+    try {
+      const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.onerror = rej; r.readAsDataURL(file); });
+      const resp = await fetch('/api/extract-workout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: b64, mediaType: file.type || 'image/jpeg' }) });
+      const data = await resp.json();
+      if (!resp.ok || !data?.plan) { alert(data?.error ?? 'Não consegui ler a ficha.'); return; }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const days = (data.plan.days ?? []).map((d: any) => `${d.name}: ${(d.exercises ?? []).map((x: any) => `${x.name} ${x.sets ?? '?'}x${x.repsMin ?? '?'}-${x.repsMax ?? '?'}`).join('; ')}`).join('\n');
+      const diag = data.plan.diagnosis ? `\nProblemas: ${(data.plan.diagnosis.problems ?? []).join('; ')}` : '';
+      sendMessage(`Importei minha ficha atual. Analise (pontos fortes/problemas), proponha melhorias mantendo o que funciona e, se eu confirmar, aplique como plano:\n${days}${diag}`);
+    } catch { alert('Falha ao importar a ficha.'); }
+    finally { setImportingFicha(false); }
+  }
 
   useEffect(() => {
     loadConversations();
@@ -339,6 +358,10 @@ export default function IAPage() {
         {/* Input */}
         <div className="p-4 border-t border-zinc-800 shrink-0">
           <div className="flex gap-2 items-end">
+            <input ref={fichaRef} type="file" accept="image/*,application/pdf" onChange={importFicha} className="hidden" />
+            <Button variant="ghost" onClick={() => fichaRef.current?.click()} disabled={importingFicha || isLoading} title="Importar ficha (foto/PDF)" className="h-11 w-11 p-0 shrink-0">
+              {importingFicha ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            </Button>
             <textarea
               ref={textareaRef}
               value={input}

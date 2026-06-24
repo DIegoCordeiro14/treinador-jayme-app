@@ -1105,3 +1105,5 @@ alter table public.workout_plan_versions enable row level security;
 drop policy if exists "Users manage own plan versions" on public.workout_plan_versions;
 create policy "Users manage own plan versions" on public.workout_plan_versions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists idx_workout_plan_versions_user on public.workout_plan_versions(user_id, created_at desc);
+
+-- (extract-workout não cria tabelas — usa exercises/workout_* existentes)
