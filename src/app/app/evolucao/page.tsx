@@ -106,6 +106,36 @@ function NumInput({ label, field, placeholder, form, setForm, step = '0.1' }: {
 // ── Projeções Tab — V4.0 Module 7 + 3 ─────────────────────────────────────────
 function ProjecoesTab() {
   const { state, loading } = useAthleteState();
+  // Consome o peso da bioimpedância (+ registros manuais) para as projeções
+  const [bioWeight, setBioWeight] = useState<{ current: number | null; weeklyDelta: number | null; bf: number | null; lean: number | null }>({ current: null, weeklyDelta: null, bf: null, lean: null });
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const since = new Date(Date.now() - 60 * 86400000);
+      const [{ data: bios }, { data: logs }] = await Promise.all([
+        supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, skeletal_muscle_mass_kg, lean_mass_kg, measured_at').eq('user_id', user.id).gte('measured_at', since.toISOString()).order('measured_at', { ascending: true }),
+        supabase.from('body_weight_logs').select('weight_kg, body_fat_pct, log_date').eq('user_id', user.id).gte('log_date', since.toISOString().slice(0, 10)).order('log_date', { ascending: true }),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const byDay = new Map<string, { t: number; peso: number; bf: number | null; lean: number | null }>();
+      (logs ?? []).forEach((l: any) => { if (l.weight_kg != null) { const t = new Date(l.log_date).getTime(); byDay.set(l.log_date.slice(0, 10), { t, peso: Number(l.weight_kg), bf: l.body_fat_pct != null ? Number(l.body_fat_pct) : null, lean: null }); } });
+      (bios ?? []).forEach((b: any) => { if (b.weight_kg != null && b.measured_at) { const day = b.measured_at.slice(0, 10); byDay.set(day, { t: new Date(b.measured_at).getTime(), peso: Number(b.weight_kg), bf: b.body_fat_pct != null ? Number(b.body_fat_pct) : null, lean: b.lean_mass_kg ?? b.skeletal_muscle_mass_kg ?? null }); } });
+      const series = Array.from(byDay.values()).sort((a, b) => a.t - b.t);
+      if (!series.length) return;
+      const latest = series[series.length - 1];
+      let weeklyDelta: number | null = null;
+      if (series.length >= 2) {
+        const target = latest.t - 14 * 86400000;
+        let ref = series[0]; let best = Infinity;
+        for (const e of series) { if (e.t >= latest.t) continue; const gap = (latest.t - e.t) / 86400000; if (gap < 5 || gap > 40) continue; const d = Math.abs(e.t - target); if (d < best) { best = d; ref = e; } }
+        const weeks = (latest.t - ref.t) / (7 * 86400000);
+        if (weeks > 0) weeklyDelta = Math.round(((latest.peso - ref.peso) / weeks) * 100) / 100;
+      }
+      setBioWeight({ current: latest.peso, weeklyDelta, bf: latest.bf, lean: latest.lean });
+    })();
+  }, []);
 
   if (loading) {
     return (
@@ -125,10 +155,9 @@ function ProjecoesTab() {
   }
 
   const r = state.raw;
-  const trend7d = r.weight_trend_14d !== null ? r.weight_trend_14d / 2 : null;
-
-  // Simple client-side projections
-  const currentWeight = r.weight_trend_14d !== null ? null : null; // weight comes from dashboard
+  // Tendência semanal: prioriza a série de bioimpedância/peso; cai para o estado do atleta
+  const trend7d = bioWeight.weeklyDelta ?? (r.weight_trend_14d !== null ? r.weight_trend_14d / 2 : null);
+  const currentWeight = bioWeight.current;
   const weeklyDelta = trend7d;
 
   const plateau = r.plateau_detected;
@@ -189,6 +218,7 @@ function ProjecoesTab() {
         <div className="flex items-center gap-2 mb-2">
           <TrendIcon className={`h-4 w-4 ${trendColor}`} />
           <p className="text-sm font-semibold text-zinc-100">Tendência de peso (14 dias)</p>
+          {currentWeight != null && <span className="ml-auto text-xs text-zinc-400">Atual: <strong className="text-zinc-200">{currentWeight} kg</strong></span>}
         </div>
         <p className="text-zinc-400 text-sm">
           {trend7d === null
@@ -217,10 +247,10 @@ function ProjecoesTab() {
       <div className="space-y-2">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Projeção comparativa</p>
         <ProjectionCompare
-          currentWeightKg={r.weight_trend_14d !== null ? null : null}
-          currentBfPct={r.body_fat_current}
-          currentMuscleKg={r.muscle_current}
-          weeklyWeightDeltaKg={r.weight_trend_14d !== null ? r.weight_trend_14d / 2 : null}
+          currentWeightKg={currentWeight}
+          currentBfPct={bioWeight.bf ?? r.body_fat_current}
+          currentMuscleKg={bioWeight.lean ?? r.muscle_current}
+          weeklyWeightDeltaKg={weeklyDelta}
           bodyFatPct={r.body_fat_current}
           plateauDetected={r.plateau_detected}
           deloadRecommended={!r.has_pr_last_4_weeks && r.sessions_last_28 > 8}
