@@ -130,6 +130,9 @@ Formatos de ação:
 - Remover:    {"type":"remove_exercise","dayId":"<DAY_ID>","exerciseId":"<id_atual>"}
 - Montar o dia inteiro (importar o treino que você montou para o plano): {"type":"set_day_exercises","dayId":"<DAY_ID>","exercises":[{"exerciseId":"<id>","sets":4,"repsMin":8,"repsMax":12,"restSeconds":90}, ...]}  — use IDs reais da [BIBLIOTECA DE EXERCÍCIOS]; substitui TODOS os exercícios daquele dia pela lista.
 - Reprogramar calendário: {"type":"reschedule_workouts","pattern":[1,3,5,6],"dayAssignments":{"1":"chest/back","3":"legs/abs","5":"shoulders/arms","6":"fullbody"}}  (pattern: 1=Seg..7=Dom; dayAssignments opcional)
+- Ajustar volume (séries): {"type":"adjust_volume","dayId":"<DAY_ID>","exerciseId":"<id_opcional>","setsDelta":2,"reason":"baixa evolução"}  (ou "sets":4 para valor absoluto; sem exerciseId aplica ao dia inteiro)
+- Deload de um dia: {"type":"create_deload","dayId":"<DAY_ID>","reason":"fadiga acumulada / HRV baixo"}  (reduz ~40% das séries)
+- Memorizar preferência/limitação do atleta: {"type":"remember","memoryKind":"preferencia","memoryContent":"não gosta de agachamento — priorizar leg press/hack"}
 
 MONTAR TREINO (V6.8): quando o usuário pedir para você MONTAR um treino para um dia (ex.: "monte o Treino A de peito e tríceps") e CONFIRMAR, escolha 4-7 exercícios reais da [BIBLIOTECA DE EXERCÍCIOS] respeitando a metodologia EDN (compostos antes de isolados, séries/reps coerentes com o objetivo) e emita set_day_exercises com a lista completa.
 MONTAR O PLANO INTEIRO: quando o usuário pedir para montar/gerar o PLANO TODO (ex.: "monta meu plano inteiro", "gera todos os treinos") e CONFIRMAR, monte um split coerente distribuindo os grupos musculares entre TODOS os dias do plano (use cada DAY_ID listado em [PLANOS DE TREINO]) e emita VÁRIAS ações set_day_exercises no array — uma por dia. Respeite a frequência (2x/sem por grupo p/ hipertrofia), compostos antes de isolados, e o objetivo do plano.

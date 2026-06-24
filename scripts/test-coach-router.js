@@ -1,0 +1,12 @@
+const { routeIntent } = require('./.tmp/coach-router.js');
+let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
+console.log('\n== routeIntent ==');
+check('"carga no supino parou" → treinador', routeIntent('minha carga no supino parou').primary==='treinador', routeIntent('minha carga no supino parou').primary);
+check('"prova daqui 3 meses" → performance', routeIntent('tenho prova daqui 3 meses').primary==='performance');
+check('"estou cansado" → recovery', routeIntent('estou muito cansado e sem dormir').primary==='recovery');
+let r=routeIntent('quero secar sem perder músculo');
+check('"secar sem perder músculo" → nutrição + apoio treino/recovery', r.primary==='nutricionista' && r.support.includes('treinador') && r.support.includes('recovery'), JSON.stringify(r));
+r=routeIntent('estou travado no emagrecimento');
+check('"travado no emagrecimento" → analista + nutrição', r.primary==='analista' && r.support.includes('nutricionista'), JSON.stringify(r));
+check('sem palavra-chave → geral', routeIntent('bom dia').primary==='geral');
+console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);

@@ -20,7 +20,10 @@ export type WorkoutActionType =
   | 'remove_exercise'
   | 'set_day_exercises'
   | 'reschedule_workouts'
-  | 'set_goal';
+  | 'set_goal'
+  | 'adjust_volume'
+  | 'create_deload'
+  | 'remember';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -43,6 +46,11 @@ export interface WorkoutAction {
   goal?: string;                            // fat_loss | definition | hypertrophy | mass_gain | recomposition | performance | maintenance
   /** motivo registrado no histórico de decisões da IA */
   reason?: string;
+  /** ajuste de volume: nº de séries (valor absoluto) ou delta */
+  setsDelta?: number;
+  /** memória do atleta */
+  memoryKind?: string;
+  memoryContent?: string;
 }
 
 export interface WorkoutActionResult {
@@ -82,6 +90,10 @@ async function ownsPlan(supabase: any, userId: string, planId: string): Promise<
 async function exerciseName(supabase: any, exerciseId: string): Promise<string | null> {
   const { data } = await supabase.from('exercises').select('id, name').eq('id', exerciseId).maybeSingle();
   return data ? (data as any).name : null;
+}
+
+async function logCoachDecision(supabase: any, userId: string, domain: string, decision: string, reason?: string): Promise<void> {
+  try { await supabase.from('coach_decisions').insert({ user_id: userId, domain, decision, reason: reason ?? null }); } catch { /* tabela pode faltar */ }
 }
 
 async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promise<WorkoutActionResult> {
@@ -258,6 +270,47 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
         });
       } catch { /* tabela pode não existir ainda */ }
       return { ok: true, message: `Objetivo atualizado para ${label[goal]} — macros e calorias recalculados automaticamente.` };
+    }
+
+    // ── Ajustar volume (séries) de um dia ────────────────────────────────────
+    case 'adjust_volume': {
+      if (!a.dayId) return { ok: false, message: 'Ajuste de volume: falta dayId.' };
+      if (!(await ownsDay(supabase, userId, a.dayId))) return { ok: false, message: 'Ajuste de volume: dia não pertence a você.' };
+      const { data: exs } = await supabase.from('workout_exercises').select('id, sets, exercise_id').eq('workout_day_id', a.dayId);
+      if (!exs || !exs.length) return { ok: false, message: 'Ajuste de volume: nenhum exercício no dia.' };
+      const rows = a.exerciseId ? exs.filter((e: any) => e.exercise_id === a.exerciseId) : exs;
+      if (!rows.length) return { ok: false, message: 'Ajuste de volume: exercício não encontrado nesse dia.' };
+      let changed = 0;
+      for (const e of rows as any[]) {
+        const next = a.sets != null ? clampInt(a.sets, 1, 8, e.sets) : clampInt(e.sets + (a.setsDelta ?? 0), 1, 8, e.sets);
+        if (next !== e.sets) { const { error } = await supabase.from('workout_exercises').update({ sets: next }).eq('id', e.id); if (!error) changed++; }
+      }
+      await logCoachDecision(supabase, userId, 'treino', `Ajuste de volume: ${a.exerciseId ? '1 exercício' : 'dia inteiro'} → ${a.sets != null ? a.sets + ' séries' : (a.setsDelta && a.setsDelta > 0 ? '+' : '') + a.setsDelta + ' séries'}`, a.reason);
+      return { ok: changed > 0, message: changed > 0 ? `Volume ajustado em ${changed} exercício(s).` : 'Nenhuma alteração de volume aplicada.' };
+    }
+
+    // ── Deload de um dia (reduz ~40% das séries) ──────────────────────────────
+    case 'create_deload': {
+      if (!a.dayId) return { ok: false, message: 'Deload: falta dayId.' };
+      if (!(await ownsDay(supabase, userId, a.dayId))) return { ok: false, message: 'Deload: dia não pertence a você.' };
+      const { data: exs } = await supabase.from('workout_exercises').select('id, sets').eq('workout_day_id', a.dayId);
+      if (!exs || !exs.length) return { ok: false, message: 'Deload: nenhum exercício no dia.' };
+      let changed = 0;
+      for (const e of exs as any[]) {
+        const next = Math.max(1, Math.round(e.sets * 0.6));
+        if (next !== e.sets) { const { error } = await supabase.from('workout_exercises').update({ sets: next }).eq('id', e.id); if (!error) changed++; }
+      }
+      await logCoachDecision(supabase, userId, 'treino', 'Deload aplicado (-40% séries no dia)', a.reason);
+      return { ok: changed > 0, message: changed > 0 ? `Deload aplicado: séries reduzidas em ${changed} exercício(s).` : 'Deload não alterou as séries.' };
+    }
+
+    // ── Memória do atleta (preferências/limitações) ───────────────────────────
+    case 'remember': {
+      const content = (a.memoryContent ?? '').trim();
+      if (!content) return { ok: false, message: 'Memória: conteúdo vazio.' };
+      const { error } = await supabase.from('athlete_memory').insert({ user_id: userId, kind: a.memoryKind ?? 'note', content });
+      if (error) return { ok: false, message: `Memória: ${error.message}` };
+      return { ok: true, message: 'Anotado na sua memória do atleta.' };
     }
 
     default:

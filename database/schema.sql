@@ -1069,3 +1069,26 @@ create index if not exists idx_cardio_decisions_user on public.cardio_decisions(
 
 -- ── Corrida: análise do Coach EDN salva junto com a corrida ─────────────────
 alter table public.cardio_sessions add column if not exists coach_analysis text;
+
+-- ── Coach V8.1: decisões do Coach + memória de longo prazo do atleta ────────
+create table if not exists public.coach_decisions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  decided_at timestamptz not null default now(),
+  domain text not null default 'treino', decision text not null, reason text,
+  data_used jsonb, expected_result text, created_at timestamptz not null default now()
+);
+alter table public.coach_decisions enable row level security;
+drop policy if exists "Users manage own coach decisions" on public.coach_decisions;
+create policy "Users manage own coach decisions" on public.coach_decisions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_coach_decisions_user on public.coach_decisions(user_id, decided_at desc);
+
+create table if not exists public.athlete_memory (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null default 'note', content text not null, created_at timestamptz not null default now()
+);
+alter table public.athlete_memory enable row level security;
+drop policy if exists "Users manage own athlete memory" on public.athlete_memory;
+create policy "Users manage own athlete memory" on public.athlete_memory for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_athlete_memory_user on public.athlete_memory(user_id, created_at desc);

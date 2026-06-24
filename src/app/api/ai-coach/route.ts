@@ -4,6 +4,7 @@ import { getDefaultProvider, EDN_SYSTEM_PROMPT } from '@/lib/ai-coach';
 import { makeCacheKey, getCached, setCached } from '@/lib/ai-coach/cache';
 import type { AIMessage } from '@/lib/ai-coach';
 import { detectAgent, AGENT_CONFIGS } from '@/lib/ai-coach/agents';
+import { routeIntent } from '@/lib/ai-coach/coach-router';
 import { getCachedAthleteContext, serializeAthleteContext } from '@/lib/edn/athlete-context';
 import { classifyRunner, computeCardioLoad, computeTrainingZones, deriveRacePhase, analyzeRunPerformance, type RunPoint } from '@/lib/cardio/endurance-engine';
 import {
@@ -33,11 +34,22 @@ export async function POST(req: NextRequest) {
 
     // ── Multi-agent routing ────────────────────────────────────────────────────
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
-    const detectedAgent = agentHint ?? (lastUserMessage ? detectAgent(lastUserMessage.content) : 'geral');
+    const route = lastUserMessage ? routeIntent(lastUserMessage.content) : { primary: 'geral' as const, support: [] };
+    const detectedAgent = agentHint ?? route.primary ?? (lastUserMessage ? detectAgent(lastUserMessage.content) : 'geral');
     const agentConfig = AGENT_CONFIGS[detectedAgent as keyof typeof AGENT_CONFIGS] ?? AGENT_CONFIGS.geral;
 
     // ── Get full AthleteContext (single source of truth) ─────────────────────
     const ctx = await getCachedAthleteContext(user.id);
+
+    // ── Memória de longo prazo do atleta (preferências/limitações) ────────────
+    let memoryStr = '';
+    try {
+      const { data: mem } = await supabase.from('athlete_memory').select('content').eq('user_id', user.id).order('created_at', { ascending: false }).limit(8);
+      if (mem && mem.length) memoryStr = `\n[MEMÓRIA DO ATLETA]\n${mem.map((m: { content: string }) => `- ${m.content}`).join('\n')}`;
+    } catch { /* tabela pode faltar */ }
+    const supportStr = (!agentHint && route.support && route.support.length)
+      ? `\n[ESPECIALISTAS DE APOIO sugeridos para esta pergunta: ${route.support.join(', ')}] — integre essas perspectivas na resposta.`
+      : '';
 
     // ── V6.0: Serialize with workout context only for agents that need it ─────
     const includeWorkoutContext = agentConfig.includeWorkoutContext === true;
@@ -82,7 +94,7 @@ export async function POST(req: NextRequest) {
     // ── Build system prompt: agent-specific + athlete context ─────────────────
     const systemPrompt = `${agentConfig.systemPrompt}
 
-${athleteContextStr}${enduranceStr}
+${athleteContextStr}${enduranceStr}${memoryStr}${supportStr}
 
 INSTRUÇÕES CRÍTICAS:
 - Os dados acima são a realidade atual do atleta. Nunca peça informações que já estão aqui.
