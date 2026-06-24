@@ -24,8 +24,8 @@ export async function POST(_req: NextRequest) {
       { data: activePlan },
     ] = await Promise.all([
       supabase.from('profiles')
-        .select('name, goal, experience_level, weight_kg, age, gender')
-        .eq('id', user.id).single(),
+        .select('name, goal, main_goal, experience_level, weight_kg, age, gender')
+        .eq('id', user.id).maybeSingle(),
 
       supabase.from('workout_sessions')
         .select(`
@@ -61,8 +61,8 @@ export async function POST(_req: NextRequest) {
 
     // ── Build compact training summary ──────────────────────────────────────
     const goalMap: Record<string, string> = {
-      hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento',
-      definition: 'Definicao', strength: 'Forca',
+      hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento', fat_loss: 'Emagrecimento',
+      definition: 'Definicao', strength: 'Forca', recomposition: 'Recomposicao', performance: 'Performance', mass_gain: 'Ganho de massa', maintenance: 'Manutencao',
     };
     const levelMap: Record<string, string> = {
       beginner: 'Iniciante', intermediate: 'Intermediario', advanced: 'Avancado',
@@ -112,7 +112,7 @@ export async function POST(_req: NextRequest) {
 
     const profileCtx = [
       `nivel=${levelMap[profile?.experience_level ?? ''] ?? profile?.experience_level ?? 'N/A'}`,
-      `objetivo=${goalMap[profile?.goal ?? ''] ?? profile?.goal ?? 'N/A'}`,
+      `objetivo=${goalMap[(profile as any)?.main_goal ?? profile?.goal ?? ''] ?? (profile as any)?.main_goal ?? profile?.goal ?? 'N/A'}`,
       profile?.age && `idade=${profile.age}`,
       profile?.gender && `sexo=${profile.gender}`,
       activePlan && `plano="${activePlan.name}" ${activePlan.days_per_week}x/sem`,
@@ -120,8 +120,28 @@ export async function POST(_req: NextRequest) {
 
     const period = `${weekAgo.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} - ${now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 
+    // ── Fallback determinístico (usado se a IA falhar) ───────────────────────
+    const muscleSet = new Set<string>();
+    for (const ss of (sessions ?? []).flatMap((s: any) => s.session_sets ?? [])) {
+      const mg = ss?.exercise?.muscle_group; if (mg) muscleSet.add(mg);
+    }
+    const fallbackReport = {
+      period,
+      sessions_count: totalSessions,
+      total_volume_kg: Math.round(totalVolume),
+      total_cardio_km: Math.round(totalCardioKm * 10) / 10,
+      summary: `Na semana foram ${totalSessions} sessão(ões) de musculação (${Math.round(totalVolume)}kg de volume) e ${totalCardioKm.toFixed(1)}km de cardio.`,
+      volume_assessment: totalSessions === 0 ? 'Sem treinos registrados nesta semana.' : totalSessions >= 4 ? 'Volume adequado para a semana.' : 'Volume abaixo do ideal — busque mais consistência.',
+      muscle_groups_trained: Array.from(muscleSet),
+      progression: { positive: totalSessions > 0 ? ['Treinos registrados na semana'] : [], to_improve: totalSessions < 4 ? ['Aumentar a frequência semanal'] : [] },
+      suggestions: [{ category: 'Volume', title: 'Mantenha a consistência', description: 'Registre os treinos e cardio para o relatório ficar mais completo na próxima semana.', priority: 'media' }],
+      next_week_focus: 'Manter a consistência e a progressão de carga conforme o plano.',
+      edn_tip: 'Progressão sustentável: pequenos incrementos semanais valem mais que saltos bruscos.',
+      ai_unavailable: true,
+    };
+
     // ── Call Claude (Jayme) ──────────────────────────────────────────────────
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const systemPrompt = `Você e o Jayme De Lamadrid, especialista em fisiculturismo natural e criador da Escola dos Naturais (EDN).
 Análise os dados de treino da semana e gere um relatorio tecnico detalhado em JSON valido.
@@ -166,18 +186,43 @@ Gere o relatorio no formato JSON exato:
 
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
+      max_tokens: 2200,
       messages: [{ role: 'user', content: userPrompt }],
       system: systemPrompt,
     });
 
-    const raw = (response.content[0] as any).text.trim();
-    const json = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'));
-    const report = JSON.parse(json);
-
+    const raw = ((response.content[0] as any)?.text ?? '').trim();
+    let report: any = null;
+    const start = raw.indexOf('{');
+    if (start >= 0) {
+      let jsonStr = raw.slice(start).replace(/```/g, '').trim();
+      try { report = JSON.parse(jsonStr); }
+      catch {
+        jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
+        const o = (jsonStr.match(/[\[{]/g) ?? []).length;
+        const c = (jsonStr.match(/[\]}]/g) ?? []).length;
+        if (o > c) jsonStr += ']}'.repeat(o - c);
+        try { report = JSON.parse(jsonStr); } catch { report = null; }
+      }
+    }
+    if (!report || typeof report !== 'object') report = fallbackReport;
+    // garante os campos numéricos oficiais (não confia na IA)
+    report.period = period;
+    report.sessions_count = totalSessions;
+    report.total_volume_kg = Math.round(totalVolume);
+    report.total_cardio_km = Math.round(totalCardioKm * 10) / 10;
     return Response.json({ report, generated_at: new Date().toISOString() });
   } catch (err: any) {
     console.error('weekly-report error:', err);
-    return Response.json({ error: err.message ?? 'Erro interno' }, { status: 500 });
+    // Nunca quebra a tela: devolve um relatório determinístico simples.
+    return Response.json({
+      report: {
+        period: 'Semana atual', sessions_count: 0, total_volume_kg: 0, total_cardio_km: 0,
+        summary: 'Não foi possível gerar a análise por IA agora, mas seus dados continuam salvos. Tente novamente em instantes.',
+        volume_assessment: '—', muscle_groups_trained: [], progression: { positive: [], to_improve: [] },
+        suggestions: [], next_week_focus: 'Mantenha a consistência dos registros.', edn_tip: '', ai_unavailable: true,
+      },
+      generated_at: new Date().toISOString(),
+    });
   }
 }
