@@ -14,7 +14,8 @@
     "test:athlete": "tsc src/lib/edn/athlete-intelligence-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-intelligence.js",
     "test:v81": "tsc src/lib/edn/progress-intelligence-engine.ts src/lib/edn/training-periodization-engine.ts src/lib/edn/workout-intelligence-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-v81-engines.js",
     "test:weight": "tsc src/lib/edn/weight-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-weight-intelligence.js",
-    "test:v8vol": "tsc src/lib/edn/volume-analysis.ts src/lib/edn/progression-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-v8-volume-progression.js"
+    "test:v8vol": "tsc src/lib/edn/volume-analysis.ts src/lib/edn/progression-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-v8-volume-progression.js",
+    "test:alerts": "tsc src/lib/edn/coach-alert-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-coach-alerts.js"
   },
   "dependencies": {
     "next": "14.2.0",

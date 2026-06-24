@@ -1,0 +1,18 @@
+const E = require('./.tmp/coach-alert-engine.js');
+let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
+const base={ recoveryCategory:'good', hrvDropPct:null, nutritionScore:70, adherencePct:80, weightTrendKg:-0.6, goalIsCut:true, strengthTrendPct:1, volumeTrendPct:0, cardioLoadRisk:'ideal', periodDays:30 };
+console.log('\n== buildCoachAlerts ==');
+let a=E.buildCoachAlerts({...base, recoveryCategory:'low', hrvDropPct:-22});
+check('recuperação baixa → alerta recuperacao', a.some(x=>x.domain==='recuperacao'), JSON.stringify(a.map(x=>x.domain)));
+a=E.buildCoachAlerts({...base, adherencePct:30});
+check('aderência <50 → alerta nutricao', a.some(x=>x.domain==='nutricao' && /Aderência/.test(x.title)));
+a=E.buildCoachAlerts({...base, weightTrendKg:0.1, periodDays:25});
+check('platô em corte → alerta', a.some(x=>/Platô/.test(x.title)));
+a=E.buildCoachAlerts({...base, weightTrendKg:-1.5, strengthTrendPct:-8});
+check('perda acelerada + força↓ → critico', a.some(x=>x.severity==='critico'));
+a=E.buildCoachAlerts({...base, cardioLoadRisk:'alto'});
+check('carga cardio alta → alerta cardio', a.some(x=>x.domain==='cardio'));
+a=E.buildCoachAlerts(base);
+check('cutting eficiente → alerta positivo', a.some(x=>x.severity==='positivo'));
+check('todo alerta tem ask (prompt)', a.every(x=>typeof x.ask==='string' && x.ask.length>0));
+console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);

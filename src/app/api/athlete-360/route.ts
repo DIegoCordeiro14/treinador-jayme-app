@@ -5,6 +5,8 @@ import { computeEdn360FromState, detectWeakPoint, type MuscleVolume, type Athlet
 import { computeNutritionTargets, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
+import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
+import { canonicalGoal } from '@/lib/edn/goal';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -99,5 +101,26 @@ export async function GET(_req: NextRequest) {
   const muscles: MuscleVolume[] = Object.entries(acc).map(([muscle, v]) => ({ muscle, recentVolume: Math.round(v.recent), priorVolume: Math.round(v.prior), sessions: v.days.size }));
   const weakPoint = detectWeakPoint(muscles);
 
-  return Response.json({ edn360, weakPoint, athleteState, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  // ── Alertas proativos do Coach ────────────────────────────────────────────
+  const svOrdered = [...sess14].sort((a: any, b: any) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
+  let strengthTrendPct: number | null = null;
+  if (svOrdered.length >= 4) {
+    const mid = Math.floor(svOrdered.length / 2);
+    const v1 = svOrdered.slice(0, mid).reduce((a: number, b: any) => a + (b.total_volume_kg ?? 0), 0) / Math.max(1, mid);
+    const v2 = svOrdered.slice(mid).reduce((a: number, b: any) => a + (b.total_volume_kg ?? 0), 0) / Math.max(1, svOrdered.length - mid);
+    if (v1 > 0) strengthTrendPct = Math.round(((v2 - v1) / v1) * 100);
+  }
+  const hrvDropPct = wm && wm.hrv_ms && wm.hrv_baseline_ms ? Math.round(((wm.hrv_ms - wm.hrv_baseline_ms) / wm.hrv_baseline_ms) * 100) : null;
+  const goalIsCut = ['fat_loss', 'definition'].includes(canonicalGoal(profile?.main_goal));
+  const alerts = buildCoachAlerts({
+    recoveryCategory: (recovery?.category ?? 'moderate') as any,
+    hrvDropPct,
+    nutritionScore,
+    adherencePct: Math.round(Math.min(100, (loggedDays / 14) * 100)),
+    weightTrendKg, goalIsCut, strengthTrendPct, volumeTrendPct: strengthTrendPct,
+    cardioLoadRisk: load.risk,
+    periodDays: 30,
+  });
+
+  return Response.json({ edn360, weakPoint, athleteState, alerts, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

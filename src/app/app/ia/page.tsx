@@ -33,9 +33,12 @@ export default function IAPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const searchParams = useSearchParams();
   const askSentRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [central, setCentral] = useState<any>(null);
 
   useEffect(() => {
     loadConversations();
+    fetch('/api/athlete-360').then(r => r.json()).then(d => { if (d && !d.error) setCentral(d); }).catch(() => {});
   }, []);
 
   // Prompt pré-preenchido vindo de outra tela (?ask=...) — envia uma vez
@@ -258,7 +261,24 @@ export default function IAPage() {
               <blockquote className="text-sm text-zinc-500 italic border-l-2 border-[#D4853A]/40 pl-3 text-left max-w-xs">
                 &ldquo;Se o seu treino melhora, o seu físico melhora.&rdquo;
               </blockquote>
-              <div className="grid grid-cols-2 gap-2 mt-6 w-full max-w-md">
+              {central && (
+                <div className="w-full max-w-md mt-2 space-y-2">
+                  {central.edn360 && (
+                    <button onClick={() => sendMessage(`Meu EDN 360 está em ${central.edn360.overall}/100 e o principal limitador é ${central.edn360.limiterLabel}. ${central.edn360.nextAction} Pode analisar e aplicar se fizer sentido?`)} className="w-full text-left rounded-xl border border-[#D4853A]/30 bg-[#D4853A]/10 p-3 hover:bg-[#D4853A]/15 transition-colors">
+                      <p className="text-[11px] font-bold text-[#E09B5A]">🎯 Principal limitador: {central.edn360.limiterLabel} · EDN 360 {central.edn360.overall}/100</p>
+                      <p className="text-[11px] text-zinc-300 mt-0.5">{central.edn360.nextAction}</p>
+                    </button>
+                  )}
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(central.alerts ?? []).slice(0, 3).map((a: any, i: number) => (
+                    <button key={i} onClick={() => sendMessage(a.ask)} className={`w-full text-left rounded-xl border p-3 transition-colors ${a.severity === 'critico' ? 'border-[#8B5A5A]/40 bg-[#8B5A5A]/10 hover:bg-[#8B5A5A]/15' : a.severity === 'positivo' ? 'border-[#5A8A6A]/30 bg-[#5A8A6A]/10 hover:bg-[#5A8A6A]/15' : 'border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800'}`}>
+                      <p className="text-[11px] font-bold text-zinc-100">{a.severity === 'critico' ? '⚠️' : a.severity === 'positivo' ? '✅' : '•'} {a.title}</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">{a.reason} <span className="text-zinc-300">{a.action}</span></p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 mt-4 w-full max-w-md">
                 {QUICK_PROMPTS.map((qp) => (
                   <button
                     key={qp.label}
