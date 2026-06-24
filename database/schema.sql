@@ -1048,3 +1048,21 @@ alter table public.profiles add column if not exists target_race_name text;
 
 -- ── V8.0: Modalidade esportiva (ativa o especialista nutricional) ───────────
 alter table public.profiles add column if not exists athlete_sport text;
+
+-- ── Cardio V8.0: Histórico de decisões do treinador de endurance ────────────
+create table if not exists public.cardio_decisions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  decided_at timestamptz not null default now(),
+  source text not null default 'coach_ia',
+  reason text,
+  change_applied text not null,
+  data_used jsonb,
+  result text,
+  created_at timestamptz not null default now()
+);
+alter table public.cardio_decisions enable row level security;
+drop policy if exists "Users manage own cardio decisions" on public.cardio_decisions;
+create policy "Users manage own cardio decisions" on public.cardio_decisions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_cardio_decisions_user on public.cardio_decisions(user_id, decided_at desc);

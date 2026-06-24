@@ -115,6 +115,8 @@ export default function CardioPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('visao-geral');
   const [goalKm, setGoalKm] = useState<number>(10);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [cardioIntel, setCardioIntel] = useState<any>(null);
 
   const [form, setForm] = useState({
     type: 'Corrida', duration_min: '30', intensity: 'moderada',
@@ -137,6 +139,9 @@ export default function CardioPage() {
   }, [supabase]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetch('/api/cardio-intelligence').then(r => r.json()).then(d => { if (d && !d.error) setCardioIntel(d); }).catch(() => {});
+  }, []);
 
   async function openImport() {
     setShowImport(true); setImportLoading(true); setImportRuns([]);
@@ -322,6 +327,69 @@ export default function CardioPage() {
         </div>
       </div>
       <AutopilotCard mode="cardio" />
+
+      {/* ════ V8 — Meu momento na corrida ════ */}
+      {cardioIntel?.moment && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-orange-400" />
+            <span className="text-base font-extrabold italic text-zinc-100">Meu momento na corrida</span>
+            {cardioIntel.usedWearable && <span className="ml-auto text-[10px] bg-[#2C3E4A] text-[#8FA3AD] px-2 py-0.5 rounded-full font-semibold">⌚ relógio</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Nível</p><p className="text-sm font-bold text-zinc-100">{cardioIntel.moment.level}</p></div>
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Forma atual</p><p className="text-sm font-bold text-[#5A8A6A]">{cardioIntel.moment.form}</p></div>
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Maior evolução</p><p className="text-sm font-bold text-orange-400">{cardioIntel.moment.biggestImprovement}</p></div>
+            <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Maior limitador</p><p className="text-sm font-bold text-[#D4853A]">{cardioIntel.moment.limiter}</p></div>
+          </div>
+          <div className="rounded-lg bg-orange-500/10 border border-orange-500/30 p-2.5">
+            <p className="text-[10px] text-zinc-500">Próximo treino sugerido</p>
+            <p className="text-sm font-bold text-zinc-100">{cardioIntel.moment.nextWorkout}</p>
+            {cardioIntel.adaptive?.adjusted && <p className="text-[11px] text-zinc-400 mt-0.5">{cardioIntel.adaptive.reason}</p>}
+          </div>
+          {cardioIntel.performance?.message && <p className="text-[11px] text-zinc-400">📈 {cardioIntel.performance.message}</p>}
+        </div>
+      )}
+
+      {/* Carga de treino + Fase de prova */}
+      {cardioIntel?.load && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-bold text-zinc-100 flex items-center gap-1.5"><BarChart2 className="h-4 w-4 text-orange-400" />Carga de treino</span>
+            <span className="text-sm font-black italic text-orange-400">{cardioIntel.load.score}<span className="text-[10px] text-zinc-500">/100 · {cardioIntel.load.risk}</span></span>
+          </div>
+          <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mb-2"><div className="h-full rounded-full bg-gradient-to-r from-[#5A8A6A] via-[#A67C3A] to-[#C0453A]" style={{ width: `${cardioIntel.load.score}%` }} /></div>
+          <p className="text-[11px] text-zinc-400">{cardioIntel.load.note}</p>
+          <div className="flex gap-3 mt-2 text-[11px] text-zinc-500">
+            <span>7d: <strong className="text-zinc-300">{cardioIntel.volume?.km7}km</strong></span>
+            <span>28d: <strong className="text-zinc-300">{cardioIntel.volume?.km28}km</strong></span>
+            <span>ACWR: <strong className="text-zinc-300">{cardioIntel.load.acwr}</strong></span>
+          </div>
+          {cardioIntel.racePhase?.phase && (
+            <div className="mt-3 pt-3 border-t border-white/[0.06]">
+              <p className="text-[11px] text-zinc-300"><span className="font-bold text-[#7FB58F]">Fase de prova: {cardioIntel.racePhase.label}</span>{cardioIntel.race?.weeks != null ? ` · faltam ${cardioIntel.race.weeks} sem.` : ''}</p>
+              <p className="text-[11px] text-zinc-500">{cardioIntel.racePhase.objective}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Zonas de FC */}
+      {cardioIntel?.zones && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-bold text-zinc-100 mb-2 flex items-center gap-1.5"><Heart className="h-4 w-4 text-[#C0453A]" />Zonas de treino <span className="text-[10px] font-normal text-zinc-500">· FC máx {cardioIntel.zones.maxHr} ({cardioIntel.zones.source})</span></p>
+          <div className="space-y-1">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {cardioIntel.zones.zones.map((z: any) => (
+              <div key={z.zone} className="flex items-center justify-between text-[11px]">
+                <span className="text-zinc-300"><strong>{z.zone}</strong> · {z.label}</span>
+                <span className="text-zinc-400">{z.hrLow}–{z.hrHigh} bpm</span>
+              </div>
+            ))}
+          </div>
+          {cardioIntel.zones.source === 'estimado' && <p className="text-[10px] text-zinc-600 mt-1.5">Zonas estimadas pela idade — conecte o relógio (Health Connect) para FC real.</p>}
+        </div>
+      )}
 
       {/* ── Volume alert ─────────────────────────────────────────── */}
       {volumeAlert && (
