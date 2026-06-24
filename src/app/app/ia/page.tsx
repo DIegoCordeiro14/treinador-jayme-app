@@ -35,6 +35,8 @@ export default function IAPage() {
   const askSentRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [central, setCentral] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [brief, setBrief] = useState<any>(null);
   const fichaRef = useRef<HTMLInputElement>(null);
   const [importingFicha, setImportingFicha] = useState(false);
   async function importFicha(e: React.ChangeEvent<HTMLInputElement>) {
@@ -58,6 +60,7 @@ export default function IAPage() {
   useEffect(() => {
     loadConversations();
     fetch('/api/athlete-360').then(r => r.json()).then(d => { if (d && !d.error) setCentral(d); }).catch(() => {});
+    fetch('/api/daily-briefing').then(r => r.json()).then(d => { if (d && !d.error) setBrief(d); }).catch(() => {});
   }, []);
 
   // Prompt pré-preenchido vindo de outra tela (?ask=...) — envia uma vez
@@ -280,6 +283,13 @@ export default function IAPage() {
               <blockquote className="text-sm text-zinc-500 italic border-l-2 border-[#D4853A]/40 pl-3 text-left max-w-xs">
                 &ldquo;Se o seu treino melhora, o seu físico melhora.&rdquo;
               </blockquote>
+              {brief && (brief.greeting || brief.alert || brief.todayAction) && (
+                <div className="w-full max-w-md mb-2 rounded-xl border border-[#5A8A6A]/30 bg-[#5A8A6A]/10 p-3 text-left">
+                  {brief.greeting && <p className="text-sm font-bold text-zinc-100">{brief.greeting}</p>}
+                  {brief.alert && <p className="text-[11px] text-[#E0A87A] mt-1" dangerouslySetInnerHTML={{ __html: String(brief.alert).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />}
+                  {brief.todayAction && <p className="text-[11px] text-zinc-300 mt-1" dangerouslySetInnerHTML={{ __html: String(brief.todayAction).replace(/\*\*(.*?)\*\*/g, '<strong class=\"text-zinc-100\">$1</strong>') }} />}
+                </div>
+              )}
               {central && (
                 <div className="w-full max-w-md mt-2 space-y-2">
                   {central.edn360 && (
