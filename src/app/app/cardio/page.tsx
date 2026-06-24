@@ -117,6 +117,7 @@ export default function CardioPage() {
   const [goalKm, setGoalKm] = useState<number>(10);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [cardioIntel, setCardioIntel] = useState<any>(null);
+  const [autopilotWeeklyKm, setAutopilotWeeklyKm] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     type: 'Corrida', duration_min: '30', intensity: 'moderada',
@@ -141,6 +142,7 @@ export default function CardioPage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     fetch('/api/cardio-intelligence').then(r => r.json()).then(d => { if (d && !d.error) setCardioIntel(d); }).catch(() => {});
+    fetch('/api/autopilot').then(r => r.json()).then(d => { const km = d?.cardio?.weeklyTargetKm; if (typeof km === 'number' && km > 0) setAutopilotWeeklyKm(km); }).catch(() => {});
   }, []);
 
   async function openImport() {
@@ -284,7 +286,7 @@ export default function CardioPage() {
   const recoveryStatus = highIntensityRecent.length >= 2 ? 'Precisa descanso' : last2DaysSessions.length >= 2 ? 'Atencao' : 'Boa';
   const recoveryColor = recoveryStatus === 'Boa' ? 'text-green-400' : recoveryStatus === 'Atencao' ? 'text-yellow-400' : 'text-red-400';
 
-  const weeklyGoal = 20; // km - could be from profile
+  const weeklyGoal = autopilotWeeklyKm ?? 20; // km — mesma meta do Cardio Autônomo EDN (autopilot)
   const goalPct = Math.min(100, Math.round((weekKm / weeklyGoal) * 100));
 
   if (loading) return (

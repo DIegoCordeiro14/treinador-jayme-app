@@ -5,6 +5,7 @@ import { makeCacheKey, getCached, setCached } from '@/lib/ai-coach/cache';
 import type { AIMessage } from '@/lib/ai-coach';
 import { detectAgent, AGENT_CONFIGS } from '@/lib/ai-coach/agents';
 import { getCachedAthleteContext, serializeAthleteContext } from '@/lib/edn/athlete-context';
+import { classifyRunner, computeCardioLoad, computeTrainingZones, deriveRacePhase, analyzeRunPerformance, type RunPoint } from '@/lib/cardio/endurance-engine';
 import {
   applyWorkoutActions,
   parseWorkoutDirective,
@@ -45,10 +46,43 @@ export async function POST(req: NextRequest) {
       includeExerciseLibrary: includeWorkoutContext,
     });
 
+    // ── Endurance Coach: injeta resumo determinístico da corrida ──────────────
+    let enduranceStr = '';
+    if (detectedAgent === 'performance') {
+      try {
+        const now = Date.now();
+        const [{ data: prof }, { data: runs }, { data: wm }] = await Promise.all([
+          supabase.from('profiles').select('age, target_race_date').eq('id', user.id).maybeSingle(),
+          supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate').eq('user_id', user.id).gte('created_at', new Date(now - 90 * 86400000).toISOString()),
+          supabase.from('wearable_metrics').select('resting_hr').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const L = (runs ?? []) as any[];
+        const dm = (r: any) => new Date(r.performed_at || r.created_at).getTime();
+        const kmIn = (d: number) => L.filter(r => dm(r) >= now - d * 86400000).reduce((a, r) => a + (r.distance_km ?? 0), 0);
+        const km7 = kmIn(7), km28 = kmIn(28), km90 = kmIn(90);
+        const weeklyKmAvg = km90 / Math.max(1, Math.ceil(90 / 7));
+        const longestKm = L.reduce((m, r) => Math.max(m, r.distance_km ?? 0), 0);
+        let weeksConsistent = 0;
+        for (let w = 0; w < 8; w++) { const end = now - w * 7 * 86400000; if (L.some(r => dm(r) <= end && dm(r) > end - 7 * 86400000)) weeksConsistent++; }
+        const runner = classifyRunner({ weeklyKmAvg, sessionsPerWeek: L.filter(r => dm(r) >= now - 28 * 86400000).length / 4, weeksConsistent, longestKm });
+        const load = computeCardioLoad({ km7, km28, km90, sessions7: L.filter(r => dm(r) >= now - 7 * 86400000).length });
+        const maxHrSeen = L.reduce((m, r) => Math.max(m, r.avg_hr ?? r.avg_heart_rate ?? 0), 0);
+        const zones = computeTrainingZones({ age: (prof as any)?.age ?? null, maxHrMeasured: maxHrSeen > 0 ? Math.round(maxHrSeen / 0.92) : null, restingHr: (wm as any)?.resting_hr ?? null });
+        const raceDate = (prof as any)?.target_race_date ? new Date((prof as any).target_race_date) : null;
+        const weeksToRace = raceDate && raceDate.getTime() >= now - 86400000 ? Math.max(0, Math.ceil((raceDate.getTime() - now) / (7 * 86400000))) : null;
+        const racePhase = deriveRacePhase({ weeksToRace });
+        const runPoints: RunPoint[] = L.map(r => ({ dateMs: dm(r), km: r.distance_km ?? 0, durationMin: r.duration_min ?? 0, avgHr: r.avg_hr ?? r.avg_heart_rate ?? null }));
+        const perf = analyzeRunPerformance({ runs: runPoints, periodDays: 90 });
+        const zStr = zones ? `FCmáx ${zones.maxHr} (${zones.source}); Z2 ${zones.zones[1].hrLow}-${zones.zones[1].hrHigh}, Z4 ${zones.zones[3].hrLow}-${zones.zones[3].hrHigh} bpm` : 'sem zonas (faltam idade/FC)';
+        enduranceStr = `\n[CORRIDA — MOTOR DETERMINÍSTICO (use estes números, não invente)]\nNível: ${runner.label}. Volume: 7d ${km7.toFixed(1)}km, 28d ${km28.toFixed(1)}km, média ${weeklyKmAvg.toFixed(1)}km/sem.\nCarga: ${load.score}/100 (ACWR ${load.acwr}, risco ${load.risk}). ${load.note}\nZonas: ${zStr}.\nEvolução: ${perf.status}${perf.paceTrendPct != null ? `, pace ${perf.paceTrendPct}%` : ''}${perf.hrTrendPct != null ? `, FC ${perf.hrTrendPct}%` : ''}. ${perf.message}\nFase de prova: ${racePhase.label}${weeksToRace != null ? ` (faltam ${weeksToRace} sem.)` : ''} — ${racePhase.objective}`;
+      } catch { /* sem dados de corrida — segue só com o contexto geral */ }
+    }
+
     // ── Build system prompt: agent-specific + athlete context ─────────────────
     const systemPrompt = `${agentConfig.systemPrompt}
 
-${athleteContextStr}
+${athleteContextStr}${enduranceStr}
 
 INSTRUÇÕES CRÍTICAS:
 - Os dados acima são a realidade atual do atleta. Nunca peça informações que já estão aqui.
