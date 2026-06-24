@@ -89,6 +89,7 @@ export default function NutricaoPage() {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [bioWeights, setBioWeights] = useState<any[]>([]);
+  const [metaWeight, setMetaWeight] = useState<number | null>(null);
   const [showMeals, setShowMeals] = useState(true);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
@@ -165,11 +166,13 @@ export default function NutricaoPage() {
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [{ data: planData }, { data: logs }, { data: bio }] = await Promise.all([
+    const [{ data: planData }, { data: logs }, { data: bio }, { data: prof }] = await Promise.all([
       supabase.from('workout_plans').select('id, schedule_config, goal').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('body_weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
       supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(30),
+      supabase.from('profiles').select('target_weight_kg').eq('id', user.id).maybeSingle(),
     ]);
+    setMetaWeight((prof as any)?.target_weight_kg ?? null);
     setPlan((planData?.schedule_config as any)?.nutrition ?? null);
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
@@ -264,6 +267,23 @@ export default function NutricaoPage() {
     return Array.from(byDay.values()).sort((a, b) => a.t - b.t);
   })();
   const latestWeightEntry = weightSeries.length ? weightSeries[weightSeries.length - 1] : null;
+  // Tendência: variação entre a medição mais recente e a anterior mais próxima de ~14 dias
+  // atrás (janela tolerante de 7–35 dias). Usa a série mesclada (manual + bioimpedância).
+  const weightTrendLocal = (() => {
+    if (weightSeries.length < 2 || !latestWeightEntry) return null;
+    const target = latestWeightEntry.t - 14 * 86400000;
+    let ref = null as (typeof weightSeries)[number] | null;
+    let bestDiff = Infinity;
+    for (const e of weightSeries) {
+      if (e.t >= latestWeightEntry.t) continue;
+      const gapDays = (latestWeightEntry.t - e.t) / 86400000;
+      if (gapDays < 5 || gapDays > 40) continue;
+      const d = Math.abs(e.t - target);
+      if (d < bestDiff) { bestDiff = d; ref = e; }
+    }
+    if (!ref) ref = weightSeries[weightSeries.length - 2];
+    return Math.round((latestWeightEntry.peso - ref.peso) * 10) / 10;
+  })();
 
   // Weight chart data (série unificada)
   const weightChartData = weightSeries.slice(-14).map(x => ({
@@ -879,8 +899,8 @@ export default function NutricaoPage() {
               {[
                 { label: 'Peso Atual', value: latestWeightEntry.peso + ' kg', icon: <Scale className="h-4 w-4" />, color: 'text-[#D4853A]' },
                 { label: 'BF Atual', value: latestWeightEntry.bf ? latestWeightEntry.bf + '%' : '—', icon: <Activity className="h-4 w-4" />, color: 'text-orange-400' },
-                { label: 'Peso Meta', value: coachData?.target_weight ? coachData.target_weight + ' kg' : '—', icon: <Target className="h-4 w-4" />, color: 'text-green-400' },
-                { label: 'Tendencia 14d', value: coachData?.weight_trend != null ? (coachData.weight_trend > 0 ? '+' : '') + coachData.weight_trend.toFixed(1) + ' kg' : '—', icon: coachData?.weight_trend != null && coachData.weight_trend < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />, color: coachData?.weight_trend != null && coachData.weight_trend < 0 ? 'text-orange-400' : 'text-green-400' },
+                { label: 'Peso Meta', value: (metaWeight ?? coachData?.target_weight) ? (metaWeight ?? coachData?.target_weight) + ' kg' : '—', icon: <Target className="h-4 w-4" />, color: 'text-green-400' },
+                (() => { const tr = weightTrendLocal ?? coachData?.weight_trend ?? null; return { label: 'Tendencia 14d', value: tr != null ? (tr > 0 ? '+' : '') + tr.toFixed(1) + ' kg' : '—', icon: tr != null && tr < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />, color: tr != null && tr < 0 ? 'text-orange-400' : 'text-green-400' }; })(),
               ].map(s => (
                 <div key={s.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
                   <div className={cn('mb-1', s.color)}>{s.icon}</div>

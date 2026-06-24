@@ -43,7 +43,7 @@ interface ExerciseLite { id: string; name: string; muscle_group: MuscleGroup; }
 
 interface AnamneseForm {
   // Bloco 1 — Dados básicos
-  name: string; age: string; gender: string; weight_kg: string; height_cm: string;
+  name: string; age: string; gender: string; weight_kg: string; height_cm: string; target_weight_kg: string;
   // Bloco 3 — Objetivos
   main_goal: string; aesthetic_goal: string; athlete_sport: string; priority_muscle_1: string; priority_muscle_2: string;
   // Bloco 4 — Experiência real
@@ -73,7 +73,7 @@ const SPORT_LABELS: Record<string, string> = {
 };
 
 const EMPTY_FORM: AnamneseForm = {
-  name: '', age: '', gender: '', weight_kg: '', height_cm: '',
+  name: '', age: '', gender: '', weight_kg: '', height_cm: '', target_weight_kg: '',
   main_goal: '', aesthetic_goal: '', athlete_sport: '', priority_muscle_1: '', priority_muscle_2: '',
   experience_level: '', training_years: '',
   has_periodization_exp: false, knows_rir: false,
@@ -145,6 +145,7 @@ export default function PerfilPage() {
           age: p.age?.toString() ?? '',
           gender: p.gender ?? '',
           weight_kg: p.weight_kg?.toString() ?? '',
+          target_weight_kg: (p as any).target_weight_kg?.toString() ?? '',
           height_cm: p.height_cm?.toString() ?? '',
           main_goal: p.main_goal ?? '',
           aesthetic_goal: p.aesthetic_goal ?? '',
@@ -228,6 +229,7 @@ export default function PerfilPage() {
       age: form.age ? parseInt(form.age) : null,
       gender: (form.gender as GenderType) || null,
       weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
+      target_weight_kg: form.target_weight_kg ? parseFloat(form.target_weight_kg) : null,
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       main_goal: form.main_goal || null,
       goal: form.main_goal ? mainGoalToLegacyGoal(form.main_goal) : undefined,
@@ -465,6 +467,10 @@ export default function PerfilPage() {
               <SelectField label="Objetivo Principal" value={form.main_goal} onChange={set('main_goal')} options={MAIN_GOAL_LABELS as Record<string, string>} />
               <SelectField label="Objetivo Estético" value={form.aesthetic_goal} onChange={set('aesthetic_goal')} options={aestheticLabels as Record<string, string>} placeholder={form.gender ? 'Selecionar…' : 'Informe o sexo primeiro'} />
               <SelectField label="Modalidade Esportiva" value={form.athlete_sport} onChange={set('athlete_sport')} options={SPORT_LABELS} placeholder="Selecionar…" />
+              <div>
+                <label className="text-xs text-zinc-400">Peso Meta (kg)</label>
+                <input type="number" value={form.target_weight_kg} onChange={setInput('target_weight_kg')} placeholder="ex: 82" min={1} className={inputCls} />
+              </div>
             </div>
             <div>
               <Label className="mb-2 block">Prioridades Musculares (até 2 — recebem mais frequência e volume)</Label>
