@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAthleteContext } from '@/lib/edn/athlete-context';
-import { computeEdn360, detectWeakPoint, type MuscleVolume } from '@/lib/edn/athlete-intelligence-engine';
+import { computeEdn360FromState, detectWeakPoint, type MuscleVolume, type AthleteState } from '@/lib/edn/athlete-intelligence-engine';
 import { computeNutritionTargets, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
@@ -71,12 +71,19 @@ export async function GET(_req: NextRequest) {
   const load = computeCardioLoad({ km7: kmIn(7), km28: kmIn(28), km90: kmIn(28), sessions7: cardio28.filter((c: any) => new Date(c.performed_at || c.created_at).getTime() >= now - 7 * 86400000).length });
   const cardioScore = computeCardioScore({ cardioSessions7: cardio28.filter((c: any) => new Date(c.performed_at || c.created_at).getTime() >= now - 7 * 86400000).length, loadRisk: load.risk });
 
-  const edn360 = computeEdn360({
-    training: Math.round((s.consistency + s.progression) / 2),
-    nutrition: nutritionScore,
-    recovery: recovery?.score ?? s.recovery,
-    cardio: cardioScore,
-  });
+  // ── Estado consolidado do atleta (motor central) ─────────────────────────
+  const sessions7 = sess14.filter((w: any) => new Date(w.started_at).getTime() >= now - 7 * 86400000).length;
+  const athleteState: AthleteState = {
+    profile: { sex: profile?.gender ?? null, age: profile?.age ?? null, heightCm: profile?.height_cm ?? null, experience: null, mainGoal: profile?.main_goal ?? null, aestheticGoal: null, sport: null },
+    bodyComposition: { weightKg: bio?.weight_kg ?? profile?.weight_kg ?? null, bodyFatPct: bio?.body_fat_pct ?? null, leanMassKg: bio?.lean_mass_kg ?? null, tmbKcal: targets?.tmbKcal ?? null },
+    trainingState: { score: Math.round((s.consistency + s.progression) / 2), sessionsLast7: sessions7, weeklyVolumeKg: Math.round(sess14.reduce((a: number, w: any) => a + (w.total_volume_kg ?? 0), 0) / 2), consistency: s.consistency, progression: s.progression },
+    cardioState: { score: cardioScore, km7: Math.round(kmIn(7) * 10) / 10, km28: Math.round(kmIn(28) * 10) / 10, loadRisk: load.risk },
+    nutritionState: { score: nutritionScore, phase: targets?.phaseLabel ?? null, targetKcal: targets?.targetKcal ?? null, adherencePct: Math.round(Math.min(100, (loggedDays / 14) * 100)) },
+    recoveryState: { score: recovery?.score ?? s.recovery, category: (recovery?.category ?? 'moderate'), usedWearable: recovery?.usedWearable ?? false },
+    wearableState: wm ? { hrvMs: wm.hrv_ms ?? null, sleepHours: wm.sleep_hours ?? null, restingHr: wm.resting_hr ?? null, bodyBattery: wm.body_battery ?? null, trainingReadiness: wm.training_readiness ?? null } : null,
+    goalState: { mainGoal: profile?.main_goal ?? null, targetRaceDate: null, weeksToRace: null },
+  };
+  const edn360 = computeEdn360FromState(athleteState);
 
   // ── Weak Point ────────────────────────────────────────────────────────────
   const acc: Record<string, { recent: number; prior: number; days: Set<string> }> = {};
@@ -92,5 +99,5 @@ export async function GET(_req: NextRequest) {
   const muscles: MuscleVolume[] = Object.entries(acc).map(([muscle, v]) => ({ muscle, recentVolume: Math.round(v.recent), priorVolume: Math.round(v.prior), sessions: v.days.size }));
   const weakPoint = detectWeakPoint(muscles);
 
-  return Response.json({ edn360, weakPoint, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  return Response.json({ edn360, weakPoint, athleteState, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

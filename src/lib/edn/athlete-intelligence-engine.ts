@@ -6,6 +6,8 @@
  * 100% determinístico — a IA apenas narra o que sai daqui.
  */
 
+export type RecoveryCategory = 'excellent' | 'good' | 'moderate' | 'low' | 'critical';
+
 export interface Edn360Input {
   training: number;     // 0–100
   nutrition: number;    // 0–100
@@ -112,3 +114,28 @@ export function detectWeakPoint(muscles: MuscleVolume[]): WeakPointResult {
     recommendation,
   };
 }
+
+// ── AthleteState — estado consolidado do atleta (motor central V8) ──────────
+// Todas as decisões do app devem consumir este estado. Ele é montado pelos
+// sub-motores (cada *State* já é determinístico) e alimenta o EDN 360.
+export interface AthleteState {
+  profile: { sex: string | null; age: number | null; heightCm: number | null; experience: string | null; mainGoal: string | null; aestheticGoal: string | null; sport: string | null };
+  bodyComposition: { weightKg: number | null; bodyFatPct: number | null; leanMassKg: number | null; tmbKcal: number | null };
+  trainingState: { score: number; sessionsLast7: number; weeklyVolumeKg: number | null; consistency: number; progression: number };
+  cardioState: { score: number; km7: number; km28: number; loadRisk: string | null };
+  nutritionState: { score: number; phase: string | null; targetKcal: number | null; adherencePct: number | null };
+  recoveryState: { score: number; category: RecoveryCategory; usedWearable: boolean };
+  wearableState: { hrvMs: number | null; sleepHours: number | null; restingHr: number | null; bodyBattery: number | null; trainingReadiness: number | null } | null;
+  goalState: { mainGoal: string | null; targetRaceDate: string | null; weeksToRace: number | null };
+}
+
+// Deriva o EDN 360 diretamente do AthleteState (decisão central).
+export function computeEdn360FromState(st: AthleteState): Edn360Result {
+  return computeEdn360({
+    training: st.trainingState.score,
+    nutrition: st.nutritionState.score,
+    recovery: st.recoveryState.score,
+    cardio: st.cardioState.score,
+  });
+}
+

@@ -1,3 +1,4 @@
+import { detectWeakPoint, type MuscleVolume } from '@/lib/edn/athlete-intelligence-engine';
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
@@ -168,6 +169,33 @@ export async function POST(req: NextRequest) {
     const effectiveObjective = getEffectiveObjective(mainGoal, sex, effectiveBF ?? null);
     const bfOverrideApplied  = effectiveObjective === 'recomp' && !mainGoal.includes('recomp');
 
+    // ─── V8: Weak Point Engine — músculo atrasado pelo histórico (60d) ────────
+    let weakPointStr = '';
+    try {
+      const since = new Date(Date.now() - 60 * 86400000).toISOString();
+      const { data: wpSets } = await supabase
+        .from('session_sets')
+        .select('weight_kg, reps_done, completed, session:workout_sessions!inner(started_at, user_id), exercise:exercises(muscle_group)')
+        .eq('session.user_id', user.id)
+        .gte('session.started_at', since);
+      const acc: Record<string, { recent: number; prior: number; days: Set<string> }> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const row of (wpSets ?? []) as any[]) {
+        if (row.completed === false) continue;
+        const mg = row.exercise?.muscle_group; const st = row.session?.started_at;
+        if (!mg || !st) continue;
+        const vol = (row.weight_kg ?? 0) * (row.reps_done ?? 0);
+        const recent = new Date(st).getTime() >= Date.now() - 30 * 86400000;
+        if (!acc[mg]) acc[mg] = { recent: 0, prior: 0, days: new Set() };
+        if (recent) { acc[mg].recent += vol; acc[mg].days.add(st.slice(0, 10)); } else acc[mg].prior += vol;
+      }
+      const muscles: MuscleVolume[] = Object.entries(acc).map(([muscle, v]) => ({ muscle, recentVolume: Math.round(v.recent), priorVolume: Math.round(v.prior), sessions: v.days.size }));
+      const wp = detectWeakPoint(muscles);
+      if (wp.recommendation && wp.weakest) {
+        weakPointStr = `\nPONTO FRACO (histórico 60d): ${wp.weakest.muscle} evoluiu ${wp.weakest.evolutionPct}% (atrasado). ESPECIALIZE este grupo: +1 frequência na semana, exercícios novos/variados e maior volume efetivo para ele.`;
+      }
+    } catch { /* sem histórico suficiente — segue sem weak point */ }
+
     // ─── V3.2: Sex-based muscle group priority string ─────────────────────────
     const muscleOrder = sex ? getSexMuscleOrder(sex, aestheticGoal ?? undefined) : null;
     const sexRuleStr = muscleOrder
@@ -327,7 +355,7 @@ export async function POST(req: NextRequest) {
 
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 
