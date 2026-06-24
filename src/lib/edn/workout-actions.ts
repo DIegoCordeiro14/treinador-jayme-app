@@ -27,7 +27,9 @@ export type WorkoutActionType =
   | 'create_workout_plan'
   | 'replace_workout_day'
   | 'increase_muscle_volume'
-  | 'upgrade_training_level';
+  | 'upgrade_training_level'
+  | 'create_race_preparation'
+  | 'adjust_running_goal';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -63,6 +65,10 @@ export interface WorkoutAction {
   days?: Array<{ name: string; dayOfWeek?: number; exercises?: Array<{ exerciseId: string; sets?: number; repsMin?: number; repsMax?: number; restSeconds?: number }> }>;
   /** grupo muscular alvo (increase_muscle_volume): chave da biblioteca (chest, back, legs...) */
   muscleGroup?: string;
+  /** preparação de prova / meta de corrida */
+  raceDate?: string;
+  raceName?: string;
+  goalText?: string;
 }
 
 export interface WorkoutActionResult {
@@ -424,6 +430,26 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       }
       await logCoachDecision(supabase, userId, 'treino', `Upgrade de nível: +1 série e -10s descanso em ${changed} exercício(s)`, a.reason);
       return { ok: changed > 0, message: changed > 0 ? `Treino avançado: +1 série e densidade maior em ${changed} exercício(s).` : 'Nenhum exercício alterado.' };
+    }
+
+    // ── Preparação de prova (ativa periodização + modo endurance da nutrição) ──
+    case 'create_race_preparation': {
+      const date = (a.raceDate ?? '').trim();
+      if (!date) return { ok: false, message: 'Preparação de prova: falta a data (raceDate).' };
+      const { error } = await supabase.from('profiles').update({ target_race_date: date, target_race_name: a.raceName ?? null }).eq('id', userId);
+      if (error) return { ok: false, message: `Preparação de prova: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'cardio', `Prova definida: ${a.raceName ?? 'prova'} em ${date}`, a.reason);
+      return { ok: true, message: `Prova marcada para ${date}${a.raceName ? ` (${a.raceName})` : ''} — periodização e modo endurance ativados.` };
+    }
+
+    // ── Ajustar meta de corrida (registrada na memória do atleta) ─────────────
+    case 'adjust_running_goal': {
+      const g = (a.goalText ?? '').trim();
+      if (!g) return { ok: false, message: 'Meta de corrida: conteúdo vazio.' };
+      const { error } = await supabase.from('athlete_memory').insert({ user_id: userId, kind: 'running_goal', content: g });
+      if (error) return { ok: false, message: `Meta de corrida: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'cardio', `Meta de corrida: ${g}`, a.reason);
+      return { ok: true, message: `Meta de corrida registrada: ${g}.` };
     }
 
     default:

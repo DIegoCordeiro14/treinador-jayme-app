@@ -331,6 +331,48 @@ export default function CardioPage() {
       </div>
       <AutopilotCard mode="cardio" />
 
+      {/* ════ V8.13 — Evolução da corrida ════ */}
+      {cardioIntel?.evolution && cardioIntel.evolution.efficiency !== 'sem_dados' && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-[#5A8A6A]" />
+            <span className="text-base font-extrabold italic text-zinc-100">Evolução da corrida</span>
+            <span className={cn('ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold capitalize',
+              cardioIntel.evolution.efficiency === 'melhorando' ? 'bg-[#5A8A6A]/20 text-[#7FB58F]' :
+              cardioIntel.evolution.efficiency === 'piorando' ? 'bg-[#8B5A5A]/20 text-[#C97B7B]' : 'bg-black/30 text-zinc-400')}>
+              {cardioIntel.evolution.efficiency}
+            </span>
+          </div>
+          {cardioIntel.evolution.report?.positives?.length > 0 && (
+            <p className="text-[11px] text-zinc-300">✅ {cardioIntel.evolution.report.positives.join(' · ')}</p>
+          )}
+          {cardioIntel.evolution.report?.limiter && (
+            <p className="text-[11px] text-[#D4853A]">Limitador: {cardioIntel.evolution.report.limiter}</p>
+          )}
+          <p className="text-[11px] text-zinc-400">📌 {cardioIntel.evolution.report?.nextStrategy}</p>
+          {cardioIntel.evolution.records?.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {cardioIntel.evolution.records.map((r: any) => (
+                <span key={r.label} className="text-[10px] bg-black/30 border border-white/[0.06] rounded-lg px-2 py-1 text-zinc-300">🏅 {r.label}: {Math.floor(r.timeMin)}:{String(Math.round((r.timeMin % 1) * 60)).padStart(2, '0')}</span>
+              ))}
+            </div>
+          )}
+          <div>
+            <p className="text-[10px] text-zinc-500 mb-1">Próximas 4 semanas {cardioIntel.evolution.validateIncrease ? '(progressão)' : '(consolidação — sem subir carga)'}</p>
+            <div className="grid grid-cols-4 gap-2">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {cardioIntel.evolution.nextTargets.map((t: any) => (
+                <div key={t.week} className={cn('rounded-lg border p-2 text-center', t.type === 'deload' ? 'bg-[#8B5A5A]/10 border-[#8B5A5A]/30' : t.type === 'progressao' ? 'bg-[#5A8A6A]/10 border-[#5A8A6A]/25' : 'bg-black/30 border-white/[0.06]')}>
+                  <p className="text-[9px] text-zinc-500">Sem {t.week}</p>
+                  <p className="text-sm font-black italic text-zinc-100">{t.km}<span className="text-[9px] text-zinc-500">km</span></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ════ V8 — Meu momento na corrida ════ */}
       {cardioIntel?.moment && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">

@@ -5,6 +5,7 @@ import {
   classifyRunner, computeCardioLoad, computeTrainingZones, analyzeRunPerformance,
   deriveRacePhase, adaptiveWorkout, buildRunnerMoment, type RecoveryCategory, type RunPoint,
 } from '@/lib/cardio/endurance-engine';
+import { computeCardioEvolution } from '@/lib/edn/cardio-progression-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -81,6 +82,7 @@ export async function GET(_req: NextRequest) {
 
   const runPoints: RunPoint[] = list.map((r) => ({ dateMs: dateMs(r), km: r.distance_km ?? 0, durationMin: r.duration_min ?? 0, avgHr: r.avg_hr ?? r.avg_heart_rate ?? null }));
   const performance = analyzeRunPerformance({ runs: runPoints, periodDays: 90 });
+  const evolution = computeCardioEvolution({ runs: runPoints.map((r) => ({ dateMs: r.dateMs, km: r.km, durationMin: r.durationMin, avgHr: r.avgHr })), recoveryCategory: recCat, goal: (profile as any)?.main_goal ?? null });
 
   const raceDate = (profile as any)?.target_race_date ? new Date((profile as any).target_race_date) : null;
   const weeksToRace = raceDate && raceDate.getTime() >= now - 86400000 ? Math.max(0, Math.ceil((raceDate.getTime() - now) / (7 * 86400000))) : null;
@@ -102,7 +104,7 @@ export async function GET(_req: NextRequest) {
   });
 
   return Response.json({
-    runner, load, zones, performance, racePhase, adaptive, recovery: { score: recovery?.score ?? null, category: recCat },
+    runner, load, zones, performance, evolution, racePhase, adaptive, recovery: { score: recovery?.score ?? null, category: recCat },
     race: raceDate ? { date: (profile as any).target_race_date, weeks: weeksToRace } : null,
     moment,
     volume: { km7: Math.round(km7 * 10) / 10, km28: Math.round(km28 * 10) / 10, km90: Math.round(km90 * 10) / 10 },
