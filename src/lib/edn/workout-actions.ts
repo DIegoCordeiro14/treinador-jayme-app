@@ -23,7 +23,8 @@ export type WorkoutActionType =
   | 'set_goal'
   | 'adjust_volume'
   | 'create_deload'
-  | 'remember';
+  | 'remember'
+  | 'create_workout_plan';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -51,6 +52,12 @@ export interface WorkoutAction {
   /** memória do atleta */
   memoryKind?: string;
   memoryContent?: string;
+  /** criação de plano inteiro pelo chat */
+  planName?: string;
+  daysPerWeek?: number;
+  setActive?: boolean;
+  description?: string;
+  days?: Array<{ name: string; dayOfWeek?: number; exercises?: Array<{ exerciseId: string; sets?: number; repsMin?: number; repsMax?: number; restSeconds?: number }> }>;
 }
 
 export interface WorkoutActionResult {
@@ -311,6 +318,53 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       const { error } = await supabase.from('athlete_memory').insert({ user_id: userId, kind: a.memoryKind ?? 'note', content });
       if (error) return { ok: false, message: `Memória: ${error.message}` };
       return { ok: true, message: 'Anotado na sua memória do atleta.' };
+    }
+
+    // ── Criar um plano de treino inteiro pelo chat ────────────────────────────
+    case 'create_workout_plan': {
+      const name = (a.planName ?? '').trim();
+      if (!name || !Array.isArray(a.days) || a.days.length === 0)
+        return { ok: false, message: 'Criação de plano: faltam nome ou dias.' };
+      const goal = (a.goal ?? 'hypertrophy');
+      const dpw = clampInt(a.daysPerWeek ?? a.days.length, 1, 7, a.days.length);
+
+      // desativa outros planos se este for o ativo
+      if (a.setActive) {
+        await supabase.from('workout_plans').update({ is_active: false }).eq('user_id', userId).then(() => {}, () => {});
+      }
+      const { data: plan, error: planErr } = await supabase
+        .from('workout_plans')
+        .insert({ user_id: userId, name, description: a.description ?? '', goal, days_per_week: dpw, is_active: a.setActive ?? false })
+        .select('id')
+        .single();
+      if (planErr || !plan) return { ok: false, message: `Criação de plano falhou: ${planErr?.message ?? 'sem id'}` };
+      const planId = (plan as any).id as string;
+
+      // catálogo válido (todos os IDs usados)
+      const allIds = a.days.flatMap(d => (d.exercises ?? []).map(e => e.exerciseId)).filter(Boolean);
+      const { data: valid } = await supabase.from('exercises').select('id').in('id', allIds.length ? allIds : ['00000000-0000-0000-0000-000000000000']);
+      const validSet = new Set((valid ?? []).map((r: any) => r.id));
+
+      let totalEx = 0;
+      for (let i = 0; i < a.days.length; i++) {
+        const d = a.days[i];
+        const { data: day, error: dayErr } = await supabase
+          .from('workout_days')
+          .insert({ plan_id: planId, name: d.name ?? `Treino ${i + 1}`, day_of_week: typeof d.dayOfWeek === 'number' ? d.dayOfWeek : null, order_index: i })
+          .select('id')
+          .single();
+        if (dayErr || !day) continue;
+        const exRows = (d.exercises ?? [])
+          .filter(e => validSet.has(e.exerciseId))
+          .map((e, j) => ({ workout_day_id: (day as any).id, exercise_id: e.exerciseId, sets: clampInt(e.sets, 1, 10, 3), reps_min: clampInt(e.repsMin, 1, 50, 8), reps_max: clampInt(e.repsMax, 1, 50, 12), rest_seconds: clampInt(e.restSeconds, 10, 600, 90), order_index: j }));
+        if (exRows.length) { const { error } = await supabase.from('workout_exercises').insert(exRows); if (!error) totalEx += exRows.length; }
+      }
+
+      // versão inicial + decisão registrada (não-fatais)
+      try { await supabase.from('workout_plan_versions').insert({ user_id: userId, plan_id: planId, version: 1, snapshot: { name, goal, days_per_week: dpw, days: a.days }, reason: a.reason ?? 'Plano criado pelo Coach' }); } catch { /* ok */ }
+      await logCoachDecision(supabase, userId, 'treino', `Plano criado: "${name}" (${dpw}x/sem, ${a.days.length} dias, ${totalEx} exercícios)`, a.reason);
+
+      return { ok: true, message: `Plano "${name}" criado com ${a.days.length} dia(s) e ${totalEx} exercício(s)${a.setActive ? ' — definido como ativo' : ''}.` };
     }
 
     default:

@@ -1092,3 +1092,16 @@ alter table public.athlete_memory enable row level security;
 drop policy if exists "Users manage own athlete memory" on public.athlete_memory;
 create policy "Users manage own athlete memory" on public.athlete_memory for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists idx_athlete_memory_user on public.athlete_memory(user_id, created_at desc);
+
+-- ── Coach V8.1 Módulo 12: versionamento de planos criados pelo chat ─────────
+create table if not exists public.workout_plan_versions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan_id uuid references workout_plans(id) on delete set null,
+  version int not null default 1, snapshot jsonb not null, reason text,
+  created_at timestamptz not null default now()
+);
+alter table public.workout_plan_versions enable row level security;
+drop policy if exists "Users manage own plan versions" on public.workout_plan_versions;
+create policy "Users manage own plan versions" on public.workout_plan_versions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_workout_plan_versions_user on public.workout_plan_versions(user_id, created_at desc);
