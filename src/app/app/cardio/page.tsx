@@ -45,6 +45,7 @@ interface CardioSession {
   elevation_gain_m: number | null;
   perceived_effort: number | null;
   gps_track: { coordinates: { lat: number; lng: number }[] } | null;
+  coach_analysis: string | null;
 }
 
 interface AiAnalysis {
@@ -646,6 +647,7 @@ export default function CardioPage() {
                     paceLabel: pace ? formatPace(pace) : '--:--',
                     dateLabel: format(dt, "dd 'de' MMM", { locale: ptBR }),
                     calories: s.calories_burned ?? null,
+                    coachAnalysis: s.coach_analysis ?? null,
                   }) : undefined}
                   className={cn("rounded-xl border border-zinc-800 bg-zinc-900 p-4", s.distance_km && "cursor-pointer hover:border-zinc-700 transition-colors")}>
                   <div className="flex items-start justify-between mb-2">

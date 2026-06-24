@@ -1066,3 +1066,6 @@ drop policy if exists "Users manage own cardio decisions" on public.cardio_decis
 create policy "Users manage own cardio decisions" on public.cardio_decisions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists idx_cardio_decisions_user on public.cardio_decisions(user_id, decided_at desc);
+
+-- ── Corrida: análise do Coach EDN salva junto com a corrida ─────────────────
+alter table public.cardio_sessions add column if not exists coach_analysis text;

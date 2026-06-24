@@ -526,6 +526,7 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
       gps_track: { coordinates: pointsRef.current, max_speed_kmh: Math.round(maxSpeedRef.current * 10) / 10 },
       distance_km: Math.round(km * 1000) / 1000,
       avg_hr: avgHr,
+      coach_analysis: briefing,
     };
     const result = await insertOrQueue(supabase, [{ table: 'cardio_sessions', rows: [cardioRow] }], 'Corrida');
     if (result === 'error') { toast.error('Erro ao salvar corrida'); setStatus('finished'); return; }

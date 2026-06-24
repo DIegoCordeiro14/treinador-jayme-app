@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LMap } from 'leaflet';
-import { X, Play, Square, Share2, Download } from 'lucide-react';
+import { X, Play, Square, Share2, Download, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface RunDetail {
@@ -12,6 +12,7 @@ export interface RunDetail {
   paceLabel: string;
   dateLabel: string;
   calories?: number | null;
+  coachAnalysis?: string | null;
 }
 interface Props { run: RunDetail; onClose: () => void; }
 
@@ -323,6 +324,12 @@ export default function RunDetailModal({ run, onClose }: Props) {
       </div>
 
       <div className="px-4 py-4 border-t border-zinc-800 space-y-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 1rem)' }}>
+        {run.coachAnalysis && (
+          <div className="rounded-2xl border border-[#5A8A6A]/30 bg-[#5A8A6A]/10 p-3">
+            <p className="text-[11px] font-bold text-[#7FB58F] mb-1 flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" />Análise do Coach EDN</p>
+            <p className="text-[13px] text-zinc-200 leading-relaxed whitespace-pre-line">{run.coachAnalysis}</p>
+          </div>
+        )}
         {hasRoute && (
           !replaying ? (
             <button onClick={startReplay} className="w-full py-3 rounded-2xl border-2 border-white/25 text-white font-bold flex items-center justify-center gap-2">
