@@ -15,7 +15,7 @@ import {
 } from '@/lib/edn/workout-actions';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -142,7 +142,7 @@ INSTRUÇÕES CRÍTICAS:
         };
 
         try {
-          for await (const chunk of provider.stream({ messages: trimmedMessages, systemPrompt, maxTokens: 2400 })) {
+          for await (const chunk of provider.stream({ messages: trimmedMessages, systemPrompt, maxTokens: 4000 })) {
             if (chunk.text) {
               fullText += chunk.text;
               const visible = visibleOf(fullText);
