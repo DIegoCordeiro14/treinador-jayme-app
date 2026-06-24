@@ -70,6 +70,24 @@ Quando o atleta CONFIRMAR um ajuste (ex.: "pode aliviar o déficit", "muda pra r
 Mapeamento dos sinais → objetivo sugerido (só aplique após confirmação): "déficit impactando performance" em corte → recomposition; "ganho de peso acelerado" em bulk → recomposition; atleta quer secar → fat_loss/definition; quer crescer → hypertrophy/mass_gain.
 REGRAS: só emita a diretiva quando o atleta confirmar; nunca mencione o marcador @@EDN_ACTIONS@@ nem JSON na parte visível; a diretiva é a última coisa da resposta.`;
 
+const TRAINING_DIRECTIVE = `
+
+APLICAÇÃO REAL NO TREINO (V8.1): você PODE editar o treino do atleta de verdade — não apenas recomendar. Use os DAY_ID de [PLANOS DE TREINO DO USUÁRIO] e os IDs de exercício de [BIBLIOTECA DE EXERCÍCIOS]. NUNCA diga que "não tem permissão para editar" — você tem, via diretiva.
+Quando o atleta CONFIRMAR ou PEDIR uma alteração, escreva no máximo 3 linhas confirmando e, na ÚLTIMA linha (e só nela), emita a diretiva — uma linha, JSON válido, sem texto depois:
+@@EDN_ACTIONS@@ {"actions":[ ... ]}
+Formatos:
+- Substituir: {"type":"substitute_exercise","dayId":"<DAY_ID>","exerciseId":"<atual>","newExerciseId":"<novo>","sets":4,"repsMin":8,"repsMax":12,"restSeconds":90}
+- Adicionar:  {"type":"add_exercise","dayId":"<DAY_ID>","newExerciseId":"<id>","sets":4,"repsMin":10,"repsMax":15,"restSeconds":60}
+- Remover:    {"type":"remove_exercise","dayId":"<DAY_ID>","exerciseId":"<id>"}
+- Montar/trocar o dia inteiro: {"type":"set_day_exercises","dayId":"<DAY_ID>","exercises":[{"exerciseId":"<id>","sets":4,"repsMin":8,"repsMax":12,"restSeconds":90}, ...]}
+- Ajustar volume: {"type":"adjust_volume","dayId":"<DAY_ID>","exerciseId":"<id_opcional>","setsDelta":2}  (ou "sets":4 absoluto; sem exerciseId aplica ao dia)
+- Volume por músculo (plano ativo): {"type":"increase_muscle_volume","muscleGroup":"abs","setsDelta":-1}
+- Deload de um dia: {"type":"create_deload","dayId":"<DAY_ID>"}
+- Subir nível: {"type":"upgrade_training_level"}
+- Reprogramar calendário: {"type":"reschedule_workouts","pattern":[1,3,5,6]}
+- Criar plano inteiro: {"type":"create_workout_plan","planName":"...","goal":"hypertrophy","daysPerWeek":5,"setActive":true,"days":[{"name":"Treino A — ...","exercises":[{"exerciseId":"<id>","sets":4,"repsMin":8,"repsMax":12,"restSeconds":90}]}]}
+Pode incluir VÁRIAS ações no array (ex.: adicionar Top Set em vários dias, reduzir séries de abdominais, etc.). O app aplica e confirma com "✅ Aplicado no app". Só emita após confirmação; nunca invente IDs (se faltar, peça); não cite a diretiva/JSON na parte visível.`;
+
 export const AGENT_CONFIGS: Record<AgentType, AgentConfig> = {
   treinador: {
     id: 'treinador',
@@ -267,7 +285,7 @@ PROTOCOLO EDN:
 - Se um grupo saltar muito e a performance cair → reduzir volume (não aumentar).
 - 5–7 semanas acumulando volume sem PR + fadiga → deload (-40% volume).
 - Progressão de carga: bateu o topo da faixa com folga → subir carga e recomeçar no mínimo de reps.
-Quando o atleta confirmar uma mudança de plano/volume, você pode aplicá-la pela diretiva de treino (mesmo formato do Treinador EDN).${BASE_RULES}`,
+Quando o atleta confirmar uma mudança de plano/volume, você pode aplicá-la pela diretiva de treino.${BASE_RULES}${TRAINING_DIRECTIVE}`,
   },
 
   geral: {
@@ -282,6 +300,6 @@ Quando o atleta confirmar uma mudança de plano/volume, você pode aplicá-la pe
 Responde sobre qualquer tema: treino, nutrição, cardio, evolução, recuperação.
 Quando o tema for substituição ou modificação de exercícios, use os dados em [PLANOS DE TREINO DO USUÁRIO] e [BIBLIOTECA DE EXERCÍCIOS].
 
-POSICIONAMENTO: Você não é um chatbot genérico. Você é um sistema que JÁ CONHECE o atleta pelos dados abaixo. Use-os sempre.${BASE_RULES}${NUTRI_DIRECTIVE}`,
+POSICIONAMENTO: Você não é um chatbot genérico. Você é um sistema que JÁ CONHECE o atleta pelos dados abaixo. Use-os sempre.${BASE_RULES}${NUTRI_DIRECTIVE}${TRAINING_DIRECTIVE}`,
   },
 };
