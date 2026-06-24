@@ -45,7 +45,7 @@ interface AnamneseForm {
   // Bloco 1 — Dados básicos
   name: string; age: string; gender: string; weight_kg: string; height_cm: string;
   // Bloco 3 — Objetivos
-  main_goal: string; aesthetic_goal: string; priority_muscle_1: string; priority_muscle_2: string;
+  main_goal: string; aesthetic_goal: string; athlete_sport: string; priority_muscle_1: string; priority_muscle_2: string;
   // Bloco 4 — Experiência real
   experience_level: string; training_years: string;
   has_periodization_exp: boolean; knows_rir: boolean;
@@ -66,9 +66,15 @@ interface AnamneseForm {
   meals_per_day: string;
 }
 
+const SPORT_LABELS: Record<string, string> = {
+  musculacao: 'Musculação', corrida_recreativa: 'Corrida recreativa', meia_maratona: 'Meia maratona',
+  maratona: 'Maratona', triathlon: 'Triathlon', ciclismo: 'Ciclismo', natacao: 'Natação',
+  futebol: 'Futebol', artes_marciais: 'Artes marciais', cross_training: 'Cross training', outro: 'Outro',
+};
+
 const EMPTY_FORM: AnamneseForm = {
   name: '', age: '', gender: '', weight_kg: '', height_cm: '',
-  main_goal: '', aesthetic_goal: '', priority_muscle_1: '', priority_muscle_2: '',
+  main_goal: '', aesthetic_goal: '', athlete_sport: '', priority_muscle_1: '', priority_muscle_2: '',
   experience_level: '', training_years: '',
   has_periodization_exp: false, knows_rir: false,
   has_used_top_set: false, has_used_back_off: false, has_used_deload: false,
@@ -142,6 +148,7 @@ export default function PerfilPage() {
           height_cm: p.height_cm?.toString() ?? '',
           main_goal: p.main_goal ?? '',
           aesthetic_goal: p.aesthetic_goal ?? '',
+          athlete_sport: (p as any).athlete_sport ?? '',
           priority_muscle_1: p.priority_muscle_1 ?? '',
           priority_muscle_2: p.priority_muscle_2 ?? '',
           experience_level: p.experience_level ?? '',
@@ -225,6 +232,7 @@ export default function PerfilPage() {
       main_goal: form.main_goal || null,
       goal: form.main_goal ? mainGoalToLegacyGoal(form.main_goal) : undefined,
       aesthetic_goal: form.aesthetic_goal || null,
+      athlete_sport: form.athlete_sport || null,
       priority_muscle_1: form.priority_muscle_1 || null,
       priority_muscle_2: form.priority_muscle_2 || null,
       experience_level: form.experience_level || null,
@@ -456,6 +464,7 @@ export default function PerfilPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SelectField label="Objetivo Principal" value={form.main_goal} onChange={set('main_goal')} options={MAIN_GOAL_LABELS as Record<string, string>} />
               <SelectField label="Objetivo Estético" value={form.aesthetic_goal} onChange={set('aesthetic_goal')} options={aestheticLabels as Record<string, string>} placeholder={form.gender ? 'Selecionar…' : 'Informe o sexo primeiro'} />
+              <SelectField label="Modalidade Esportiva" value={form.athlete_sport} onChange={set('athlete_sport')} options={SPORT_LABELS} placeholder="Selecionar…" />
             </div>
             <div>
               <Label className="mb-2 block">Prioridades Musculares (até 2 — recebem mais frequência e volume)</Label>

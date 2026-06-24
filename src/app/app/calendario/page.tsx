@@ -235,12 +235,12 @@ export default function CalendarioPage() {
             </div>
             <div className="grid grid-cols-7 gap-1">
               {week.map((d) => (
-                <div key={d.weekday} className={cn('rounded-lg border p-1.5 text-center',
+                <div key={d.weekday} className={cn('rounded-lg border px-0.5 py-1.5 text-center overflow-hidden min-w-0',
                   d.adapted ? 'bg-[#8B5A5A]/10 border-[#8B5A5A]/30' :
                   d.type === 'treino' ? 'bg-[#D4853A]/10 border-[#D4853A]/25' :
                   d.type === 'cardio' ? 'bg-[#5A8A6A]/10 border-[#5A8A6A]/25' : 'bg-black/20 border-white/[0.06]')}>
                   <p className="text-[10px] font-bold text-zinc-300">{d.label.split(':')[0]}</p>
-                  <p className="text-[9px] text-zinc-400 leading-tight">{d.label.split(':')[1]?.trim()}</p>
+                  <p className="text-[8px] text-zinc-400 leading-tight break-words line-clamp-2">{shortLabel(d.label.split(':').slice(1).join(':').trim())}</p>
                 </div>
               ))}
             </div>

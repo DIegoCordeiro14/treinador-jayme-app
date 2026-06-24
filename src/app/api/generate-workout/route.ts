@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     const [{ data: profileData }, { data: bioData }] = await Promise.all([
       supabase
         .from('profiles')
-        .select(`gender, age, weight_kg, height_cm, main_goal, aesthetic_goal,
+        .select(`gender, age, weight_kg, height_cm, main_goal, aesthetic_goal, athlete_sport,
           priority_muscle_1, priority_muscle_2,
           experience_level, training_years, has_periodization_exp, knows_rir,
           has_used_top_set, has_used_back_off, has_used_deload,
@@ -205,6 +205,11 @@ export async function POST(req: NextRequest) {
       experience: effectiveExperience, weeklyVolumeKg: null, volumeTrendPct: null, weakMuscle,
       recoveryCategory: 'good', equipment: profileData?.available_equipment ?? null, limitations: profileData?.limitations ?? null,
     });
+    const sportMap: Record<string, string> = { corrida_recreativa: 'corrida recreativa', meia_maratona: 'meia maratona', maratona: 'maratona', triathlon: 'triathlon', ciclismo: 'ciclismo', natacao: 'natação', futebol: 'futebol', artes_marciais: 'artes marciais', cross_training: 'cross training' };
+    const athleteSport = (profileData as any)?.athlete_sport ?? null;
+    const sportStr = athleteSport && athleteSport !== 'musculacao' && sportMap[athleteSport]
+      ? `\nMODALIDADE: o atleta também pratica ${sportMap[athleteSport]} — equilibre o volume de musculação para não prejudicar a recuperação do esporte (priorize força e prevenção; evite excesso de volume em pernas perto de treinos longos).`
+      : '';
     const guidelinesStr = `\nDIRETRIZES EDN (motor): ${guidelines.emphasis}. Reps ${guidelines.repRange}, descanso ${guidelines.restSeconds}. ${guidelines.volumeNote}${guidelines.priorities.length ? ` Priorizar: ${guidelines.priorities.join('; ')}.` : ''}${guidelines.cautions.length ? ` Cuidados: ${guidelines.cautions.join('; ')}.` : ''}`;
 
     // ─── V3.2: Sex-based muscle group priority string ─────────────────────────
@@ -366,7 +371,7 @@ export async function POST(req: NextRequest) {
 
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 

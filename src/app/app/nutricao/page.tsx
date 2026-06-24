@@ -118,23 +118,6 @@ export default function NutricaoPage() {
   const [raceDate, setRaceDate] = useState('');
   const [raceName, setRaceName] = useState('');
   const [savingRace, setSavingRace] = useState(false);
-  const [sportSel, setSportSel] = useState('');
-  const SPORTS: { v: string; l: string }[] = [
-    { v: 'musculacao', l: 'Musculação' }, { v: 'corrida_recreativa', l: 'Corrida recreativa' },
-    { v: 'meia_maratona', l: 'Meia maratona' }, { v: 'maratona', l: 'Maratona' },
-    { v: 'triathlon', l: 'Triathlon' }, { v: 'ciclismo', l: 'Ciclismo' }, { v: 'natacao', l: 'Natação' },
-    { v: 'futebol', l: 'Futebol' }, { v: 'artes_marciais', l: 'Artes marciais' },
-    { v: 'cross_training', l: 'Cross training' }, { v: 'outro', l: 'Outro' },
-  ];
-  async function saveSport(v: string) {
-    setSportSel(v);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from('profiles').update({ athlete_sport: v }).eq('id', user.id);
-    if (error) { toast.error('Erro ao salvar esporte'); return; }
-    toast.success('Esporte atualizado — especialista ajustado.');
-    loadAutopilot();
-  }
   async function saveRace(overrideDate?: string, overrideName?: string) {
     const dateVal = overrideDate !== undefined ? overrideDate : raceDate;
     const nameVal = overrideName !== undefined ? overrideName : raceName;
@@ -157,7 +140,6 @@ export default function NutricaoPage() {
       setNutriSignals(d?.nutritionSignals ?? []);
       setIntel(d?.intelligence ?? null);
       if (d?.intelligence?.race) { setRaceDate(d.intelligence.race.date ?? ''); setRaceName(d.intelligence.race.name ?? ''); }
-      if (d?.intelligence?.sport?.sport) setSportSel(d.intelligence.sport.sport);
     }).catch(() => {});
   }, []);
   useEffect(() => {
@@ -533,40 +515,6 @@ export default function NutricaoPage() {
           )}
         </div>
       )}
-
-      {/* Modalidade esportiva (ativa o especialista) */}
-      {intel && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-sm font-bold text-zinc-100 mb-1 flex items-center gap-1.5"><Award className="h-4 w-4 text-[#7FB58F]" />Modalidade esportiva</p>
-          {intel.sport?.focus && <p className="text-[11px] text-zinc-500 mb-2">{intel.sport.agentLabel} · {intel.sport.focus}</p>}
-          <select value={sportSel} onChange={(e) => saveSport(e.target.value)} className="w-full bg-black/30 border border-zinc-700 rounded-lg px-2 py-2 text-[12px] text-zinc-100">
-            <option value="">Selecione…</option>
-            {SPORTS.map((sp) => <option key={sp.v} value={sp.v}>{sp.l}</option>)}
-          </select>
-          {intel.sport?.priorities?.length > 0 && (
-            <ul className="mt-2 space-y-0.5">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {intel.sport.priorities.map((p: string, i: number) => <li key={i} className="text-[11px] text-zinc-400">• {p}</li>)}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* Prova futura (ativa o modo endurance) */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="text-sm font-bold text-zinc-100 mb-2 flex items-center gap-1.5"><Activity className="h-4 w-4 text-[#5A8A6A]" />Prova futura</p>
-        {intel?.race ? (
-          <p className="text-[11px] text-zinc-400 mb-2">{intel.race.name ? `${intel.race.name} · ` : ''}{new Date(intel.race.date).toLocaleDateString('pt-BR')} — faltam {intel.race.weeks} semana(s). Modo endurance ativo.</p>
-        ) : (
-          <p className="text-[11px] text-zinc-500 mb-2">Defina uma prova (corrida, ciclismo, triathlon) para o Coach priorizar carboidrato e recuperação automaticamente.</p>
-        )}
-        <div className="flex flex-wrap gap-2 items-center">
-          <input type="date" value={raceDate} onChange={(e) => setRaceDate(e.target.value)} className="bg-black/30 border border-zinc-700 rounded-lg px-2 py-1.5 text-[12px] text-zinc-100" />
-          <input type="text" value={raceName} onChange={(e) => setRaceName(e.target.value)} placeholder="Nome (opcional)" className="flex-1 min-w-[120px] bg-black/30 border border-zinc-700 rounded-lg px-2 py-1.5 text-[12px] text-zinc-100" />
-          <button onClick={() => saveRace()} disabled={savingRace} className="px-3 py-1.5 rounded-lg bg-[#D4853A] hover:bg-[#E09B5A] disabled:opacity-60 text-white text-[12px] font-bold">Salvar</button>
-          {intel?.race && <button onClick={() => { setRaceDate(''); setRaceName(''); saveRace('', ''); }} className="px-2 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-[12px]">Remover</button>}
-        </div>
-      </div>
 
       {/* Diagnóstico + Simulador */}
       {intel?.diagnosis && (
@@ -972,12 +920,12 @@ export default function NutricaoPage() {
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Histórico de Peso</p>
               </div>
               <div className="divide-y divide-zinc-800">
-                {weightLogs.slice(0, 7).map(l => (
-                  <div key={l.id} className="flex items-center justify-between px-4 py-3">
-                    <p className="text-xs text-zinc-500">{format(parseISO(l.log_date), "EEE, dd 'de' MMM", { locale: ptBR })}</p>
+                {[...weightSeries].reverse().slice(0, 7).map((l, i) => (
+                  <div key={l.t + '-' + i} className="flex items-center justify-between px-4 py-3">
+                    <p className="text-xs text-zinc-500">{format(new Date(l.t), "EEE, dd 'de' MMM", { locale: ptBR })}</p>
                     <div className="flex items-center gap-3 text-sm">
-                      <span className="font-semibold text-zinc-100">{l.weight_kg} kg</span>
-                      {l.body_fat_pct && <span className="text-xs text-zinc-500">{l.body_fat_pct}% BF</span>}
+                      <span className="font-semibold text-zinc-100">{l.peso} kg</span>
+                      {l.bf != null && <span className="text-xs text-zinc-500">{l.bf}% BF</span>}
                     </div>
                   </div>
                 ))}
