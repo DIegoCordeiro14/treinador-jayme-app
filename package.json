@@ -12,7 +12,8 @@
     "test:nutrition": "tsc src/lib/edn/nutrition-autopilot.ts src/lib/edn/nutrition-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-engine.js && node scripts/test-nutrition-intelligence.js",
     "test:cardio": "tsc src/lib/cardio/endurance-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-endurance-engine.js",
     "test:athlete": "tsc src/lib/edn/athlete-intelligence-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-intelligence.js",
-    "test:v81": "tsc src/lib/edn/progress-intelligence-engine.ts src/lib/edn/training-periodization-engine.ts src/lib/edn/workout-intelligence-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-v81-engines.js"
+    "test:v81": "tsc src/lib/edn/progress-intelligence-engine.ts src/lib/edn/training-periodization-engine.ts src/lib/edn/workout-intelligence-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-v81-engines.js",
+    "test:weight": "tsc src/lib/edn/weight-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-weight-intelligence.js"
   },
   "dependencies": {
     "next": "14.2.0",

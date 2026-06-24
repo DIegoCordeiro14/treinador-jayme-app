@@ -1,0 +1,15 @@
+const E = require('./.tmp/weight-intelligence.js');
+let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
+const day=86400000, now=Date.now();
+console.log('\n== analyzeWeight ==');
+let a=E.analyzeWeight({ series:[{t:now-16*day,peso:91.7,bf:31},{t:now,peso:90.5,bf:30.7}], targetWeightKg:85, goal:'fat_loss', gender:'male', latestBfPct:30.7 });
+check('tendência negativa', a.trendKg < 0, String(a.trendKg));
+check('ritmo kg/sem negativo', a.weeklyRateKg < 0, String(a.weeklyRateKg));
+check('ETA até meta calculada (semanas>0)', a.etaWeeks > 0, String(a.etaWeeks));
+check('mensagem cita semanas', /semana/.test(a.message), a.message);
+let b=E.analyzeWeight({ series:[{t:now-16*day,peso:91.7,bf:31},{t:now,peso:90.5,bf:30.7}], targetWeightKg:null, goal:'fat_loss', gender:'male', latestBfPct:30.7 });
+check('sem meta + BF alto → meta sugerida', b.targetKg != null && b.targetIsSuggested, String(b.targetKg));
+let c=E.analyzeWeight({ series:[{t:now-16*day,peso:90.4,bf:20},{t:now,peso:90.5,bf:20}], targetWeightKg:85, goal:'fat_loss', gender:'male', latestBfPct:20 });
+check('peso estável → sem ETA', c.etaWeeks == null, String(c.etaWeeks));
+check('série vazia → null', E.analyzeWeight({ series:[], targetWeightKg:85, goal:'fat_loss', gender:'male', latestBfPct:null }) === null);
+console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);

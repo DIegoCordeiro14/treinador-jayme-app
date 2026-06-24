@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils'; 
 import { toast } from 'sonner';
+import { analyzeWeight } from '@/lib/edn/weight-intelligence';
 import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { format, subDays, parseISO } from 'date-fns';
@@ -90,6 +91,7 @@ export default function NutricaoPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [bioWeights, setBioWeights] = useState<any[]>([]);
   const [metaWeight, setMetaWeight] = useState<number | null>(null);
+  const [gender, setGender] = useState<string | null>(null);
   const [showMeals, setShowMeals] = useState(true);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
@@ -170,9 +172,11 @@ export default function NutricaoPage() {
       supabase.from('workout_plans').select('id, schedule_config, goal').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('body_weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
       supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(30),
-      supabase.from('profiles').select('target_weight_kg').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('target_weight_kg, gender, main_goal').eq('id', user.id).maybeSingle(),
     ]);
     setMetaWeight((prof as any)?.target_weight_kg ?? null);
+    setGender((prof as any)?.gender ?? null);
+    if ((prof as any)?.main_goal) setActiveGoal((prof as any).main_goal);
     setPlan((planData?.schedule_config as any)?.nutrition ?? null);
     setActiveGoal(planData?.goal ?? '');
     setActivePlanId(planData?.id ?? null);
@@ -284,6 +288,13 @@ export default function NutricaoPage() {
     if (!ref) ref = weightSeries[weightSeries.length - 2];
     return Math.round((latestWeightEntry.peso - ref.peso) * 10) / 10;
   })();
+  const weightInsight = latestWeightEntry ? analyzeWeight({
+    series: weightSeries,
+    targetWeightKg: metaWeight ?? coachData?.target_weight ?? null,
+    goal: activeGoal || (autoNutri ? null : null),
+    gender,
+    latestBfPct: latestWeightEntry.bf,
+  }) : null;
 
   // Weight chart data (série unificada)
   const weightChartData = weightSeries.slice(-14).map(x => ({
@@ -899,7 +910,7 @@ export default function NutricaoPage() {
               {[
                 { label: 'Peso Atual', value: latestWeightEntry.peso + ' kg', icon: <Scale className="h-4 w-4" />, color: 'text-[#D4853A]' },
                 { label: 'BF Atual', value: latestWeightEntry.bf ? latestWeightEntry.bf + '%' : '—', icon: <Activity className="h-4 w-4" />, color: 'text-orange-400' },
-                { label: 'Peso Meta', value: (metaWeight ?? coachData?.target_weight) ? (metaWeight ?? coachData?.target_weight) + ' kg' : '—', icon: <Target className="h-4 w-4" />, color: 'text-green-400' },
+                { label: 'Peso Meta', value: (metaWeight ?? coachData?.target_weight ?? weightInsight?.targetKg) ? (metaWeight ?? coachData?.target_weight ?? weightInsight?.targetKg) + ' kg' + (metaWeight == null && coachData?.target_weight == null && weightInsight?.targetIsSuggested ? '*' : '') : '—', icon: <Target className="h-4 w-4" />, color: 'text-green-400' },
                 (() => { const tr = weightTrendLocal ?? coachData?.weight_trend ?? null; return { label: 'Tendencia 14d', value: tr != null ? (tr > 0 ? '+' : '') + tr.toFixed(1) + ' kg' : '—', icon: tr != null && tr < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />, color: tr != null && tr < 0 ? 'text-orange-400' : 'text-green-400' }; })(),
               ].map(s => (
                 <div key={s.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
@@ -908,6 +919,19 @@ export default function NutricaoPage() {
                   <p className="text-xs text-zinc-500">{s.label}</p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Análise de peso (determinística) */}
+          {weightInsight && (weightInsight.message) && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+              <p className="text-sm font-semibold text-zinc-200 mb-1 flex items-center gap-1.5"><Target className="h-4 w-4 text-[#5A8A6A]" />Análise de peso</p>
+              <p className="text-[12px] text-zinc-300 leading-relaxed">{weightInsight.message}</p>
+              <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-zinc-500">
+                {weightInsight.weeklyRateKg != null && <span>Ritmo: <strong className="text-zinc-300">{weightInsight.weeklyRateKg > 0 ? '+' : ''}{weightInsight.weeklyRateKg} kg/sem</strong></span>}
+                {weightInsight.targetKg != null && <span>Meta{weightInsight.targetIsSuggested ? ' sugerida' : ''}: <strong className="text-zinc-300">{weightInsight.targetKg} kg</strong></span>}
+                {weightInsight.etaDateMs != null && weightInsight.etaWeeks ? <span>Previsão: <strong className="text-[#7FB58F]">{new Date(weightInsight.etaDateMs).toLocaleDateString('pt-BR')}</strong></span> : null}
+              </div>
             </div>
           )}
 
