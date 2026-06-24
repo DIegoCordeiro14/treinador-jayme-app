@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:nutrition": "tsc src/lib/edn/nutrition-autopilot.ts src/lib/edn/nutrition-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-engine.js && node scripts/test-nutrition-intelligence.js",
-    "test:cardio": "tsc src/lib/cardio/endurance-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-endurance-engine.js"
+    "test:cardio": "tsc src/lib/cardio/endurance-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-endurance-engine.js",
+    "test:athlete": "tsc src/lib/edn/athlete-intelligence-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-intelligence.js"
   },
   "dependencies": {
     "next": "14.2.0",
