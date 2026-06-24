@@ -54,5 +54,26 @@ m = E.buildMoment({ phaseLabel: 'Cutting', cycleLabel: 'X', score: 60, scoreLabe
 check('boa recuperação → limitador = componente mais fraco (aderência)', /ader/i.test(m.limiter), m.limiter);
 check('perfil feminino → nota personalizada', /feminino/i.test(m.personalNote||''), m.personalNote);
 
+console.log('\n== V8: deriveSportProfile ==');
+let sp = E.deriveSportProfile('maratona');
+check('maratona → endurance', sp.category === 'endurance' && sp.enduranceBias === true, sp.category);
+sp = E.deriveSportProfile('musculacao');
+check('musculacao → bodybuilding', sp.category === 'bodybuilding' && sp.enduranceBias === false, sp.category);
+sp = E.deriveSportProfile('futebol');
+check('futebol → performance', sp.category === 'performance', sp.category);
+sp = E.deriveSportProfile(null);
+check('null → bodybuilding (default)', sp.category === 'bodybuilding', sp.category);
+
+console.log('\n== V8: enduranceMode com bias ==');
+check('endurance bias + 8km → ativo (mesmo <20km)', !!E.enduranceMode({ cardioKmThisWeek: 8, enduranceBias: true }));
+check('sem bias + 8km → null', E.enduranceMode({ cardioKmThisWeek: 8, enduranceBias: false }) === null);
+
+console.log('\n== V8: diagnoseProgress com causas ==');
+let dgc = E.diagnoseProgress({ phase: 'cutting', weightTrendKg: 0.1, bfTrendPct: 0, strengthTrendPct: 0, periodDays: 28, adherencePct: 40, recoveryCategory: 'low' });
+check('platô + baixa aderência → causa de aderência', dgc.causes.some(c => /ader/i.test(c)), dgc.causes.join(','));
+check('platô → tem ao menos 1 causa', dgc.causes.length >= 1, String(dgc.causes.length));
+let dgc2 = E.diagnoseProgress({ phase: 'cutting', weightTrendKg: -2, bfTrendPct: -1, strengthTrendPct: 1, periodDays: 30, adherencePct: 90, recoveryCategory: 'good' });
+check('cutting eficiente → sem causas', dgc2.causes.length === 0, dgc2.causes.join(','));
+
 console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`);
 process.exit(fail === 0 ? 0 : 1);

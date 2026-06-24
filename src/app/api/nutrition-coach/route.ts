@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { computeNutritionTargets } from '@/lib/edn/nutrition-autopilot';
+import { deriveSportProfile } from '@/lib/edn/nutrition-intelligence';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -26,7 +27,7 @@ export async function POST(_req: NextRequest) {
       { data: workoutSessions },
       { data: cardioSessions },
     ] = await Promise.all([
-      supabase.from('profiles').select('name,experience_level,goal,main_goal,weight_kg,height_cm,age,gender,target_weight_kg,calorie_target,weekly_frequency,work_type,cardio_frequency,meals_per_day').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('name,experience_level,goal,main_goal,weight_kg,height_cm,age,gender,target_weight_kg,calorie_target,weekly_frequency,work_type,cardio_frequency,meals_per_day,athlete_sport').eq('id', user.id).maybeSingle(),
       supabase.from('bioimpedance_data').select('weight_kg,body_fat_pct,skeletal_muscle_mass_kg,lean_mass_kg,basal_metabolic_rate_kcal,water_pct,visceral_fat_level,measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('body_weight_logs').select('log_date,weight_kg').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
       supabase.from('workout_sessions').select('started_at,total_volume_kg').eq('user_id', user.id).gte('started_at', new Date(Date.now() - 14 * 86400000).toISOString()).order('started_at', { ascending: false }),
@@ -37,6 +38,7 @@ export async function POST(_req: NextRequest) {
     const _cardioKm = (cardioSessions ?? []).reduce((s, c) => s + (c.distance_km ?? 0), 0);
     const _volume = _sessions.reduce((s, w) => s + (w.total_volume_kg ?? 0), 0);
     const _sessions7 = _sessions.filter(w => new Date(w.started_at).getTime() >= Date.now() - 7 * 86400000).length;
+    const sport = deriveSportProfile((profile as any)?.athlete_sport ?? null);
 
     // ── FONTE ÚNICA: Nutrition Autopilot ──────────────────────────────────────
     const targets = computeNutritionTargets({
@@ -86,6 +88,7 @@ export async function POST(_req: NextRequest) {
 Peso: ${currentWeight}kg${targetWeight ? ` → meta ${targetWeight}kg` : ''}${weightTrend !== null ? ` (14d: ${weightTrend > 0 ? '+' : ''}${weightTrend}kg)` : ''}
 Bio: BF=${bio?.body_fat_pct ?? '?'}% músculo=${bio?.skeletal_muscle_mass_kg ?? '?'}kg TMB=${targets.tmbKcal}kcal
 Treino 14d: ${weekWorkouts} sessões volume=${Math.round(weekVolume)}kg cardio=${weekCardioKm.toFixed(1)}km
+ESPORTE/ESPECIALISTA: ${sport.sport} → ${sport.agentLabel}. Foco: ${sport.focus}. Prioridades: ${sport.priorities.join('; ')}.
 FASE NUTRICIONAL: ${targets.phaseLabel} — ${targets.phaseReason}
 ALINHAMENTO TREINO: ${targets.trainingAlignment ?? 'sem observação específica'}
 DAY TYPES (carbo): alta=${targets.dayTypes[0].carbsG}g · moderado=${targets.dayTypes[1].carbsG}g · descanso=${targets.dayTypes[2].carbsG}g
@@ -98,13 +101,13 @@ TDEE=${tdee}kcal · Meta=${targetCal}kcal (${calorieAdj >= 0 ? '+' : ''}${calori
       const res = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
-        system: 'Você é o Nutricionista IA EDN. Responda APENAS em JSON válido. Nunca altere os números dos ALVOS OFICIAIS.',
+        system: `Você é o ${sport.agentLabel} — nutricionista esportivo. Especialize a leitura para o esporte do atleta. Estruture TODA análise em 4 camadas: Análise (o que está acontecendo), Interpretação (por que importa), Estratégia (o que fazer) e Ação (ajuste a aplicar). Responda APENAS em JSON válido. Nunca altere os números dos ALVOS OFICIAIS.`,
         messages: [{
           role: 'user',
           content: `${ctx}
 
 JSON puro (sem markdown):
-{"status":"otimo|bom|atencao|critico","phase":"${targets.phaseLabel}","headline":"frase curta","why_this_plan":"explique em 1-2 frases por que essa estratégia para ESTE atleta agora","summary":"2 frases com números","calorie_recommendation":{"tdee":${tdee},"target":${targetCal},"surplus_deficit":${calorieAdj},"rationale":"explicação"},"macro_targets":{"protein_g":${proteinG},"carbs_g":${carbsG},"fat_g":${fatG},"protein_per_kg":${targets.proteinGPerKg}},"carb_cycling":{"heavy_training":${carbCycling.heavy_training},"light_training":${carbCycling.light_training},"rest_day":${carbCycling.rest_day},"rationale":"ciclagem EDN"},"alerts":[{"type":"info","message":"observação específica"}],"plateau_detected":false,"plateau_reason":null,"weight_projection":{"in_30d":${projection.in_30d},"in_60d":${projection.in_60d},"in_90d":${projection.in_90d}},"nutrient_timing":{"pre_workout":"carbs 1h antes","post_workout":"proteína+carbs rápidos","rest_day":"proteína distribuída","before_bed":"caseína ou ovo"},"priority_action":"ação mais importante","edn_principle":"princípio EDN aplicado"}
+{"status":"otimo|bom|atencao|critico","phase":"${targets.phaseLabel}","sport_agent":"${sport.agentLabel}","headline":"frase curta","analysis":"o que está acontecendo (dados)","interpretation":"por que isso importa para ${sport.sport}","strategy":"o que fazer","action":"ajuste concreto a aplicar","why_this_plan":"explique em 1-2 frases por que essa estratégia para ESTE atleta agora","summary":"2 frases com números","calorie_recommendation":{"tdee":${tdee},"target":${targetCal},"surplus_deficit":${calorieAdj},"rationale":"explicação"},"macro_targets":{"protein_g":${proteinG},"carbs_g":${carbsG},"fat_g":${fatG},"protein_per_kg":${targets.proteinGPerKg}},"carb_cycling":{"heavy_training":${carbCycling.heavy_training},"light_training":${carbCycling.light_training},"rest_day":${carbCycling.rest_day},"rationale":"ciclagem EDN"},"alerts":[{"type":"info","message":"observação específica"}],"plateau_detected":false,"plateau_reason":null,"weight_projection":{"in_30d":${projection.in_30d},"in_60d":${projection.in_60d},"in_90d":${projection.in_90d}},"nutrient_timing":{"pre_workout":"carbs 1h antes","post_workout":"proteína+carbs rápidos","rest_day":"proteína distribuída","before_bed":"caseína ou ovo"},"priority_action":"ação mais importante","edn_principle":"princípio EDN aplicado"}
 
 Escreva os textos com base na análise; mantenha os números como estão. APENAS JSON.`
         }],
@@ -132,6 +135,11 @@ Escreva os textos com base na análise; mantenha os números como estão. APENAS
       analysis = {
         status: goal === 'fat_loss' || goal === 'weight_loss' ? 'atencao' : 'bom',
         headline: goal === 'fat_loss' || goal === 'weight_loss' ? 'Déficit ativo — acompanhe o progresso' : 'Plano nutricional configurado',
+        sport_agent: sport.agentLabel,
+        analysis: `${weekWorkouts} treinos/14d, ${weekCardioKm.toFixed(1)}km de cardio. Meta ${targetCal}kcal, proteína ${proteinG}g.`,
+        interpretation: `Para ${sport.sport}, ${sport.focus.toLowerCase()}.`,
+        strategy: sport.priorities.slice(0, 2).join('; ') + '.',
+        action: calorieAdj < 0 ? `Manter déficit de ${Math.abs(calorieAdj)}kcal e proteína ≥ ${proteinG}g.` : `Atingir ${targetCal}kcal com ${proteinG}g de proteína.`,
         summary: `TDEE ${tdee}kcal. Meta de ${targetCal}kcal (${calorieAdj >= 0 ? '+' : ''}${calorieAdj}kcal/dia). Proteína alvo: ${proteinG}g/dia (${targets.proteinGPerKg}g/kg).`,
         alerts: weekWorkouts < 2 ? [{ type: 'warning', message: 'Menos de 2 treinos registrados nos últimos 14 dias.' }] : [],
         plateau_detected: weightTrend !== null && Math.abs(weightTrend) < 0.3,
@@ -164,6 +172,7 @@ Escreva os textos com base na análise; mantenha os números como estão. APENAS
     analysis.weight_projection = projection;
     analysis.phase = targets.phaseLabel;
     analysis.phase_reason = targets.phaseReason;
+    analysis.sport_agent = sport.agentLabel;
     if (!analysis.why_this_plan) analysis.why_this_plan = targets.whyThisPlan.join(' ');
     analysis.day_types = targets.dayTypes;
 
@@ -172,6 +181,7 @@ Escreva os textos com base na análise; mantenha os números como estão. APENAS
       smart_macros: smartMacros,
       autopilot: targets,
       phase: targets.phaseLabel,
+      sport: sport,
       why_this_plan: targets.whyThisPlan,
       day_types: targets.dayTypes,
       current_weight: currentWeight,

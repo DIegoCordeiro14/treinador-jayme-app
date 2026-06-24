@@ -33,6 +33,8 @@ interface NutritionPlan {
 interface CoachAnalysis {
   status: 'otimo' | 'bom' | 'atencao' | 'critico';
   headline: string; summary: string;
+  sport_agent?: string;
+  analysis?: string; interpretation?: string; strategy?: string; action?: string;
   calorie_recommendation: { tdee: number; target: number; surplus_deficit: number; rationale: string };
   macro_targets: { protein_g: number; carbs_g: number; fat_g: number; protein_per_kg: number };
   carb_cycling: { heavy_training: number; light_training: number; rest_day: number; rationale: string };
@@ -116,6 +118,23 @@ export default function NutricaoPage() {
   const [raceDate, setRaceDate] = useState('');
   const [raceName, setRaceName] = useState('');
   const [savingRace, setSavingRace] = useState(false);
+  const [sportSel, setSportSel] = useState('');
+  const SPORTS: { v: string; l: string }[] = [
+    { v: 'musculacao', l: 'Musculação' }, { v: 'corrida_recreativa', l: 'Corrida recreativa' },
+    { v: 'meia_maratona', l: 'Meia maratona' }, { v: 'maratona', l: 'Maratona' },
+    { v: 'triathlon', l: 'Triathlon' }, { v: 'ciclismo', l: 'Ciclismo' }, { v: 'natacao', l: 'Natação' },
+    { v: 'futebol', l: 'Futebol' }, { v: 'artes_marciais', l: 'Artes marciais' },
+    { v: 'cross_training', l: 'Cross training' }, { v: 'outro', l: 'Outro' },
+  ];
+  async function saveSport(v: string) {
+    setSportSel(v);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('profiles').update({ athlete_sport: v }).eq('id', user.id);
+    if (error) { toast.error('Erro ao salvar esporte'); return; }
+    toast.success('Esporte atualizado — especialista ajustado.');
+    loadAutopilot();
+  }
   async function saveRace(overrideDate?: string, overrideName?: string) {
     const dateVal = overrideDate !== undefined ? overrideDate : raceDate;
     const nameVal = overrideName !== undefined ? overrideName : raceName;
@@ -138,6 +157,7 @@ export default function NutricaoPage() {
       setNutriSignals(d?.nutritionSignals ?? []);
       setIntel(d?.intelligence ?? null);
       if (d?.intelligence?.race) { setRaceDate(d.intelligence.race.date ?? ''); setRaceName(d.intelligence.race.name ?? ''); }
+      if (d?.intelligence?.sport?.sport) setSportSel(d.intelligence.sport.sport);
     }).catch(() => {});
   }, []);
   useEffect(() => {
@@ -473,6 +493,7 @@ export default function NutricaoPage() {
               <p className="text-[12px] font-semibold text-zinc-200 leading-tight">{intel.moment.nextAction}</p>
             </div>
           </div>
+          {intel.sport?.agentLabel && <p className="text-[11px] text-[#7FB58F] font-semibold">🏅 {intel.sport.agentLabel}</p>}
           {intel.cycle?.objective && <p className="text-[11px] text-zinc-400">🎯 {intel.cycle.objective} · <span className="text-zinc-500">{intel.cycle.priority}</span></p>}
           {intel.moment.personalNote && <p className="text-[10px] text-zinc-500">{intel.moment.personalNote}</p>}
         </div>
@@ -513,6 +534,24 @@ export default function NutricaoPage() {
         </div>
       )}
 
+      {/* Modalidade esportiva (ativa o especialista) */}
+      {intel && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-bold text-zinc-100 mb-1 flex items-center gap-1.5"><Award className="h-4 w-4 text-[#7FB58F]" />Modalidade esportiva</p>
+          {intel.sport?.focus && <p className="text-[11px] text-zinc-500 mb-2">{intel.sport.agentLabel} · {intel.sport.focus}</p>}
+          <select value={sportSel} onChange={(e) => saveSport(e.target.value)} className="w-full bg-black/30 border border-zinc-700 rounded-lg px-2 py-2 text-[12px] text-zinc-100">
+            <option value="">Selecione…</option>
+            {SPORTS.map((sp) => <option key={sp.v} value={sp.v}>{sp.l}</option>)}
+          </select>
+          {intel.sport?.priorities?.length > 0 && (
+            <ul className="mt-2 space-y-0.5">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {intel.sport.priorities.map((p: string, i: number) => <li key={i} className="text-[11px] text-zinc-400">• {p}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Prova futura (ativa o modo endurance) */}
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <p className="text-sm font-bold text-zinc-100 mb-2 flex items-center gap-1.5"><Activity className="h-4 w-4 text-[#5A8A6A]" />Prova futura</p>
@@ -538,6 +577,14 @@ export default function NutricaoPage() {
               <p key={i} className="text-[11px] text-zinc-400">• {dline}</p>
             ))}
           </div>
+          {intel.diagnosis.causes?.length > 0 && (
+            <div className="mb-1.5">
+              <p className="text-[11px] font-bold text-zinc-300">Possíveis causas:</p>
+              {intel.diagnosis.causes.map((cz: string, i: number) => (
+                <p key={i} className="text-[11px] text-zinc-400">• {cz}</p>
+              ))}
+            </div>
+          )}
           <p className="text-[12px] text-zinc-200"><span className="font-bold">Conclusão:</span> {intel.diagnosis.conclusion}</p>
           <p className="text-[12px] text-[#D4853A] mt-0.5"><span className="font-bold">Ação:</span> {intel.diagnosis.action}</p>
           {intel.simulations?.length > 0 && (
@@ -629,6 +676,17 @@ export default function NutricaoPage() {
                   </div>
                 );
               })()}
+
+              {/* V8 — Estrutura do nutricionista: Análise → Interpretação → Estratégia → Ação */}
+              {(analysis.analysis || analysis.interpretation || analysis.strategy || analysis.action) && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-2.5">
+                  {analysis.sport_agent && <p className="text-[10px] uppercase tracking-wide text-[#7FB58F] font-bold flex items-center gap-1"><Brain className="h-3 w-3" />{analysis.sport_agent}</p>}
+                  {analysis.analysis && (<div><p className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold">Análise</p><p className="text-[12px] text-zinc-300 leading-relaxed">{analysis.analysis}</p></div>)}
+                  {analysis.interpretation && (<div><p className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold">Interpretação</p><p className="text-[12px] text-zinc-300 leading-relaxed">{analysis.interpretation}</p></div>)}
+                  {analysis.strategy && (<div><p className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold">Estratégia</p><p className="text-[12px] text-zinc-300 leading-relaxed">{analysis.strategy}</p></div>)}
+                  {analysis.action && (<div><p className="text-[10px] uppercase tracking-wide text-[#D4853A] font-bold">Ação</p><p className="text-[12px] text-zinc-200 leading-relaxed font-semibold">{analysis.action}</p></div>)}
+                </div>
+              )}
 
               {/* Alerts */}
               {analysis.alerts.length > 0 && (

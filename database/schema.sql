@@ -1045,3 +1045,6 @@ create index if not exists idx_nutrition_decisions_user on public.nutrition_deci
 -- ── V7.2: Prova futura (ativa o modo endurance da nutrição) ─────────────────
 alter table public.profiles add column if not exists target_race_date date;
 alter table public.profiles add column if not exists target_race_name text;
+
+-- ── V8.0: Modalidade esportiva (ativa o especialista nutricional) ───────────
+alter table public.profiles add column if not exists athlete_sport text;

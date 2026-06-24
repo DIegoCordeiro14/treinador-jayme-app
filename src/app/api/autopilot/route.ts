@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { computeNutritionTargets, detectNutritionAdjustments, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
-import { deriveAthleteCycle, computeTrainingDemand, recoveryNutritionAdvice, enduranceMode, diagnoseProgress, simulateAdjustments, buildMoment, type RecoveryCategory } from '@/lib/edn/nutrition-intelligence';
+import { deriveAthleteCycle, computeTrainingDemand, recoveryNutritionAdvice, enduranceMode, diagnoseProgress, simulateAdjustments, buildMoment, deriveSportProfile, type RecoveryCategory } from '@/lib/edn/nutrition-intelligence';
 import { computeCardioPrescription } from '@/lib/edn/cardio-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 
@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest) {
   const [{ data: profile }, { data: bio }, { data: plan }, { data: sessions7 }, { data: cardioWeek }, { data: weightLogs30 }, { data: bios2 }, { data: sessions14v }, { data: foodDays }, { data: wearable }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('weight_kg, height_cm, age, gender, main_goal, weekly_frequency, work_type, cardio_frequency, meals_per_day, sleep_hours, sleep_quality, stress_level, calorie_target, water_target_ml, profile_completion_pct, experience_level, target_race_date, target_race_name')
+      .select('weight_kg, height_cm, age, gender, main_goal, weekly_frequency, work_type, cardio_frequency, meals_per_day, sleep_hours, sleep_quality, stress_level, calorie_target, water_target_ml, profile_completion_pct, experience_level, target_race_date, target_race_name, athlete_sport')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -229,8 +229,9 @@ export async function GET(_req: NextRequest) {
     });
     const todayDemand = computeTrainingDemand({ isRestDay, todayLabel, todayHasCardio, cardioKmToday: null, recoveryCategory: recCat });
     const recoveryAdvice = recoveryNutritionAdvice({ recoveryCategory: recCat, recoveryScore: recovery?.score ?? 60, sessionsLast7: sessions7?.length ?? 0, phase: nutrition.phase });
-    const endurance = enduranceMode({ cardioKmThisWeek: cardioKmWeek, upcomingRaceWeeks });
-    const diagnosis = diagnoseProgress({ phase: nutrition.phase, weightTrendKg, bfTrendPct, strengthTrendPct, periodDays: 30 });
+    const sportProfile = deriveSportProfile((profile as any)?.athlete_sport ?? null);
+    const endurance = enduranceMode({ cardioKmThisWeek: cardioKmWeek, upcomingRaceWeeks, enduranceBias: sportProfile.enduranceBias });
+    const diagnosis = diagnoseProgress({ phase: nutrition.phase, weightTrendKg, bfTrendPct, strengthTrendPct, periodDays: 30, adherencePct: Math.round(Math.min(100, (loggedDays / 14) * 100)), recoveryCategory: recCat });
     const trendPerWeek = weightTrendKg != null ? Math.round((weightTrendKg / (30 / 7)) * 100) / 100 : null;
     const simulations = simulateAdjustments({ phase: nutrition.phase, tdeeKcal: nutrition.tdeeKcal, weightTrendKgPerWeek: trendPerWeek });
     const moment = buildMoment({
@@ -239,7 +240,7 @@ export async function GET(_req: NextRequest) {
       recoveryCategory: recCat, scoreBreakdown: nutritionScore.breakdown,
       sex: profile?.gender ?? null, experience: (profile as any)?.experience_level ?? null,
     });
-    intelligence = { cycle, todayDemand, todayLabel, isRestDay, recoveryAdvice, endurance, diagnosis, simulations, moment, race: raceDate ? { date: (profile as any).target_race_date, name: (profile as any).target_race_name ?? null, weeks: upcomingRaceWeeks } : null, usedWearable: recovery?.usedWearable ?? false };
+    intelligence = { cycle, sport: sportProfile, todayDemand, todayLabel, isRestDay, recoveryAdvice, endurance, diagnosis, simulations, moment, race: raceDate ? { date: (profile as any).target_race_date, name: (profile as any).target_race_name ?? null, weeks: upcomingRaceWeeks } : null, usedWearable: recovery?.usedWearable ?? false };
   }
 
   return Response.json({

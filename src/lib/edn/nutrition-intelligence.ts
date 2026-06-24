@@ -159,6 +159,7 @@ export function recoveryNutritionAdvice(i: RecoveryNutritionInput): RecoveryNutr
 export interface EnduranceInput {
   cardioKmThisWeek: number;
   upcomingRaceWeeks?: number | null;
+  enduranceBias?: boolean;   // atleta de esporte de endurance — ativa mesmo com cardio moderado
 }
 
 export interface EnduranceModeResult {
@@ -169,7 +170,7 @@ export interface EnduranceModeResult {
 }
 
 export function enduranceMode(i: EnduranceInput): EnduranceModeResult | null {
-  const heavy = i.cardioKmThisWeek >= 20;
+  const heavy = i.cardioKmThisWeek >= 20 || (i.enduranceBias === true && i.cardioKmThisWeek > 0);
   const race = i.upcomingRaceWeeks != null && i.upcomingRaceWeeks >= 0;
   if (!heavy && !race) return null;
   if (race && (i.upcomingRaceWeeks as number) <= 2) {
@@ -188,10 +189,13 @@ export interface DiagnosisInput {
   bfTrendPct: number | null;
   strengthTrendPct: number | null;
   periodDays: number;
+  adherencePct?: number | null;        // 0–100 (registros alimentares)
+  recoveryCategory?: RecoveryCategory; // estado do wearable/anamnese
 }
 
 export interface ProgressDiagnosis {
-  diagnosis: string[];     // observações dos dados
+  diagnosis: string[];     // observações dos dados (corpo × treino × nutrição × wearable)
+  causes: string[];        // possíveis causas quando há problema
   conclusion: string;
   action: string;
 }
@@ -201,25 +205,85 @@ export function diagnoseProgress(i: DiagnosisInput): ProgressDiagnosis {
   if (i.weightTrendKg != null) d.push(`Peso ${i.weightTrendKg > 0 ? '+' : ''}${i.weightTrendKg}kg em ${i.periodDays} dias.`);
   if (i.bfTrendPct != null) d.push(`Gordura ${i.bfTrendPct > 0 ? '+' : ''}${i.bfTrendPct}%.`);
   if (i.strengthTrendPct != null) d.push(`Força/volume ${i.strengthTrendPct > 0 ? '+' : ''}${i.strengthTrendPct}%.`);
+  if (i.adherencePct != null) d.push(`Aderência alimentar ${Math.round(i.adherencePct)}%.`);
+  if (i.recoveryCategory) d.push(`Recuperação ${i.recoveryCategory}.`);
 
   const cutting = i.phase === 'cutting' || i.phase === 'definicao';
   const w = i.weightTrendKg, bf = i.bfTrendPct, str = i.strengthTrendPct;
+  const lowAdherence = i.adherencePct != null && i.adherencePct < 60;
+  const lowRecovery = i.recoveryCategory === 'low' || i.recoveryCategory === 'critical';
 
   if (cutting && w != null && w < -0.4 && (bf == null || bf <= 0) && (str == null || str >= -2)) {
-    return { diagnosis: d, conclusion: 'Cutting eficiente — perdendo peso/gordura com força preservada.', action: 'Manter a estratégia atual.' };
+    return { diagnosis: d, causes: [], conclusion: 'Cutting eficiente — perdendo peso/gordura com força preservada.', action: 'Manter a estratégia atual.' };
   }
   if (cutting && w != null && w < -0.4 && str != null && str < -8 && (bf == null || Math.abs(bf) < 0.3)) {
-    return { diagnosis: d, conclusion: 'Possível perda muscular — peso caiu, gordura igual e força caiu bastante.', action: 'Aumentar a disponibilidade energética (reduzir déficit / mais carbo no pré-treino).' };
+    const causes = ['Déficit possivelmente agressivo demais', 'Proteína ou carbo no pré-treino insuficiente'];
+    if (lowRecovery) causes.push('Baixa recuperação (sono/HRV) amplificando a perda de performance');
+    return { diagnosis: d, causes, conclusion: 'Possível perda muscular — peso caiu, gordura igual e força caiu bastante.', action: 'Aumentar a disponibilidade energética (reduzir déficit / mais carbo no pré-treino).' };
   }
   if (cutting && w != null && Math.abs(w) < 0.3 && i.periodDays >= 21) {
-    return { diagnosis: d, conclusion: 'Platô de emagrecimento.', action: 'Reavaliar aderência ou aplicar pequeno corte adicional / mais cardio.' };
+    const causes: string[] = [];
+    if (lowAdherence) causes.push('Baixa aderência aos registros/déficit'); else causes.push('Déficit insuficiente para o gasto atual');
+    causes.push('Possível retenção hídrica (sono/estresse/sódio)');
+    if (lowRecovery) causes.push('Recuperação baixa pode estar elevando retenção e fome');
+    return { diagnosis: d, causes, conclusion: 'Platô de emagrecimento.', action: 'Confirmar aderência; se ok, aplicar pequeno corte adicional ou mais cardio.' };
   }
   if ((i.phase === 'lean_bulk' || i.phase === 'hipertrofia') && w != null) {
     const perWeek = w / Math.max(1, i.periodDays / 7);
-    if (perWeek > 0.6) return { diagnosis: d, conclusion: 'Ganho acelerado — risco de acúmulo de gordura.', action: 'Reduzir levemente o superávit.' };
-    if (perWeek > 0.05 && (str == null || str >= 0)) return { diagnosis: d, conclusion: 'Construção saudável — ganho controlado com força mantida.', action: 'Manter a estratégia.' };
+    if (perWeek > 0.6) return { diagnosis: d, causes: ['Superávit acima do necessário para um natural'], conclusion: 'Ganho acelerado — risco de acúmulo de gordura.', action: 'Reduzir levemente o superávit.' };
+    if (perWeek > 0.05 && (str == null || str >= 0)) return { diagnosis: d, causes: [], conclusion: 'Construção saudável — ganho controlado com força mantida.', action: 'Manter a estratégia.' };
   }
-  return { diagnosis: d.length ? d : ['Dados insuficientes para diagnóstico.'], conclusion: 'Sem mudança recomendada no momento.', action: 'Manter o plano e seguir registrando.' };
+  return { diagnosis: d.length ? d : ['Dados insuficientes para diagnóstico.'], causes: [], conclusion: 'Sem mudança recomendada no momento.', action: 'Manter o plano e seguir registrando.' };
+}
+
+// ── V8: Perfil esportivo / especialização por esporte ───────────────────────
+export type SportCategory = 'bodybuilding' | 'endurance' | 'performance';
+
+export interface SportProfile {
+  sport: string;
+  category: SportCategory;
+  agentLabel: string;       // qual "nutricionista especialista" atua
+  focus: string;
+  priorities: string[];
+  enduranceBias: boolean;   // ativa modo endurance mesmo com cardio moderado
+}
+
+const SPORT_MAP: Record<string, SportCategory> = {
+  musculacao: 'bodybuilding', bodybuilding: 'bodybuilding', fisiculturismo: 'bodybuilding',
+  corrida: 'endurance', corrida_recreativa: 'endurance', meia_maratona: 'endurance', maratona: 'endurance',
+  triathlon: 'endurance', ciclismo: 'endurance', natacao: 'endurance', endurance: 'endurance',
+  futebol: 'performance', lutas: 'performance', artes_marciais: 'performance', cross_training: 'performance',
+  crossfit: 'performance', coletivos: 'performance',
+};
+
+export function deriveSportProfile(sport: string | null): SportProfile {
+  const key = (sport ?? 'musculacao').toLowerCase().replace(/\s+/g, '_');
+  const category: SportCategory = SPORT_MAP[key] ?? 'bodybuilding';
+  if (category === 'endurance') {
+    return {
+      sport: sport ?? 'Endurance', category,
+      agentLabel: 'Nutricionista de Endurance EDN',
+      focus: 'Disponibilidade de glicogênio, recuperação e performance nas provas',
+      priorities: ['Carboidrato estratégico ao redor do treino', 'Reposição nos dias longos', 'Recuperação e hidratação', 'Tapering/carga pré-prova'],
+      enduranceBias: true,
+    };
+  }
+  if (category === 'performance') {
+    return {
+      sport: sport ?? 'Performance', category,
+      agentLabel: 'Nutricionista de Performance EDN',
+      focus: 'Explosão, recuperação entre sessões/competições e gasto energético variável',
+      priorities: ['Energia para sessões intensas', 'Recuperação rápida entre treinos/jogos', 'Proteína para preservar massa', 'Carbo conforme a demanda do dia'],
+      enduranceBias: false,
+    };
+  }
+  return {
+    sport: sport ?? 'Musculação', category,
+    agentLabel: 'Nutricionista de Bodybuilding EDN',
+    focus: 'Hipertrofia, recomposição, cutting e controle de BF preservando músculo',
+    priorities: ['Proteína alta (preservação muscular)', 'Carbo no treino para performance', 'Ajuste fino do balanço energético', 'Controle de BF'],
+    enduranceBias: false,
+  };
 }
 
 // ── 7. Simulador de resultados ──────────────────────────────────────────────
