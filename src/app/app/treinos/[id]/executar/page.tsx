@@ -278,7 +278,9 @@ export default function ExecutarPage() {
     try {
       const res = await fetch('/api/workout-coach', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'tip', exercise: { name: ex.exercise.name, muscle_group: MUSCLE_PT[ex.exercise.muscle_group] ?? ex.exercise.muscle_group, sets: ex.sets, reps_min: ex.reps_min, reps_max: ex.reps_max, notes: ex.notes }, target_rir: 2, previous_load: loads[ex.exercise_id] ?? null, isometric: !!(ex.exercise as any)?.is_isometric }),
+        body: JSON.stringify({ mode: 'tip', exercise: { name: ex.exercise.name, muscle_group: MUSCLE_PT[ex.exercise.muscle_group] ?? ex.exercise.muscle_group, sets: ex.sets, reps_min: ex.reps_min, reps_max: ex.reps_max, notes: ex.notes }, target_rir: 2, previous_load: loads[ex.exercise_id] ?? null, isometric: !!(ex.exercise as any)?.is_isometric,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          prescribed: (() => { const p = (prescriptions as any)[ex.id]; return p && !p.noHistory && p.topSet ? { topKg: p.topSet.weightKg, topReps: p.topSet.reps, strategy: p.strategy } : null; })() }),
       });
       const { message } = await res.json();
       setExStates(p => { const n = [...p]; n[idx] = { ...n[idx], tip: message ?? null, tipLoading: false }; return n; });
@@ -468,6 +470,17 @@ export default function ExecutarPage() {
   const st = exStates[currentIdx];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const iso = !!(ex?.exercise as any)?.is_isometric; // isométrico: prescrito por tempo (s)
+  // Sugestão de carga/reps por série (EDN Load Intelligence), casada por tipo de série
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sugForSet: ({ weightKg: number; reps: number } | null)[] = (() => {
+    const p = ex ? (prescriptions as any)[ex.id] : null;
+    if (!p || p.noHistory || !st || iso) return (st?.sets ?? []).map(() => null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pool: Record<string, any[]> = { aquecimento: [], feeder: [], top: [], working: [] };
+    for (const x of (p.sets ?? [])) (pool[x.kind] ?? (pool[x.kind] = [])).push(x);
+    const idx: Record<string, number> = { aquecimento: 0, feeder: 0, top: 0, working: 0 };
+    return st.sets.map((se) => { const arr = pool[se.setType] ?? []; const v = arr[idx[se.setType]++] ?? arr[arr.length - 1] ?? null; return v ? { weightKg: v.weightKg, reps: v.reps } : null; });
+  })();
   const doneCount = st?.sets.filter(s => s.completed).length ?? 0;
   const totalVol = exStates.reduce((a, s) => a + s.sets.reduce((b, set) => b + (set.completed ? (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0) : 0), 0), 0);
   const doneEx = exStates.filter(s => s.sets.length > 0 && s.sets.every(s => s.completed)).length;
@@ -792,27 +805,15 @@ export default function ExecutarPage() {
             </div>
           )}
 
-          {/* Cargas sugeridas (EDN Load Intelligence) */}
+          {/* Sugestão de cargas EDN — inline por série (ver placeholders) */}
           {ex && !iso && prescriptions[ex.id] && !prescriptions[ex.id].noHistory && (() => {
             const p = prescriptions[ex.id];
-            const kindLabel: Record<string, string> = { aquecimento: 'Aquec.', feeder: 'Feeder', top: 'Top Set', working: 'Working' };
-            const working = (p.sets ?? []).find((x: any) => x.kind === 'working');
-            const fill = () => { (st?.sets ?? []).forEach((_, si) => { if (!st!.sets[si].completed) updateSet(currentIdx, si, 'weight', String(working?.weightKg ?? p.topSet?.weightKg ?? '')); }); };
+            const working = (p.sets ?? []).find((x: any) => x.kind === 'working') ?? p.topSet;
+            const fillAll = () => { (st?.sets ?? []).forEach((se, si) => { if (st!.sets[si].completed) return; const sg = sugForSet[si]; updateSet(currentIdx, si, 'weight', String((sg ?? working)?.weightKg ?? '')); if (!st!.sets[si].reps) updateSet(currentIdx, si, 'reps', String((sg ?? working)?.reps ?? '')); }); };
             return (
-              <div className="rounded-xl border border-[#D4853A]/25 bg-[#D4853A]/10 p-3 mb-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold text-[#E09B5A]">⚡ Cargas sugeridas · {p.strategy}</span>
-                  <button onClick={fill} className="text-[11px] font-bold text-[#D4853A] hover:text-[#E09B5A] underline">Preencher</button>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(p.sets ?? []).map((x: any, xi: number) => (
-                    <span key={xi} className={cn('text-[10px] rounded-md px-2 py-1 border', x.kind === 'top' ? 'bg-[#5A8A6A]/15 border-[#5A8A6A]/30 text-[#7FB58F] font-bold' : 'bg-black/25 border-white/[0.06] text-zinc-300')}>
-                      {kindLabel[x.kind]}: {x.weightKg}kg × {x.reps}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-[10px] text-zinc-500 mt-1.5">{p.reason}</p>
+              <div className="flex items-center justify-between mb-2 text-[11px]">
+                <span className="text-[#E09B5A] font-semibold">⚡ Sugestão EDN · {p.strategy}</span>
+                <button onClick={fillAll} className="text-[#D4853A] hover:text-[#E09B5A] font-bold underline">Preencher tudo</button>
               </div>
             );
           })()}
@@ -842,10 +843,10 @@ export default function ExecutarPage() {
                   {iso ? (
                     <span className="text-center text-xs text-zinc-600">—</span>
                   ) : (
-                    <input type="number" step="0.5" placeholder="--" value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
+                    <input type="number" step="0.5" placeholder={sugForSet[si] ? String(sugForSet[si]!.weightKg) : "--"} value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
                       className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   )}
-                  <input type="number" step={iso ? 5 : 1} min="0" placeholder={iso ? "seg" : "--"} value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
+                  <input type="number" step={iso ? 5 : 1} min="0" placeholder={iso ? "seg" : (sugForSet[si] ? String(sugForSet[si]!.reps) : "--")} value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
                   <select value={s.rir} onChange={e => updateSet(currentIdx, si, 'rir', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">

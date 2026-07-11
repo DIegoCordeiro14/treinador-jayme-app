@@ -133,6 +133,8 @@ Ao sugerir adição, remoção ou reordenação de exercícios num plano:
 
 EXERCÍCIOS ISOMÉTRICOS (marcados com [ISO=tempo] na biblioteca/planos, ex.: prancha): NÃO têm carga nem repetições — são prescritos e progredidos por TEMPO de sustentação em segundos. Ao sugerir/substituir/adicionar um isométrico, use repsMin/repsMax como SEGUNDOS (ex.: 30-60s) e nunca fale em "reps" ou "carga".
 
+CARGAS (EDN Load Intelligence): o app já prescreve a carga de cada série (aquecimento ~45%, feeder ~68%, Top Set e Working ~88-90% do Top) a partir do histórico real do atleta e da recuperação, escolhendo a estratégia (dupla progressão/progressão por reps/consolidação/deload). Ao falar de carga, use essa lógica e os números do histórico — nunca invente pesos; se o atleta pedir 'qual peso', explique o Top Set alvo e como os working sets derivam dele.
+
 AÇÃO PROATIVA: Se detectar platô de força (sem PR há 3+ semanas), sugira imediatamente: deload ou mudança de modelo de progressão.
 
 APLICAÇÃO REAL NO APP (V6.6) — protocolo de diretiva:

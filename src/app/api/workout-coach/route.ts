@@ -45,7 +45,7 @@ Responda SEMPRE em português do Brasil. Seja direto, objetivo, sem enrolação.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mode, exercise, sets_data, target_rir, previous_load, isometric, avg_hr } = body;
+    const { mode, exercise, sets_data, target_rir, previous_load, isometric, avg_hr, prescribed } = body;
 
     if (!mode || !exercise) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -65,8 +65,9 @@ Dê UMA dica técnica objetiva (o ponto mais crítico da postura), aponte o erro
 Alvo: ${exercise.sets} séries × ${exercise.reps_min}–${exercise.reps_max} reps | RIR alvo: ${target_rir ?? 2}.
 ${exercise.notes ? `Notas do plano: ${exercise.notes}` : ''}
 ${previous_load ? `Última carga registrada: ${previous_load} kg` : 'Primeira vez registrando este exercício.'}
+${prescribed ? `CARGAS PRESCRITAS PELO MOTOR EDN (use EXATAMENTE, não invente): Top Set ${prescribed.topKg}kg × ${prescribed.topReps} (RIR ~2); estratégia: ${prescribed.strategy}.` : ''}
 
-Dê UMA dica técnica objetiva de execução (o ponto mais crítico), aponte o erro mais comum, e se tiver carga anterior sugira se mantém ou ajusta.`;
+Dê UMA dica técnica objetiva de execução (o ponto mais crítico), aponte o erro mais comum${prescribed ? ', e cite o Top Set prescrito acima como alvo da série principal (sem inventar outro número)' : ', e se tiver carga anterior sugira se mantém ou ajusta'}.`;
       }
 
     } else if (mode === 'feedback') {
