@@ -93,7 +93,7 @@ const RIR_OPTS = ['0', '1', '2', '3', '4'];
 function defaultSets(count: number, prevW: number | null): SetEntry[] {
   const types = autoSetTypes(count);
   return Array.from({ length: count }, (_, i) => ({
-    weight: prevW ? String(prevW) : '',
+    weight: '',
     reps: '',
     rir: types[i] === 'aquecimento' ? '4' : types[i] === 'feeder' ? '3' : '2',
     completed: false,
@@ -208,6 +208,34 @@ export default function ExecutarPage() {
     if (!dayId) return;
     fetch(`/api/prescribe-loads?dayId=${dayId}`).then(r => r.json()).then(d => { if (d?.prescriptions) setPrescriptions(d.prescriptions); }).catch(() => {});
   }, [dayId]);
+
+  // Auto-preenche carga+reps sugeridas por série quando a prescrição chega
+  // (só campos vazios e não concluídos — não sobrescreve o que o atleta digitou).
+  useEffect(() => {
+    if (!Object.keys(prescriptions).length || !exercises.length) return;
+    setExStates(prev => prev.map((state, ei) => {
+      const ex = exercises[ei];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = ex ? (prescriptions as any)[ex.id] : null;
+      if (!p || p.noHistory || (ex?.exercise as any)?.is_isometric) return state;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool: Record<string, any[]> = { aquecimento: [], feeder: [], top: [], working: [] };
+      for (const x of (p.sets ?? [])) (pool[x.kind] ?? (pool[x.kind] = [])).push(x);
+      const idx: Record<string, number> = { aquecimento: 0, feeder: 0, top: 0, working: 0 };
+      let changed = false;
+      const sets = state.sets.map(se => {
+        const arr = pool[se.setType] ?? [];
+        const v = arr[idx[se.setType]++] ?? arr[arr.length - 1] ?? null;
+        if (!v || se.completed) return se;
+        const next = { ...se };
+        if (!se.weight) { next.weight = String(v.weightKg); changed = true; }
+        if (!se.reps) { next.reps = String(v.reps); changed = true; }
+        return next;
+      });
+      return changed ? { ...state, sets } : state;
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prescriptions, exercises.length]);
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
@@ -740,8 +768,22 @@ export default function ExecutarPage() {
             );
           })()}
 
-          {ex && !iso && ednSuggestions[ex.exercise_id] && (() => {
+          {ex && !iso && (() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const p = (prescriptions as any)[ex.id];
             const sg = ednSuggestions[ex.exercise_id];
+            if (p && !p.noHistory && p.topSet) {
+              return (
+                <div className="rounded-lg border px-3 py-2.5 flex items-center gap-3 border-[#D4853A]/20 bg-[#D4853A]/5">
+                  <TrendingUp className="h-4 w-4 shrink-0 text-[#D4853A]" />
+                  <div>
+                    <p className="text-xs font-bold text-[#E09B5A]">Sugestão EDN: {p.topSet.weightKg}kg × {p.topSet.reps} (Top Set)</p>
+                    <p className="text-[10px] text-zinc-500">{p.strategy}</p>
+                  </div>
+                </div>
+              );
+            }
+            if (!sg) return null;
             return (
               <div className={cn('rounded-lg border px-3 py-2.5 flex items-center gap-3', sg.stagnant ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-[#D4853A]/20 bg-[#D4853A]/5')}>
                 <TrendingUp className={cn('h-4 w-4 shrink-0', sg.stagnant ? 'text-yellow-400' : 'text-[#D4853A]')} />
@@ -811,9 +853,8 @@ export default function ExecutarPage() {
             const working = (p.sets ?? []).find((x: any) => x.kind === 'working') ?? p.topSet;
             const fillAll = () => { (st?.sets ?? []).forEach((se, si) => { if (st!.sets[si].completed) return; const sg = sugForSet[si]; updateSet(currentIdx, si, 'weight', String((sg ?? working)?.weightKg ?? '')); if (!st!.sets[si].reps) updateSet(currentIdx, si, 'reps', String((sg ?? working)?.reps ?? '')); }); };
             return (
-              <div className="flex items-center justify-between mb-2 text-[11px]">
-                <span className="text-[#E09B5A] font-semibold">⚡ Sugestão EDN · {p.strategy}</span>
-                <button onClick={fillAll} className="text-[#D4853A] hover:text-[#E09B5A] font-bold underline">Preencher tudo</button>
+              <div className="flex items-center justify-end mb-2 text-[11px]">
+                <button onClick={fillAll} className="text-[#D4853A] hover:text-[#E09B5A] font-bold underline">Preencher cargas sugeridas</button>
               </div>
             );
           })()}
