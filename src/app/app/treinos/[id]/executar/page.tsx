@@ -114,6 +114,8 @@ export default function ExecutarPage() {
   const [dayName, setDayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [exStates, setExStates] = useState<ExState[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [prescriptions, setPrescriptions] = useState<Record<string, any>>({});
   const [prevLoads, setPrevLoads] = useState<Record<string, number>>({});
   const [prevTimes, setPrevTimes] = useState<Record<string, number>>({}); // isométrico: tempo (s) anterior
   const [ednSuggestions, setEdnSuggestions] = useState<Record<string, { suggestedWeight: number; model: string; stagnant: boolean }>>({});
@@ -200,6 +202,11 @@ export default function ExecutarPage() {
       }
       setLoading(false);
     })();
+  }, [dayId]);
+
+  useEffect(() => {
+    if (!dayId) return;
+    fetch(`/api/prescribe-loads?dayId=${dayId}`).then(r => r.json()).then(d => { if (d?.prescriptions) setPrescriptions(d.prescriptions); }).catch(() => {});
   }, [dayId]);
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
@@ -784,6 +791,31 @@ export default function ExecutarPage() {
               )}
             </div>
           )}
+
+          {/* Cargas sugeridas (EDN Load Intelligence) */}
+          {ex && !iso && prescriptions[ex.id] && !prescriptions[ex.id].noHistory && (() => {
+            const p = prescriptions[ex.id];
+            const kindLabel: Record<string, string> = { aquecimento: 'Aquec.', feeder: 'Feeder', top: 'Top Set', working: 'Working' };
+            const working = (p.sets ?? []).find((x: any) => x.kind === 'working');
+            const fill = () => { (st?.sets ?? []).forEach((_, si) => { if (!st!.sets[si].completed) updateSet(currentIdx, si, 'weight', String(working?.weightKg ?? p.topSet?.weightKg ?? '')); }); };
+            return (
+              <div className="rounded-xl border border-[#D4853A]/25 bg-[#D4853A]/10 p-3 mb-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-[#E09B5A]">⚡ Cargas sugeridas · {p.strategy}</span>
+                  <button onClick={fill} className="text-[11px] font-bold text-[#D4853A] hover:text-[#E09B5A] underline">Preencher</button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(p.sets ?? []).map((x: any, xi: number) => (
+                    <span key={xi} className={cn('text-[10px] rounded-md px-2 py-1 border', x.kind === 'top' ? 'bg-[#5A8A6A]/15 border-[#5A8A6A]/30 text-[#7FB58F] font-bold' : 'bg-black/25 border-white/[0.06] text-zinc-300')}>
+                      {kindLabel[x.kind]}: {x.weightKg}kg × {x.reps}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1.5">{p.reason}</p>
+              </div>
+            );
+          })()}
 
           {/* Sets table */}
           {st && ex && (
