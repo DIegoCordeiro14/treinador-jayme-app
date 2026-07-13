@@ -63,15 +63,16 @@ export function prescribeLoads(i: LoadInput): LoadPrescription | null {
     reason = `Ainda dentro da faixa (${last.reps}/${i.repsMin}-${i.repsMax}) — manter carga e buscar +1 rep.`;
   }
 
+  const clampReps = (r: number) => Math.max(i.repsMin, Math.min(i.repsMax, Math.round(r)));
   const warmupW = roundToIncrement(topW * 0.45);
   const feederW = roundToIncrement(topW * 0.68);
   const workBase = roundToIncrement(topW * (i.isCompound ? 0.88 : 0.9));
-  const workReps = Math.min(i.repsMax, topReps + 2);
+  const workReps = clampReps(topReps + 2);
   const nWork = Math.max(0, i.workingSetsCount);
 
   const sets: PrescribedSet[] = [];
-  if (warmupW > 0) sets.push({ kind: 'aquecimento', weightKg: warmupW, reps: 12 });
-  if (feederW > 0 && feederW < topW) sets.push({ kind: 'feeder', weightKg: feederW, reps: 5 });
+  if (warmupW > 0) sets.push({ kind: 'aquecimento', weightKg: warmupW, reps: i.repsMax });
+  if (feederW > 0 && feederW < topW) sets.push({ kind: 'feeder', weightKg: feederW, reps: i.repsMin });
   const topSet: PrescribedSet = { kind: 'top', weightKg: topW, reps: topReps };
   sets.push(topSet);
   for (let k = 0; k < nWork; k++) {
@@ -80,6 +81,7 @@ export function prescribeLoads(i: LoadInput): LoadPrescription | null {
     sets.push({ kind: 'working', weightKg: w, reps: workReps });
   }
 
+  topSet.reps = clampReps(topSet.reps);
   return { sets, topSet, strategy, reason };
 }
 

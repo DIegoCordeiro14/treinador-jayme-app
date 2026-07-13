@@ -45,7 +45,7 @@ Responda SEMPRE em português do Brasil. Seja direto, objetivo, sem enrolação.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mode, exercise, sets_data, target_rir, previous_load, isometric, avg_hr, prescribed } = body;
+    const { mode, exercise, sets_data, target_rir, previous_load, isometric, avg_hr, prescribed, next_suggestion } = body;
 
     if (!mode || !exercise) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -89,7 +89,9 @@ Avalie por TEMPO: o tempo está adequado? Devo aumentar a sustentação na próx
 Alvo: ${exercise.reps_min}–${exercise.reps_max} reps | RIR alvo: ${target_rir ?? 2}
 ${setsInfo}${avg_hr ? `\nFC atual (relógio): ${avg_hr} bpm` : ''}
 
-Avalie minha performance considerando as REPETIÇÕES QUE EU REALMENTE FIZ acima (compare com o alvo: fiz mais ou menos?). A carga está adequada? Devo ajustar algo? O que muda na próxima sessão?`;
+${next_suggestion ? `PRÓXIMA SESSÃO (motor EDN — use EXATAMENTE, NÃO invente outro número): Top Set ${next_suggestion.weightKg}kg × ${next_suggestion.reps} reps (dentro do alvo ${exercise.reps_min}-${exercise.reps_max}).` : ''}
+
+Avalie minha performance considerando as REPETIÇÕES QUE EU REALMENTE FIZ acima (compare com o alvo: fiz mais ou menos?). A carga está adequada?${next_suggestion ? ' Ao recomendar a próxima sessão, cite EXATAMENTE o Top Set do motor acima (mesmo número) e nunca sugira reps fora do intervalo do exercício.' : ' O que muda na próxima sessão?'}`;
       }
 
     } else {

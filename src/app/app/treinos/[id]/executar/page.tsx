@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
+import { suggestProgression } from '@/lib/edn/progression-engine';
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
@@ -209,33 +210,7 @@ export default function ExecutarPage() {
     fetch(`/api/prescribe-loads?dayId=${dayId}`).then(r => r.json()).then(d => { if (d?.prescriptions) setPrescriptions(d.prescriptions); }).catch(() => {});
   }, [dayId]);
 
-  // Auto-preenche carga+reps sugeridas por série quando a prescrição chega
-  // (só campos vazios e não concluídos — não sobrescreve o que o atleta digitou).
-  useEffect(() => {
-    if (!Object.keys(prescriptions).length || !exercises.length) return;
-    setExStates(prev => prev.map((state, ei) => {
-      const ex = exercises[ei];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p = ex ? (prescriptions as any)[ex.id] : null;
-      if (!p || p.noHistory || (ex?.exercise as any)?.is_isometric) return state;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pool: Record<string, any[]> = { aquecimento: [], feeder: [], top: [], working: [] };
-      for (const x of (p.sets ?? [])) (pool[x.kind] ?? (pool[x.kind] = [])).push(x);
-      const idx: Record<string, number> = { aquecimento: 0, feeder: 0, top: 0, working: 0 };
-      let changed = false;
-      const sets = state.sets.map(se => {
-        const arr = pool[se.setType] ?? [];
-        const v = arr[idx[se.setType]++] ?? arr[arr.length - 1] ?? null;
-        if (!v || se.completed) return se;
-        const next = { ...se };
-        if (!se.weight) { next.weight = String(v.weightKg); changed = true; }
-        if (!se.reps) { next.reps = String(v.reps); changed = true; }
-        return next;
-      });
-      return changed ? { ...state, sets } : state;
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prescriptions, exercises.length]);
+// (sem auto-preenchimento: as cargas só entram ao tocar em 'Preencher cargas sugeridas')
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
@@ -322,10 +297,21 @@ export default function ExecutarPage() {
     const done = states[idx].sets.filter(s => s.completed);
     if (!done.length) return;
     setExStates(p => { const n = [...p]; n[idx] = { ...n[idx], feedbackLoading: true }; return n; });
+    // Próxima carga DETERMINÍSTICA (mesmo motor do Load Intelligence), a partir do top set real
+    const isoEx = !!(ex.exercise as any)?.is_isometric;
+    let nextSuggestion: { weightKg: number; reps: number } | null = null;
+    if (!isoEx) {
+      const cand = done.map(s => ({ weightKg: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0, rir: s.rir !== '' ? parseInt(s.rir) : null }))
+        .filter(x => x.weightKg > 0).sort((a, b) => b.weightKg - a.weightKg)[0];
+      if (cand) {
+        const pr = suggestProgression({ weightKg: cand.weightKg, reps: cand.reps, rir: cand.rir, repsMin: ex.reps_min, repsMax: ex.reps_max });
+        nextSuggestion = { weightKg: pr.nextWeightKg ?? cand.weightKg, reps: Math.max(ex.reps_min, Math.min(ex.reps_max, pr.nextReps ?? ex.reps_min)) };
+      }
+    }
     try {
       const res = await fetch('/api/workout-coach', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'feedback', exercise: { name: ex.exercise.name, reps_min: ex.reps_min, reps_max: ex.reps_max }, sets_data: done.map(s => ({ weight_kg: parseFloat(s.weight) || 0, reps_done: parseInt(s.reps) || 0, rir: parseInt(s.rir) || 0 })), target_rir: 2, isometric: !!(ex.exercise as any)?.is_isometric, avg_hr: liveHr }),
+        body: JSON.stringify({ mode: 'feedback', exercise: { name: ex.exercise.name, reps_min: ex.reps_min, reps_max: ex.reps_max }, sets_data: done.map(s => ({ weight_kg: parseFloat(s.weight) || 0, reps_done: parseInt(s.reps) || 0, rir: parseInt(s.rir) || 0 })), target_rir: 2, isometric: isoEx, avg_hr: liveHr, next_suggestion: nextSuggestion }),
       });
       const { message } = await res.json();
       setExStates(p => { const n = [...p]; n[idx] = { ...n[idx], feedback: message ?? null, feedbackLoading: false }; return n; });
