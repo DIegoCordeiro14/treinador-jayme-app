@@ -298,8 +298,16 @@ export default function IAPage() {
                       <p className="text-[11px] text-zinc-300 mt-0.5">{central.edn360.nextAction}</p>
                     </button>
                   )}
+                  {/* Coach proativo (AOS) */}
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(central.alerts ?? []).slice(0, 3).map((a: any, i: number) => (
+                  {(central.notifications ?? []).slice(0, 2).map((n: any, i: number) => (
+                    <button key={'n'+i} onClick={() => sendMessage(n.ask)} className={`w-full text-left rounded-xl border p-3 transition-colors ${n.severity === 'critico' ? 'border-[#8B5A5A]/40 bg-[#8B5A5A]/10' : n.severity === 'positivo' ? 'border-[#5A8A6A]/30 bg-[#5A8A6A]/10' : 'border-[#D4853A]/30 bg-[#D4853A]/10'}`}>
+                      <p className="text-[11px] font-bold text-zinc-100">🤖 {n.title}</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">{n.body}</p>
+                    </button>
+                  ))}
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(central.alerts ?? []).slice(0, 2).map((a: any, i: number) => (
                     <button key={i} onClick={() => sendMessage(a.ask)} className={`w-full text-left rounded-xl border p-3 transition-colors ${a.severity === 'critico' ? 'border-[#8B5A5A]/40 bg-[#8B5A5A]/10 hover:bg-[#8B5A5A]/15' : a.severity === 'positivo' ? 'border-[#5A8A6A]/30 bg-[#5A8A6A]/10 hover:bg-[#5A8A6A]/15' : 'border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800'}`}>
                       <p className="text-[11px] font-bold text-zinc-100">{a.severity === 'critico' ? '⚠️' : a.severity === 'positivo' ? '✅' : '•'} {a.title}</p>
                       <p className="text-[11px] text-zinc-400 mt-0.5">{a.reason} <span className="text-zinc-300">{a.action}</span></p>

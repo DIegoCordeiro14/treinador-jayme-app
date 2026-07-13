@@ -283,6 +283,7 @@ export default function EvolucaoPage() {
   const [progress, setProgress] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [volumeVerdicts, setVolumeVerdicts] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<{ id: string; kind: string; title: string; detail: string | null; created_at: string }[]>([]);
   const [scoreHist, setScoreHist] = useState<{ phase: string; series: { week: string; score: number }[]; windows: { d14: { score: number; label: string }; d30: { score: number; label: string }; d60: { score: number; label: string } } } | null>(null);
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -301,6 +302,7 @@ export default function EvolucaoPage() {
     fetch('/api/nutrition-score-history').then(r => r.json()).then(d => { if (d && !d.error) setScoreHist(d); }).catch(() => {});
     fetch('/api/progress-intelligence').then(r => r.json()).then(d => { if (d && !d.error) setProgress(d); }).catch(() => {});
     fetch('/api/volume-analysis').then(r => r.json()).then(d => { if (Array.isArray(d?.verdicts)) setVolumeVerdicts(d.verdicts); }).catch(() => {});
+    (async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; const { data } = await supabase.from('athlete_timeline').select('id, kind, title, detail, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10); if (data) setTimeline(data); })();
   }, []);
 
   async function load() {
@@ -541,6 +543,23 @@ export default function EvolucaoPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {timeline.length > 0 && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm font-bold text-zinc-100 mb-2 flex items-center gap-1.5"><Activity className="h-4 w-4 text-[#7FB58F]" />Linha do tempo</p>
+          <div className="space-y-2">
+            {timeline.map((t) => (
+              <div key={t.id} className="flex items-start gap-2">
+                <span className="text-[10px] text-zinc-500 shrink-0 mt-0.5">{new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                <div className="min-w-0">
+                  <p className="text-[12px] text-zinc-200">{t.title}</p>
+                  {t.detail && <p className="text-[10px] text-zinc-500">{t.detail}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
