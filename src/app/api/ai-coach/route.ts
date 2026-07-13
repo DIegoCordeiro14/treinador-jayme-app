@@ -5,6 +5,7 @@ import { makeCacheKey, getCached, setCached } from '@/lib/ai-coach/cache';
 import type { AIMessage } from '@/lib/ai-coach';
 import { detectAgent, AGENT_CONFIGS } from '@/lib/ai-coach/agents';
 import { routeIntent } from '@/lib/ai-coach/coach-router';
+import { buildLongitudinalMemory } from '@/lib/athlete-os/longitudinal-memory';
 import { getCachedAthleteContext, serializeAthleteContext } from '@/lib/edn/athlete-context';
 import { classifyRunner, computeCardioLoad, computeTrainingZones, deriveRacePhase, analyzeRunPerformance, type RunPoint } from '@/lib/cardio/endurance-engine';
 import {
@@ -46,6 +47,21 @@ export async function POST(req: NextRequest) {
     try {
       const { data: mem } = await supabase.from('athlete_memory').select('content').eq('user_id', user.id).order('created_at', { ascending: false }).limit(8);
       if (mem && mem.length) memoryStr = `\n[MEMÓRIA DO ATLETA]\n${mem.map((m: { content: string }) => `- ${m.content}`).join('\n')}`;
+      // Memória longitudinal (o que funcionou/falhou) — AOS Bloco 12
+      const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+      const [{ data: tl }, { data: dec }] = await Promise.all([
+        supabase.from('athlete_timeline').select('kind, title, detail, created_at').eq('user_id', user.id).gte('created_at', since90).order('created_at', { ascending: false }).limit(30),
+        supabase.from('coach_decisions').select('domain, decision, reason, created_at').eq('user_id', user.id).gte('created_at', since90).order('created_at', { ascending: false }).limit(30),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tlArr = (tl ?? []) as any[];
+      const lm = buildLongitudinalMemory({
+        timeline: tlArr, decisions: (dec ?? []) as any[], notes: (mem ?? []).map((m: { content: string }) => ({ kind: 'note', content: m.content })),
+        prCount90d: tlArr.filter((e) => e.kind === 'pr').length,
+        plateauEpisodes: tlArr.filter((e) => e.kind === 'phase_change' || e.title?.toLowerCase().includes('platô')).length,
+        deloadCount90d: tlArr.filter((e) => e.kind === 'deload').length,
+      });
+      if (lm.summary && !lm.summary.startsWith('Sem histórico')) memoryStr += `\n[MEMÓRIA LONGITUDINAL] ${lm.summary}`;
     } catch { /* tabela pode faltar */ }
     const supportStr = (!agentHint && route.support && route.support.length)
       ? `\n[ESPECIALISTAS DE APOIO sugeridos para esta pergunta: ${route.support.join(', ')}] — integre essas perspectivas na resposta.`

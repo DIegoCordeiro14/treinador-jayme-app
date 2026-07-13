@@ -1119,3 +1119,15 @@ alter table public.athlete_timeline enable row level security;
 drop policy if exists "Users manage own timeline" on public.athlete_timeline;
 create policy "Users manage own timeline" on public.athlete_timeline for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists idx_athlete_timeline_user on public.athlete_timeline(user_id, created_at desc);
+
+-- ── AOS Bloco 15: snapshots versionados do AthleteState (auditoria/telemetria) ─
+create table if not exists public.athlete_state_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  version bigint not null, state jsonb not null, next_best_action text, confidence int,
+  created_at timestamptz not null default now(), unique (user_id, version)
+);
+alter table public.athlete_state_snapshots enable row level security;
+drop policy if exists "Users manage own state snapshots" on public.athlete_state_snapshots;
+create policy "Users manage own state snapshots" on public.athlete_state_snapshots for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_state_snapshots_user on public.athlete_state_snapshots(user_id, created_at desc);

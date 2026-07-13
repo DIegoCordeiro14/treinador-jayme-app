@@ -1,0 +1,14 @@
+const E=require('./.tmp/lm/longitudinal-memory.js');
+let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
+const now=Date.now(), d=86400000, iso=(x)=>new Date(now-x*d).toISOString();
+console.log('\n== buildLongitudinalMemory ==');
+let m=E.buildLongitudinalMemory({ timeline:[{kind:'deload',title:'Deload',created_at:iso(20)},{kind:'pr',title:'PR supino',created_at:iso(10)}], decisions:[{domain:'treino',decision:'x',created_at:iso(5)},{domain:'treino',decision:'y',created_at:iso(3)}], notes:[{kind:'preferencia',content:'não gosta de agachamento'}], prCount90d:2, plateauEpisodes:0, deloadCount90d:1 });
+check('PRs → worked', m.worked.some(w=>/PR/.test(w)));
+check('deload seguido de PR → worked', m.worked.some(w=>/[Dd]eload/.test(w)));
+check('preferências capturadas', m.preferences.includes('não gosta de agachamento'));
+check('padrão de domínio treino', m.patterns.some(p=>/treino/.test(p)));
+check('summary não vazio', m.summary.length>0 && !m.summary.startsWith('Sem histórico'));
+let m2=E.buildLongitudinalMemory({ timeline:[], decisions:[], notes:[], prCount90d:0, plateauEpisodes:2, deloadCount90d:0 });
+check('platôs → failed', m2.failed.some(f=>/platô/i.test(f)));
+check('sem PR/deload → failed estagnação', m2.failed.some(f=>/estagn/i.test(f)));
+console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);

@@ -9,6 +9,7 @@ import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
 import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
 import { buildNotifications } from '@/lib/athlete-os/notifications';
 import { mergeAthleteState } from '@/lib/athlete-os/athlete-state';
+import { persistStateSnapshot } from '@/lib/athlete-os/telemetry';
 import { detectMesocyclePhase } from '@/lib/edn/training-periodization-engine';
 import { canonicalGoal } from '@/lib/edn/goal';
 
@@ -168,5 +169,6 @@ export async function GET(_req: NextRequest) {
     nextBestAction: aos.nextBestAction,
   });
 
+  await persistStateSnapshot(supabase, user.id, state);
   return Response.json({ edn360, weakPoint, athleteState, state, alerts, aos, notifications, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

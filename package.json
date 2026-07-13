@@ -21,7 +21,8 @@
     "test:load": "tsc src/lib/edn/load-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-load-intelligence.js",
     "test:aos": "tsc src/lib/athlete-os/index.ts --outDir scripts/.tmp/athlete-os --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-os.js",
     "test:aos-extras": "tsc src/lib/athlete-os/digital-twin.ts src/lib/athlete-os/specializations.ts src/lib/athlete-os/notifications.ts src/lib/athlete-os/index.ts src/lib/athlete-os/event-bus.ts --outDir scripts/.tmp/os --module commonjs --target es2019 --skipLibCheck && node scripts/test-aos-extras.js",
-    "test:state": "tsc src/lib/athlete-os/athlete-state.ts --outDir scripts/.tmp/as --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-state.js"
+    "test:state": "tsc src/lib/athlete-os/athlete-state.ts --outDir scripts/.tmp/as --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-state.js",
+    "test:memory": "tsc src/lib/athlete-os/longitudinal-memory.ts --outDir scripts/.tmp/lm --module commonjs --target es2019 --skipLibCheck && node scripts/test-longitudinal.js"
   },
   "dependencies": {
     "next": "14.2.0",
