@@ -8,6 +8,8 @@ import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-en
 import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
 import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
 import { buildNotifications } from '@/lib/athlete-os/notifications';
+import { mergeAthleteState } from '@/lib/athlete-os/athlete-state';
+import { detectMesocyclePhase } from '@/lib/edn/training-periodization-engine';
 import { canonicalGoal } from '@/lib/edn/goal';
 
 export const runtime = 'nodejs';
@@ -31,7 +33,7 @@ export async function GET(_req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pr, bioR, wlR, sess14R, foodR, cardio28R, wmR, setsR] = await Promise.all([
-    supabase.from('profiles').select('weight_kg, height_cm, age, gender, main_goal, weekly_frequency, work_type, cardio_frequency, meals_per_day, sleep_hours, sleep_quality, stress_level').eq('id', user.id).maybeSingle(),
+    supabase.from('profiles').select('name, weight_kg, height_cm, age, gender, main_goal, aesthetic_goal, athlete_sport, experience_level, target_weight_kg, target_race_date, weekly_frequency, work_type, cardio_frequency, meals_per_day, sleep_hours, sleep_quality, stress_level').eq('id', user.id).maybeSingle(),
     supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, lean_mass_kg, basal_metabolic_rate_kcal, measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('body_weight_logs').select('log_date, weight_kg, body_fat_pct').eq('user_id', user.id).gte('log_date', new Date(now - 30 * 86400000).toISOString().slice(0, 10)).order('log_date', { ascending: true }),
     supabase.from('workout_sessions').select('started_at, total_volume_kg').eq('user_id', user.id).gte('started_at', new Date(now - 14 * 86400000).toISOString()),
@@ -147,5 +149,24 @@ export async function GET(_req: NextRequest) {
   const aos = orchestrate(aosFacts);
   const notifications = buildNotifications(aos);
 
-  return Response.json({ edn360, weakPoint, athleteState, alerts, aos, notifications, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  // ── AthleteState canônico (Bloco 2) — fonte única versionada ──────────────
+  const meso = detectMesocyclePhase({ weeksOnPlan: 0, recentVolumeTrendPct: strengthTrendPct, recoveryCategory: (recovery?.category ?? 'moderate') as any, hadPrRecently: (strengthTrendPct ?? 0) >= 3 });
+  const state = mergeAthleteState({
+    profile: { name: profile?.name ?? null, sex: profile?.gender ?? null, age: profile?.age ?? null, heightCm: profile?.height_cm ?? null, experience: (profile as any)?.experience_level ?? null, sport: (profile as any)?.athlete_sport ?? null },
+    goal: { main: profile?.main_goal ?? null, aesthetic: (profile as any)?.aesthetic_goal ?? null, targetWeightKg: (profile as any)?.target_weight_kg ?? null, targetRaceDate: (profile as any)?.target_race_date ?? null },
+    bodyComposition: { weightKg: athleteState.bodyComposition.weightKg, bodyFatPct: athleteState.bodyComposition.bodyFatPct, leanKg: athleteState.bodyComposition.leanMassKg, tmbKcal: athleteState.bodyComposition.tmbKcal },
+    training: athleteState.trainingState,
+    nutrition: athleteState.nutritionState,
+    cardio: athleteState.cardioState,
+    recovery: athleteState.recoveryState,
+    wearable: wm ? { hrvMs: wm.hrv_ms ?? null, hrvBaselineMs: wm.hrv_baseline_ms ?? null, sleepHours: wm.sleep_hours ?? null, restingHr: wm.resting_hr ?? null, bodyBattery: wm.body_battery ?? null, trainingReadiness: wm.training_readiness ?? null } : null,
+    edn360: { training: edn360.scores.training, nutrition: edn360.scores.nutrition, cardio: edn360.scores.cardio, recovery: edn360.scores.recovery, overall: edn360.overall },
+    weakPoints: weakPoint.weakest ? [weakPoint.weakest.muscle] : [],
+    injuryRisk: aosFacts.injuryRisk,
+    plateauRisk: aosFacts.plateau,
+    mesocycle: meso.label,
+    nextBestAction: aos.nextBestAction,
+  });
+
+  return Response.json({ edn360, weakPoint, athleteState, state, alerts, aos, notifications, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }
