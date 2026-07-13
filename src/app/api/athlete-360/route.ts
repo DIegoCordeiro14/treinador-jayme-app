@@ -7,6 +7,7 @@ import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
 import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
 import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
+import { buildNotifications } from '@/lib/athlete-os/notifications';
 import { canonicalGoal } from '@/lib/edn/goal';
 
 export const runtime = 'nodejs';
@@ -144,6 +145,7 @@ export async function GET(_req: NextRequest) {
     prReady: (strengthTrendPct != null && strengthTrendPct >= 3) && (recovery?.category === 'good' || recovery?.category === 'excellent') && !(perWeekGain != null && false),
   };
   const aos = orchestrate(aosFacts);
+  const notifications = buildNotifications(aos);
 
-  return Response.json({ edn360, weakPoint, athleteState, alerts, aos, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  return Response.json({ edn360, weakPoint, athleteState, alerts, aos, notifications, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

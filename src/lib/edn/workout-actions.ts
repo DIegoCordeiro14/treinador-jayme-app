@@ -13,6 +13,7 @@
  *  - reschedule_workouts : reprograma o calendário (schedule_config) do plano ativo
  */
 import { invalidateAthleteContext } from '@/lib/edn/athlete-context';
+import { logTimeline } from '@/lib/athlete-os/timeline';
 
 export type WorkoutActionType =
   | 'substitute_exercise'
@@ -292,6 +293,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
           from_goal: fromGoal, to_goal: goal,
         });
       } catch { /* tabela pode não existir ainda */ }
+      await logTimeline(supabase, userId, 'goal_change', `Objetivo → ${label[goal]}`, `de ${fromGoal ?? '—'} para ${goal}`, { from: fromGoal, to: goal });
       return { ok: true, message: `Objetivo atualizado para ${label[goal]} — macros e calorias recalculados automaticamente.` };
     }
 
@@ -324,6 +326,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
         if (next !== e.sets) { const { error } = await supabase.from('workout_exercises').update({ sets: next }).eq('id', e.id); if (!error) changed++; }
       }
       await logCoachDecision(supabase, userId, 'treino', 'Deload aplicado (-40% séries no dia)', a.reason);
+      await logTimeline(supabase, userId, 'deload', 'Deload aplicado', '-40% séries no dia');
       return { ok: changed > 0, message: changed > 0 ? `Deload aplicado: séries reduzidas em ${changed} exercício(s).` : 'Deload não alterou as séries.' };
     }
 
@@ -380,6 +383,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       try { await supabase.from('workout_plan_versions').insert({ user_id: userId, plan_id: planId, version: 1, snapshot: { name, goal, days_per_week: dpw, days: a.days }, reason: a.reason ?? 'Plano criado pelo Coach' }); } catch { /* ok */ }
       await logCoachDecision(supabase, userId, 'treino', `Plano criado: "${name}" (${dpw}x/sem, ${a.days.length} dias, ${totalEx} exercícios)`, a.reason);
 
+      await logTimeline(supabase, userId, 'new_plan', `Novo plano: ${name}`, `${dpw}x/sem · ${a.days.length} dias · ${totalEx} exercícios`);
       return { ok: true, message: `Plano "${name}" criado com ${a.days.length} dia(s) e ${totalEx} exercício(s)${a.setActive ? ' — definido como ativo' : ''}.` };
     }
 
@@ -439,6 +443,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       const { error } = await supabase.from('profiles').update({ target_race_date: date, target_race_name: a.raceName ?? null }).eq('id', userId);
       if (error) return { ok: false, message: `Preparação de prova: ${error.message}` };
       await logCoachDecision(supabase, userId, 'cardio', `Prova definida: ${a.raceName ?? 'prova'} em ${date}`, a.reason);
+      await logTimeline(supabase, userId, 'race_scheduled', `Prova marcada: ${a.raceName ?? 'prova'}`, date);
       return { ok: true, message: `Prova marcada para ${date}${a.raceName ? ` (${a.raceName})` : ''} — periodização e modo endurance ativados.` };
     }
 

@@ -1107,3 +1107,15 @@ create policy "Users manage own plan versions" on public.workout_plan_versions f
 create index if not exists idx_workout_plan_versions_user on public.workout_plan_versions(user_id, created_at desc);
 
 -- (extract-workout não cria tabelas — usa exercises/workout_* existentes)
+
+-- ── AOS Bloco 11: Timeline do atleta ────────────────────────────────────────
+create table if not exists public.athlete_timeline (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null, title text not null, detail text, meta jsonb,
+  created_at timestamptz not null default now()
+);
+alter table public.athlete_timeline enable row level security;
+drop policy if exists "Users manage own timeline" on public.athlete_timeline;
+create policy "Users manage own timeline" on public.athlete_timeline for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_athlete_timeline_user on public.athlete_timeline(user_id, created_at desc);
