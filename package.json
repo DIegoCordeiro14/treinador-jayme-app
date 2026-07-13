@@ -18,7 +18,8 @@
     "test:alerts": "tsc src/lib/edn/coach-alert-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-coach-alerts.js",
     "test:router": "tsc src/lib/ai-coach/coach-router.ts src/lib/ai-coach/agents.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-coach-router.js",
     "test:cardioprog": "tsc src/lib/edn/cardio-progression-engine.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-progression.js",
-    "test:load": "tsc src/lib/edn/load-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-load-intelligence.js"
+    "test:load": "tsc src/lib/edn/load-intelligence.ts --outDir scripts/.tmp --module commonjs --target es2019 --skipLibCheck && node scripts/test-load-intelligence.js",
+    "test:aos": "tsc src/lib/athlete-os/index.ts --outDir scripts/.tmp/athlete-os --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-os.js"
   },
   "dependencies": {
     "next": "14.2.0",

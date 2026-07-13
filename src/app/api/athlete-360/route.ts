@@ -6,6 +6,7 @@ import { computeNutritionTargets, computeNutritionScore } from '@/lib/edn/nutrit
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
 import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
+import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
 import { canonicalGoal } from '@/lib/edn/goal';
 
 export const runtime = 'nodejs';
@@ -122,5 +123,27 @@ export async function GET(_req: NextRequest) {
     periodDays: 30,
   });
 
-  return Response.json({ edn360, weakPoint, athleteState, alerts, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  // ── Athlete Operating System: decisão única coordenada ────────────────────
+  const perWeekGain = weightTrendKg != null ? weightTrendKg / (30 / 7) : null;
+  const aosFacts: AOSFacts = {
+    recoveryCategory: (recovery?.category ?? 'moderate') as any,
+    recoveryScore: recovery?.score ?? null,
+    hrvDropPct,
+    sleepHours: wm?.sleep_hours ?? null,
+    injuryRisk: 'none',
+    overreaching: (strengthTrendPct != null && strengthTrendPct < -10) && load.risk === 'alto',
+    plateau: goalIsCut && weightTrendKg != null && Math.abs(weightTrendKg) < 0.3,
+    inDeload: false,
+    cardioLoadRisk: load.risk,
+    strengthTrendPct,
+    weightTrendKg,
+    goalIsCut,
+    nutritionScore,
+    adherencePct: Math.round(Math.min(100, (loggedDays / 14) * 100)),
+    weakPointMuscle: weakPoint.weakest?.muscle ?? null,
+    prReady: (strengthTrendPct != null && strengthTrendPct >= 3) && (recovery?.category === 'good' || recovery?.category === 'excellent') && !(perWeekGain != null && false),
+  };
+  const aos = orchestrate(aosFacts);
+
+  return Response.json({ edn360, weakPoint, athleteState, alerts, aos, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }
