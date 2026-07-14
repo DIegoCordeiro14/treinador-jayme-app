@@ -24,7 +24,8 @@
     "test:state": "tsc src/lib/athlete-os/athlete-state.ts --outDir scripts/.tmp/as --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-state.js",
     "test:memory": "tsc src/lib/athlete-os/longitudinal-memory.ts --outDir scripts/.tmp/lm --module commonjs --target es2019 --skipLibCheck && node scripts/test-longitudinal.js",
     "test:fingerprint": "tsc src/lib/cardio/activity-fingerprint.ts --outDir scripts/.tmp/fp --module commonjs --target es2019 --skipLibCheck && node scripts/test-fingerprint.js",
-    "test:import": "tsc src/lib/cardio/import-processing.ts --outDir scripts/.tmp/ip --module commonjs --target es2019 --skipLibCheck && node scripts/test-import-processing.js"
+    "test:import": "tsc src/lib/cardio/import-processing.ts --outDir scripts/.tmp/ip --module commonjs --target es2019 --skipLibCheck && node scripts/test-import-processing.js",
+    "test:addset": "tsc src/lib/edn/additional-set-engine.ts src/lib/edn/load-intelligence.ts --outDir scripts/.tmp/as --module commonjs --target es2019 --skipLibCheck && node scripts/test-additional-set.js"
   },
   "dependencies": {
     "next": "14.2.0",

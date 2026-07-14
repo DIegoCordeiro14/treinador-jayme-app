@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { suggestProgression } from '@/lib/edn/progression-engine';
+import { evaluateAdditionalSet, type AddSetType } from '@/lib/edn/additional-set-engine';
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Bot, TrendingUp,
   Loader2, Trophy, Clock, Zap, BarChart2, ArrowLeft, Play,
@@ -16,16 +17,18 @@ import type { WorkoutExerciseWithExercise } from '@/types';
 import { RestTimer } from '@/components/workout/rest-timer';
 import { fetchWorkoutMetrics, fetchLiveHr, type WorkoutMetrics } from '@/lib/wearables/workout-metrics';
 
-type SetType = 'aquecimento' | 'feeder' | 'top' | 'working';
-interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; }
+type SetType = 'aquecimento' | 'feeder' | 'top' | 'working' | 'backoff' | 'corrective';
+interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; source?: string; addedDuringSession?: boolean; additionReason?: string; }
 
 const SET_TYPE_CONFIG: Record<SetType, { label: string; color: string; bg: string }> = {
   aquecimento: { label: 'Aquecimento', color: 'text-sky-400',    bg: 'bg-sky-400/15 border-sky-400/30' },
   feeder:      { label: 'Feeder',      color: 'text-yellow-400', bg: 'bg-yellow-400/15 border-yellow-400/30' },
   top:         { label: 'Top Set',     color: 'text-orange-400', bg: 'bg-orange-400/15 border-orange-400/30' },
   working:     { label: 'Working',     color: 'text-zinc-300',   bg: 'bg-zinc-700/50 border-zinc-600/30' },
+  backoff:     { label: 'Back-off',    color: 'text-emerald-400',bg: 'bg-emerald-400/15 border-emerald-400/30' },
+  corrective:  { label: 'Corretiva',   color: 'text-purple-400', bg: 'bg-purple-400/15 border-purple-400/30' },
 };
-const SET_TYPE_CYCLE: SetType[] = ['aquecimento', 'feeder', 'top', 'working'];
+const SET_TYPE_CYCLE: SetType[] = ['aquecimento', 'feeder', 'top', 'working', 'backoff', 'corrective'];
 
 function autoSetTypes(count: number): SetType[] {
   if (count === 1) return ['top'];
@@ -117,6 +120,37 @@ export default function ExecutarPage() {
   const [exStates, setExStates] = useState<ExState[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [prescriptions, setPrescriptions] = useState<Record<string, any>>({});
+  const [showAddSet, setShowAddSet] = useState(false);
+  function addDynamicSet(type: AddSetType) {
+    setShowAddSet(false);
+    const ex = exercises[currentIdx]; const st0 = exStates[currentIdx];
+    if (!ex || !st0) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const presc = (prescriptions as any)[ex.id];
+    const topKg = presc?.topSet?.weightKg ?? ((parseFloat(st0.sets.find(x => x.setType === 'top')?.weight || '') || 0) || 50);
+    const completed = st0.sets.filter(x => x.completed).map(x => ({ kind: x.setType, weightKg: parseFloat(x.weight) || 0, reps: parseInt(x.reps) || 0, rir: x.rir !== '' ? parseInt(x.rir) : null }));
+    const workingDone = completed.filter(x => x.kind === 'working' || x.kind === 'backoff').length;
+    const dec = evaluateAdditionalSet({
+      requestedSetType: type, topSetKg: topKg, completedSets: completed,
+      muscleWeeklySets: workingDone, estimatedMrv: 22, recoveryScore: 70,
+      repsMin: ex.reps_min ?? 8, repsMax: ex.reps_max ?? 12,
+    });
+    const proceed = () => {
+      setExStates(prev => { const n = [...prev]; const cur = n[currentIdx];
+        const entry = { weight: dec.suggested ? String(dec.suggested.weightKg) : '', reps: dec.suggested ? String(dec.suggested.reps) : '', rir: dec.suggested?.rir != null ? String(dec.suggested.rir) : '2', completed: false, setType: type as any, source: 'user_added', addedDuringSession: true, additionReason: dec.reason };
+        n[currentIdx] = { ...cur, sets: [...cur.sets, entry] }; return n; });
+      saveProgressRef.current?.();
+      toast.success(`Série de ${type} adicionada`, { description: dec.reason });
+    };
+    if (dec.requiresConfirmation || !dec.allowed) {
+      const msg = `${dec.warningLevel === 'high' ? '⚠️ ' : ''}${dec.reason}\n\nAdicionar mesmo assim?`;
+      if (window.confirm(msg)) proceed();
+    } else proceed();
+  }
+  function removeSet(exIdx: number, sIdx: number) {
+    setExStates(prev => { const n = [...prev]; n[exIdx] = { ...n[exIdx], sets: n[exIdx].sets.filter((_, i) => i !== sIdx) }; return n; });
+    saveProgressRef.current?.();
+  }
   const [prevLoads, setPrevLoads] = useState<Record<string, number>>({});
   const [prevTimes, setPrevTimes] = useState<Record<string, number>>({}); // isométrico: tempo (s) anterior
   const [ednSuggestions, setEdnSuggestions] = useState<Record<string, { suggestedWeight: number; model: string; stagnant: boolean }>>({});
@@ -453,7 +487,7 @@ export default function ExecutarPage() {
         const isoEx = !!(ex.exercise as any)?.is_isometric;
         const w = isoEx ? 0 : (parseFloat(s.weight) || 0), r = parseInt(s.reps) || 0;
         totalVolume += w * r;
-        allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType });
+        allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType, source: s.source ?? 'plan', added_during_session: !!s.addedDuringSession, addition_reason: s.additionReason ?? null });
       });
     });
     // Análises do Coach EDN por exercício (exercise_id -> texto)
@@ -858,7 +892,7 @@ export default function ExecutarPage() {
               {st.sets.map((s, si) => {
                 const typeConf = SET_TYPE_CONFIG[s.setType];
                 return (
-                <div key={si} className={cn('grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2.5 border-b border-zinc-800/50 last:border-0 transition-colors', s.completed && 'bg-green-500/5')}>
+                <div key={si} className={cn('relative grid grid-cols-[80px_1fr_1fr_70px_44px] items-center gap-2 px-3 py-2.5 border-b border-zinc-800/50 last:border-0 transition-colors', s.completed && 'bg-green-500/5')}>
                   <button
                     onClick={() => !s.completed && cycleSetType(currentIdx, si)}
                     disabled={s.completed}
@@ -867,6 +901,9 @@ export default function ExecutarPage() {
                   >
                     {typeConf.label}
                   </button>
+                  {s.addedDuringSession && !s.completed && (
+                    <button onClick={() => { if (parseFloat(s.weight) > 0 && !window.confirm('Remover esta série adicionada?')) return; removeSet(currentIdx, si); }} className="absolute right-0.5 top-0.5 z-10 text-[10px] text-[#C97B7B] px-1" title="Remover série adicionada">✕</button>
+                  )}
                   {iso ? (
                     <span className="text-center text-xs text-zinc-600">—</span>
                   ) : (
@@ -887,6 +924,20 @@ export default function ExecutarPage() {
               })}
             </div>
           )}
+
+          {/* + Adicionar série (dinâmica, validada pelo motor EDN) */}
+          {st && ex ? (
+            <div className="relative">
+              <button onClick={() => setShowAddSet(v => !v)} className="w-full mt-1 py-2.5 rounded-xl border border-dashed border-zinc-700 text-zinc-400 text-[13px] font-semibold hover:border-[#D4853A]/40 hover:text-[#E09B5A] transition-colors">+ Adicionar série</button>
+              {showAddSet && (
+                <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-zinc-700 bg-zinc-900 p-1.5 shadow-xl">
+                  {([['aquecimento','Aquecimento'],['feeder','Feeder'],['working','Working Set'],['backoff','Back-off Set'],['corrective','Série corretiva'],['top','Top Set (fadiga alta)']] as [AddSetType,string][]).map(([t,l]) => (
+                    <button key={t} onClick={() => addDynamicSet(t)} className="w-full text-left px-3 py-2 rounded-lg text-[13px] text-zinc-200 hover:bg-zinc-800">{l}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* AI Feedback */}
           {st && (st.feedbackLoading || st.feedback) && (
