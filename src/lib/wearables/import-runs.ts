@@ -12,19 +12,23 @@ export interface WatchRun {
   distanceKm: number;
   calories: number | null;
   avgHr: number | null;
+  maxHr: number | null;
+  distanceMeters: number | null;
   coordinates: { lat: number; lng: number }[];
+  gpsPoints: { lat: number; lng: number; t: string | null; altitude: number | null }[];
+  heartRateSamples: { t: string | null; bpm: number }[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function num(v: any): number | null { const n = Number(v); return Number.isFinite(n) ? n : null; }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractRoute(wk: any): { lat: number; lng: number }[] {
+function extractRoute(wk: any): { lat: number; lng: number; t: string | null; altitude: number | null }[] {
   const arr = wk?.route ?? wk?.locations ?? wk?.routePoints ?? wk?.gpsPoints ?? [];
-  const out: { lat: number; lng: number }[] = [];
+  const out: { lat: number; lng: number; t: string | null; altitude: number | null }[] = [];
   for (const p of (Array.isArray(arr) ? arr : [])) {
     const lat = num(p?.lat ?? p?.latitude);
     const lng = num(p?.lng ?? p?.long ?? p?.longitude);
-    if (lat != null && lng != null) out.push({ lat, lng });
+    if (lat != null && lng != null) out.push({ lat, lng, t: p?.time ?? p?.timestamp ?? p?.recordedAt ?? null, altitude: num(p?.altitude ?? p?.alt) });
   }
   return out;
 }
@@ -60,7 +64,8 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
     const raw = (r?.workouts ?? []) as any[];
     const runs: WatchRun[] = [];
     for (const wk of raw) {
-      const coords = extractRoute(wk);
+      const gpts = extractRoute(wk);
+      const coords = gpts.map(p => ({ lat: p.lat, lng: p.lng }));
       const distM = num(wk?.distance) ?? 0;
       const distanceKm = distM > 0 ? Math.round((distM / 1000) * 1000) / 1000 : 0;
       const startISO: string | null = wk?.startDate ?? wk?.startTime ?? null;
@@ -69,8 +74,11 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
       const durationMin = Math.max(1, Math.round((durationSec || 0) / 60));
       const cal = num(wk?.calories) ?? num(wk?.totalCalories) ?? num(wk?.activeCalories);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const bpms = (wk?.heartRate ?? []).map((h: any) => num(h?.bpm) ?? num(h?.value)).filter((x: number | null) => x != null) as number[];
+      const hrRaw = (wk?.heartRate ?? []) as any[];
+      const hrSamples = hrRaw.map((h: any) => ({ t: h?.time ?? h?.timestamp ?? h?.recordedAt ?? null, bpm: num(h?.bpm) ?? num(h?.value) })).filter((x: any) => x.bpm != null) as { t: string | null; bpm: number }[];
+      const bpms = hrSamples.map(h => h.bpm);
       const avgHr = bpms.length ? Math.round(bpms.reduce((a, b) => a + b, 0) / bpms.length) : null;
+      const maxHr = bpms.length ? Math.max(...bpms) : null;
       const wtype = String(wk?.workoutType ?? wk?.type ?? '').toUpperCase();
       const isRun = wtype.includes('RUN');
       const isWalk = wtype.includes('WALK') || wtype.includes('HIK');
@@ -81,7 +89,11 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
         startedAt: startISO ?? new Date().toISOString(),
         durationMin, distanceKm,
         calories: cal != null ? Math.round(cal) : null,
-        avgHr, coordinates: coords,
+        avgHr, maxHr,
+        distanceMeters: distM > 0 ? distM : null,
+        coordinates: coords,
+        gpsPoints: gpts,
+        heartRateSamples: hrSamples,
       });
     }
     runs.sort((a, b) => b.startedAt.localeCompare(a.startedAt));

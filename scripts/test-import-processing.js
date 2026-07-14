@@ -1,0 +1,21 @@
+const E=require('./.tmp/ip/import-processing.js');
+let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
+console.log('\n== processGpsPoints ==');
+let g=E.processGpsPoints([{latitude:-23.5,longitude:-46.6,timestamp:'2026-07-14T10:00:02Z'},{latitude:0,longitude:0},{latitude:-23.5,longitude:-46.6,timestamp:'2026-07-14T10:00:02Z'},{latitude:200,longitude:-46.6},{latitude:-23.6,longitude:-46.7,timestamp:'2026-07-14T10:00:00Z'}]);
+check('remove (0,0) e lat>90', !g.some(p=>p.latitude===0||Math.abs(p.latitude)>90));
+check('ordena por timestamp', new Date(g[0].timestamp).getTime()<=new Date(g[g.length-1].timestamp).getTime());
+check('remove duplicado consecutivo', g.length===2, String(g.length));
+console.log('\n== processHeartRate ==');
+const samples=[]; for(let i=0;i<20;i++) samples.push({bpm: i<10?130:170}); // metade 130, metade 170
+let hr=E.processHeartRate(samples, 190, 30);
+check('avg calculado', hr.avg===150, String(hr.avg));
+check('max/min', hr.max===170 && hr.min===130);
+check('zonas somam ~100%', Math.abs(hr.timeInZonePct.reduce((a,b)=>a+b,0)-100)<=2, JSON.stringify(hr.timeInZonePct));
+check('deriva positiva (subiu na 2a metade)', hr.drift>0, String(hr.drift));
+check('sem amostras → avg null', E.processHeartRate([],null,30).avg===null);
+check('BPM invalido filtrado', E.processHeartRate([{bpm:15},{bpm:300},{bpm:150}],190,30).samples===1);
+console.log('\n== importStatus ==');
+check('gps+hr → complete', E.importStatus({gpsPoints:[1,2],heartRateSamples:[1]})==='complete');
+check('só gps → partial', E.importStatus({gpsPoints:[1,2],heartRateSamples:[]})==='partial');
+check('nada → summary', E.importStatus({gpsPoints:[],heartRateSamples:[]})==='summary_imported');
+console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);

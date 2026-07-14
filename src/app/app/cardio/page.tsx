@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { softDeleteCardio, restoreCardio, permanentlyDeleteCardio } from '@/lib/cardio/delete-actions';
 import { sourceLabel, computeFingerprint } from '@/lib/cardio/activity-fingerprint';
+import { processGpsPoints, processHeartRate, importStatus } from '@/lib/cardio/import-processing';
 import { Trash2 } from 'lucide-react';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -213,7 +214,28 @@ export default function CardioPage() {
       external_id: run.externalId,
     }).select('id').single();
     if (!error && inserted) {
-      try { await supabase.from('cardio_session_sources').insert({ user_id: user.id, session_id: (inserted as any).id, provider, transport: 'health_connect', external_id: run.externalId }); } catch { /* ok */ }
+      const sid = (inserted as any).id;
+      try { await supabase.from('cardio_session_sources').insert({ user_id: user.id, session_id: sid, provider, transport: 'health_connect', external_id: run.externalId }); } catch { /* ok */ }
+      // Persistência completa em segundo plano (rota + FC + métricas)
+      void (async () => {
+        try {
+          const gps = processGpsPoints((run.gpsPoints ?? []).map(p => ({ latitude: p.lat, longitude: p.lng, timestamp: p.t, altitude: p.altitude })));
+          if (gps.length > 1) {
+            const rows = gps.map(p => ({ user_id: user.id, session_id: sid, recorded_at: p.timestamp ?? null, latitude: p.latitude, longitude: p.longitude, altitude: p.altitude ?? null, source_provider: provider }));
+            for (let k = 0; k < rows.length; k += 500) await supabase.from('cardio_gps_points').insert(rows.slice(k, k + 500));
+          }
+          const samples = (run.heartRateSamples ?? []).map(h => ({ timestamp: h.t, bpm: h.bpm }));
+          if (samples.length) {
+            const hrRows = samples.map(h => ({ user_id: user.id, session_id: sid, recorded_at: h.timestamp ?? null, bpm: h.bpm, source_provider: provider }));
+            for (let k = 0; k < hrRows.length; k += 500) await supabase.from('cardio_heart_rate_samples').insert(hrRows.slice(k, k + 500));
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const prof = (await supabase.from('profiles').select('age').eq('id', user.id).maybeSingle()).data as any;
+          const hr = processHeartRate(samples, run.maxHr, prof?.age ?? null);
+          const status = importStatus({ gpsPoints: run.gpsPoints ?? [], heartRateSamples: samples, distanceMeters: run.distanceMeters });
+          await supabase.from('cardio_sessions').update({ max_hr: hr.max, hr_metrics: hr, import_status: status, provider_distance_meters: run.distanceMeters, coach_processed_distance_meters: run.distanceMeters }).eq('id', sid);
+        } catch { /* não-fatal */ }
+      })();
     }
     setImportingId(null);
     if (error) { toast.error('Erro ao importar'); return; }
@@ -745,6 +767,8 @@ export default function CardioPage() {
                     dateLabel: format(dt, "dd 'de' MMM", { locale: ptBR }),
                     calories: s.calories_burned ?? null,
                     coachAnalysis: s.coach_analysis ?? null,
+                    hrMetrics: (s as any).hr_metrics ?? null,
+                    sourceLabel: sourceLabel(s.source_provider, s.source_transport),
                   }) : undefined}
                   className={cn("rounded-xl border border-zinc-800 bg-zinc-900 p-4", s.distance_km && "cursor-pointer hover:border-zinc-700 transition-colors")}>
                   <div className="flex items-start justify-between mb-2">

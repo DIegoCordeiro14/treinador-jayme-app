@@ -1159,3 +1159,24 @@ create table if not exists public.activity_audit_logs (
 alter table public.activity_audit_logs enable row level security;
 drop policy if exists "Users manage own activity audit" on public.activity_audit_logs;
 create policy "Users manage own activity audit" on public.activity_audit_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ── Importação completa de corridas: pontos GPS + amostras de FC ────────────
+create table if not exists public.cardio_gps_points (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  session_id uuid not null references public.cardio_sessions(id) on delete cascade, recorded_at timestamptz,
+  latitude double precision not null, longitude double precision not null, altitude double precision, accuracy double precision,
+  speed_mps double precision, bearing double precision, source_provider text, created_at timestamptz not null default now() );
+alter table public.cardio_gps_points enable row level security;
+drop policy if exists "Users manage own gps points" on public.cardio_gps_points;
+create policy "Users manage own gps points" on public.cardio_gps_points for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create table if not exists public.cardio_heart_rate_samples (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  session_id uuid not null references public.cardio_sessions(id) on delete cascade, recorded_at timestamptz, bpm int not null,
+  source_provider text, created_at timestamptz not null default now() );
+alter table public.cardio_heart_rate_samples enable row level security;
+drop policy if exists "Users manage own hr samples" on public.cardio_heart_rate_samples;
+create policy "Users manage own hr samples" on public.cardio_heart_rate_samples for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+alter table public.cardio_sessions add column if not exists import_status text;
+alter table public.cardio_sessions add column if not exists provider_distance_meters double precision;
+alter table public.cardio_sessions add column if not exists coach_processed_distance_meters double precision;
+alter table public.cardio_sessions add column if not exists hr_metrics jsonb;

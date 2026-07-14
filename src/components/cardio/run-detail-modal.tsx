@@ -13,6 +13,9 @@ export interface RunDetail {
   dateLabel: string;
   calories?: number | null;
   coachAnalysis?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  hrMetrics?: any | null;
+  sourceLabel?: string | null;
 }
 interface Props { run: RunDetail; onClose: () => void; }
 
@@ -330,6 +333,25 @@ export default function RunDetailModal({ run, onClose }: Props) {
             <p className="text-[13px] text-zinc-200 leading-relaxed whitespace-pre-line">{run.coachAnalysis}</p>
           </div>
         )}
+        {run.hrMetrics && run.hrMetrics.avg != null ? (
+          <div className="rounded-2xl border border-[#8B5A5A]/30 bg-[#8B5A5A]/10 p-3">
+            <p className="text-[11px] font-bold text-[#C97B7B] mb-1.5">Frequência cardíaca</p>
+            <div className="flex gap-4 text-[12px] text-zinc-300 mb-2">
+              <span>Média <strong className="text-zinc-100">{run.hrMetrics.avg} bpm</strong></span>
+              <span>Máx <strong className="text-zinc-100">{run.hrMetrics.max} bpm</strong></span>
+              {run.hrMetrics.drift != null && <span>Deriva <strong className="text-zinc-100">{run.hrMetrics.drift > 0 ? '+' : ''}{run.hrMetrics.drift}%</strong></span>}
+            </div>
+            <div className="flex h-3 rounded-full overflow-hidden">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {(run.hrMetrics.timeInZonePct ?? []).map((p: number, zi: number) => (
+                <div key={zi} style={{ width: `${p}%` }} className={['bg-[#3A5A6A]','bg-[#5A8A6A]','bg-[#A67C3A]','bg-[#D4853A]','bg-[#C0453A]'][zi]} title={`Z${zi+1}: ${p}%`} />
+              ))}
+            </div>
+            <div className="flex justify-between text-[9px] text-zinc-500 mt-1"><span>Z1</span><span>Z2</span><span>Z3</span><span>Z4</span><span>Z5</span></div>
+          </div>
+        ) : (run.sourceLabel && run.sourceLabel !== 'Coach EDN (GPS)') ? (
+          <p className="text-[11px] text-zinc-500">Atividade importada sem frequência cardíaca.</p>
+        ) : null}
         {hasRoute && (
           !replaying ? (
             <button onClick={startReplay} className="w-full py-3 rounded-2xl border-2 border-white/25 text-white font-bold flex items-center justify-center gap-2">
