@@ -760,7 +760,7 @@ export default function CardioPage() {
                       </p>
                       <p className="text-[10px] text-zinc-600 mt-0.5">{sourceLabel(s.source_provider, s.source_transport)}</p>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); setConfirmDel(s); }} className="p-1.5 -mr-1 text-zinc-600 hover:text-[#C97B7B] transition-colors" title="Excluir atividade">
+                    <button onClick={(e) => { e.stopPropagation(); setConfirmDel({ id: s.id, type: s.type, distance_km: s.distance_km, duration_min: s.duration_min, performed_at: (s as any).performed_at ?? null, created_at: (s as any).created_at, source_provider: s.source_provider ?? null, source_transport: s.source_transport ?? null, external_id: s.external_id ?? null, gps_track: s.gps_track?.coordinates?.length ? { coordinates: [s.gps_track.coordinates[0]] } : null }); }} className="p-1.5 -mr-1 text-zinc-600 hover:text-[#C97B7B] transition-colors" title="Excluir atividade">
                       <Trash2 className="h-4 w-4" />
                     </button>
                     {s.distance_km && (
