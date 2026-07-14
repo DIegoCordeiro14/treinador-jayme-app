@@ -798,6 +798,7 @@ export default function ExecutarPage() {
                   <TrendingUp className="h-4 w-4 shrink-0 text-[#D4853A]" />
                   <div>
                     <p className="text-xs font-bold text-[#E09B5A]">Sugestão EDN: {p.topSet.weightKg}kg × {p.topSet.reps} (Top Set)</p>
+                    <p className="text-[10px] text-zinc-600">Faixa do exercício: {ex.reps_min}–{ex.reps_max} reps</p>
                     <p className="text-[10px] text-zinc-500">{p.strategy}{p.confidence != null ? ` · confiança ${p.confidence}%` : ''}</p>
                   </div>
                 </div>

@@ -4,6 +4,7 @@
  * sugere carga/reps/RIR por tipo. A IA apenas explica; os números vêm daqui.
  */
 import { roundToAvailableLoad } from './load-intelligence';
+import { clampRepsToExerciseRange } from './reps-range';
 
 export type AddSetType = 'aquecimento' | 'feeder' | 'top' | 'working' | 'backoff' | 'corrective';
 export type WarningLevel = 'none' | 'low' | 'moderate' | 'high';
@@ -46,6 +47,7 @@ function performanceDropPct(sets: CompletedSet[]): number | null {
 
 export function evaluateAdditionalSet(c: AdditionalSetContext): AdditionalSetDecision {
   const round = (w: number) => roundToAvailableLoad(w, { step: c.equipmentStep });
+  const cr = (r: number) => clampRepsToExerciseRange(r, c.repsMin, c.repsMax);
   const lastWork = [...c.completedSets].reverse().find(s => s.kind === 'working' || s.kind === 'top');
   const drop = performanceDropPct(c.completedSets);
   const lowRec = c.recoveryScore < 55;
@@ -55,23 +57,23 @@ export function evaluateAdditionalSet(c: AdditionalSetContext): AdditionalSetDec
   if (c.requestedSetType === 'aquecimento') {
     return { allowed: true, warningLevel: 'none', impactsWeeklyVolume: false, requiresConfirmation: false,
       reason: 'Aquecimento extra — preparação, não conta como volume efetivo.',
-      suggested: { weightKg: round(c.topSetKg * 0.65), reps: clamp(5, 4, 6), rir: 5, restSeconds: 60 } };
+      suggested: { weightKg: round(c.topSetKg * 0.65), reps: cr(c.repsMax), rir: 5, restSeconds: 60 } };
   }
   if (c.requestedSetType === 'feeder') {
     return { allowed: true, warningLevel: 'none', impactsWeeklyVolume: false, requiresConfirmation: false,
       reason: 'Feeder extra — aproxima da carga principal com baixa fadiga (longe da falha).',
-      suggested: { weightKg: round(c.topSetKg * 0.80), reps: clamp(3, 2, 5), rir: 4, restSeconds: 90 } };
+      suggested: { weightKg: round(c.topSetKg * 0.80), reps: cr(c.repsMin), rir: 4, restSeconds: 90 } };
   }
   if (c.requestedSetType === 'corrective') {
     const base = lastWork?.weightKg ?? c.topSetKg * 0.8;
     return { allowed: true, warningLevel: 'low', impactsWeeklyVolume: false, requiresConfirmation: false,
       reason: 'Série corretiva — prioridade em técnica/amplitude; não conta como progressão.',
-      suggested: { weightKg: round(base * 0.88), reps: c.repsMax, rir: 3, restSeconds: 90 } };
+      suggested: { weightKg: round(base * 0.88), reps: cr(c.repsMax), rir: 3, restSeconds: 90 } };
   }
   if (c.requestedSetType === 'top') {
     return { allowed: true, warningLevel: 'high', impactsWeeklyVolume: true, requiresConfirmation: true,
       reason: 'Repetir o Top Set aumenta muito a fadiga. Só faz sentido após erro técnico/interrupção ou se o plano previr múltiplos top sets — senão prefira Working/Back-off.',
-      suggested: { weightKg: round(c.topSetKg), reps: c.repsMin, rir: 2, restSeconds: 180 } };
+      suggested: { weightKg: round(c.topSetKg), reps: cr(c.repsMin), rir: 2, restSeconds: 180 } };
   }
 
   // Working / Back-off — validar volume/fadiga.
@@ -88,7 +90,7 @@ export function evaluateAdditionalSet(c: AdditionalSetContext): AdditionalSetDec
   const dropStep = c.requestedSetType === 'backoff' ? 0.03 : 0.0;
   const suggested: SuggestedSet = {
     weightKg: round(base * (1 - dropStep) * (warning === 'high' ? 0.92 : 1)),
-    reps: clamp((lastWork?.reps ?? c.repsMax), c.repsMin, c.repsMax),
+    reps: cr(lastWork?.reps ?? c.repsMax),
     rir: 1, restSeconds: c.requestedSetType === 'backoff' ? 120 : 150,
   };
 

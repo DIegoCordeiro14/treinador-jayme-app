@@ -75,7 +75,13 @@ Retorne APENAS JSON válido, sem markdown:
       }
     }
 
-    return Response.json({ plan: parsed, matchStats: { matched, total } });
+    // Bloco 8: sinaliza reps fora de faixa saudável (o Coach pede confirmação antes de aplicar)
+    let repsFlags = 0;
+    for (const d of (parsed.days ?? [])) for (const ex of (d.exercises ?? [])) {
+      const rmin = Number(ex.repsMin) || 0, rmax = Number(ex.repsMax) || 0;
+      if (rmax > 20 || (rmin > 0 && rmin < 1)) { ex.repsOutOfRange = true; repsFlags++; }
+    }
+    return Response.json({ plan: parsed, matchStats: { matched, total }, repsFlags });
   } catch (err: any) {
     console.error('[extract-workout] error:', err);
     return Response.json({ error: err?.message ?? 'Erro interno' }, { status: 500 });

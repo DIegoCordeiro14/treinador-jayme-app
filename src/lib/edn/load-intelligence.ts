@@ -4,6 +4,8 @@
  * exercício + recuperação + deload. A carga NUNCA é aleatória.
  */
 
+import { clampRepsToExerciseRange } from './reps-range';
+
 export type RecoveryCategory = 'excellent' | 'good' | 'moderate' | 'low' | 'critical';
 
 export interface SetPerf { weightKg: number; reps: number; rir: number | null; dateMs?: number }
@@ -86,7 +88,7 @@ export function prescribeLoads(i: LoadInput): LoadPrescription | null {
     reason = `Ainda dentro da faixa (${last.reps}/${i.repsMin}-${i.repsMax}) — manter carga e buscar +1 rep.`;
   }
 
-  const clampReps = (r: number) => Math.max(i.repsMin, Math.min(i.repsMax, Math.round(r)));
+  const clampReps = (r: number) => clampRepsToExerciseRange(r, i.repsMin, i.repsMax);
   const round = (w: number) => roundToAvailableLoad(w, { step: i.equipmentStep });
   const heavy = topW >= 60 || i.isCompound;
   const overallConf = Math.max(40, Math.min(100, 55 + Math.min(hist.length, 8) * 5 - (lowRec || critical ? 8 : 0)));
@@ -100,12 +102,13 @@ export function prescribeLoads(i: LoadInput): LoadPrescription | null {
 
   // ── Aquecimentos: escada 40% → 60% (reps decrescentes, RIR alto) ──────────
   const warmPcts = nWarm >= 3 ? [0.40, 0.55, 0.65] : nWarm === 2 ? [0.42, 0.58] : [0.5];
-  const warmReps = nWarm >= 3 ? [i.repsMax + 3, 8, 5] : nWarm === 2 ? [i.repsMax + 3, 8] : [i.repsMax];
+  const midReps = clampReps(Math.round((i.repsMin + i.repsMax) / 2));
+  const warmReps = nWarm >= 3 ? [i.repsMax, midReps, i.repsMin] : nWarm === 2 ? [i.repsMax, midReps] : [i.repsMax];
   for (let k = 0; k < nWarm; k++) {
     const pct = warmPcts[k];
     const w = round(topW * pct);
     if (w <= 0) continue;
-    sets.push({ kind: 'aquecimento', weightKg: w, reps: Math.max(5, Math.round(warmReps[k] ?? 10)), targetRir: 5, pctOfTop: Math.round(pct * 100),
+    sets.push({ kind: 'aquecimento', weightKg: w, reps: clampReps(warmReps[k] ?? i.repsMax), targetRir: 5, pctOfTop: Math.round(pct * 100),
       reason: 'Aquecimento — preparar articulações e SNC sem fadiga.', confidence: overallConf });
   }
 
@@ -115,7 +118,7 @@ export function prescribeLoads(i: LoadInput): LoadPrescription | null {
     const pct = feedPcts[k];
     const w = round(topW * pct);
     if (w <= 0 || w >= topW) continue;
-    sets.push({ kind: 'feeder', weightKg: w, reps: Math.max(i.repsMin - 3, 3), targetRir: 4, pctOfTop: Math.round(pct * 100),
+    sets.push({ kind: 'feeder', weightKg: w, reps: clampReps(i.repsMin), targetRir: 4, pctOfTop: Math.round(pct * 100),
       reason: 'Feeder — aproximar da carga principal com baixa fadiga.', confidence: overallConf });
   }
 
