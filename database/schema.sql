@@ -1131,3 +1131,31 @@ alter table public.athlete_state_snapshots enable row level security;
 drop policy if exists "Users manage own state snapshots" on public.athlete_state_snapshots;
 create policy "Users manage own state snapshots" on public.athlete_state_snapshots for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists idx_state_snapshots_user on public.athlete_state_snapshots(user_id, created_at desc);
+
+-- ── Cardio: soft delete + fontes + tombstones + auditoria ───────────────────
+alter table public.cardio_sessions add column if not exists deleted_at timestamptz;
+alter table public.cardio_sessions add column if not exists deleted_by uuid;
+alter table public.cardio_sessions add column if not exists deletion_reason text;
+alter table public.cardio_sessions add column if not exists source_provider text;
+alter table public.cardio_sessions add column if not exists source_transport text;
+alter table public.cardio_sessions add column if not exists external_id text;
+create index if not exists idx_cardio_sessions_active on public.cardio_sessions(user_id, created_at desc) where deleted_at is null;
+create table if not exists public.cardio_session_sources (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  session_id uuid references public.cardio_sessions(id) on delete cascade, provider text not null, transport text not null,
+  external_id text, device_name text, imported_at timestamptz not null default now(), metadata jsonb );
+alter table public.cardio_session_sources enable row level security;
+drop policy if exists "Users manage own cardio sources" on public.cardio_session_sources;
+create policy "Users manage own cardio sources" on public.cardio_session_sources for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create table if not exists public.cardio_import_tombstones (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  provider text, external_id text, activity_fingerprint text not null, deleted_at timestamptz not null default now(), expires_at timestamptz );
+alter table public.cardio_import_tombstones enable row level security;
+drop policy if exists "Users manage own cardio tombstones" on public.cardio_import_tombstones;
+create policy "Users manage own cardio tombstones" on public.cardio_import_tombstones for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create table if not exists public.activity_audit_logs (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  session_id uuid, action text not null, reason text, source text, metadata jsonb, created_at timestamptz not null default now() );
+alter table public.activity_audit_logs enable row level security;
+drop policy if exists "Users manage own activity audit" on public.activity_audit_logs;
+create policy "Users manage own activity audit" on public.activity_audit_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

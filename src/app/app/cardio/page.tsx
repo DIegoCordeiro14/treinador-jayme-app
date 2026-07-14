@@ -18,6 +18,9 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { softDeleteCardio, restoreCardio, permanentlyDeleteCardio } from '@/lib/cardio/delete-actions';
+import { sourceLabel, computeFingerprint } from '@/lib/cardio/activity-fingerprint';
+import { Trash2 } from 'lucide-react';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AutopilotCard from '@/components/edn/autopilot-card';
@@ -46,6 +49,9 @@ interface CardioSession {
   perceived_effort: number | null;
   gps_track: { coordinates: { lat: number; lng: number }[] } | null;
   coach_analysis: string | null;
+  source_provider?: string | null;
+  source_transport?: string | null;
+  external_id?: string | null;
 }
 
 interface AiAnalysis {
@@ -106,6 +112,27 @@ export default function CardioPage() {
   const [loading, setLoading] = useState(true);
   const [showTracker, setShowTracker] = useState(false);
   const [detailRun, setDetailRun] = useState<RunDetail | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [confirmDel, setConfirmDel] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [deletedList, setDeletedList] = useState<any[]>([]);
+  const [showDeleted, setShowDeleted] = useState(false);
+  async function loadDeleted() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('cardio_sessions').select('*').eq('user_id', user.id).not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(40);
+    setDeletedList(data ?? []);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function doSoftDelete(sess: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setConfirmDel(null);
+    const ok = await softDeleteCardio(supabase, user.id, sess);
+    if (!ok) { toast.error('Erro ao excluir'); return; }
+    load(); loadDeleted();
+    toast.success('Corrida excluída', { action: { label: 'Desfazer', onClick: async () => { await restoreCardio(supabase, user.id, sess); load(); loadDeleted(); toast.success('Corrida restaurada'); } } });
+  }
   const [showImport, setShowImport] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importRuns, setImportRuns] = useState<WatchRun[]>([]);
@@ -134,6 +161,7 @@ export default function CardioPage() {
       .from('cardio_sessions')
       .select('*')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(60);
     setSessions((data as CardioSession[]) ?? []);
@@ -162,7 +190,12 @@ export default function CardioPage() {
     // evita duplicar a mesma corrida
     const { data: dup } = await supabase.from('cardio_sessions').select('id').eq('user_id', user.id).eq('performed_at', run.startedAt).maybeSingle();
     if (dup) { toast('Essa corrida já foi importada.'); setImportingId(null); return; }
-    const { error } = await supabase.from('cardio_sessions').insert({
+    // não reimporta corrida que o usuário excluiu (tombstone)
+    const fp = computeFingerprint({ userId: user.id, performedAt: run.startedAt, durationSeconds: run.durationMin * 60, distanceMeters: run.distanceKm ? run.distanceKm * 1000 : null, activityType: run.type, routeStart: run.coordinates.length ? { latitude: run.coordinates[0].lat, longitude: run.coordinates[0].lng } : null });
+    const { data: tomb } = await supabase.from('cardio_import_tombstones').select('id').eq('user_id', user.id).eq('activity_fingerprint', fp).maybeSingle();
+    if (tomb) { toast('Essa corrida foi excluída por você — não será reimportada. Use "Importar novamente" nas Atividades excluídas se quiser.'); setImportingId(null); return; }
+    const provider = 'health_connect';
+    const { data: inserted, error } = await supabase.from('cardio_sessions').insert({
       user_id: user.id,
       performed_at: run.startedAt,
       type: run.type,
@@ -173,7 +206,13 @@ export default function CardioPage() {
       avg_hr: run.avgHr,
       gps_track: run.coordinates.length > 1 ? { coordinates: run.coordinates, max_speed_kmh: 0 } : null,
       notes: 'Importado do relógio',
-    });
+      source_provider: provider,
+      source_transport: 'health_connect',
+      external_id: run.externalId,
+    }).select('id').single();
+    if (!error && inserted) {
+      try { await supabase.from('cardio_session_sources').insert({ user_id: user.id, session_id: (inserted as any).id, provider, transport: 'health_connect', external_id: run.externalId }); } catch { /* ok */ }
+    }
     setImportingId(null);
     if (error) { toast.error('Erro ao importar'); return; }
     toast.success('Corrida importada do relógio!');
@@ -305,6 +344,20 @@ export default function CardioPage() {
   if (detailRun) return (
     <ScreenErrorBoundary onReset={() => setDetailRun(null)}>
       <RunDetailModal run={detailRun} onClose={() => setDetailRun(null)} />
+      {confirmDel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={() => setConfirmDel(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="text-base font-bold text-zinc-100 mb-2">Excluir esta corrida?</p>
+            <p className="text-[13px] text-zinc-400">Distância: {confirmDel.distance_km ?? '—'} km · {confirmDel.type}</p>
+            <p className="text-[13px] text-zinc-400">Origem: {sourceLabel(confirmDel.source_provider, confirmDel.source_transport)}</p>
+            <p className="text-[12px] text-zinc-500 mt-2">Será removida do histórico e deixará de influenciar estatísticas, metas, evolução, nutrição e recuperação.</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setConfirmDel(null)} className="flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 font-semibold">Cancelar</button>
+              <button onClick={() => doSoftDelete(confirmDel)} className="flex-1 py-2.5 rounded-xl bg-[#8B5A5A] hover:bg-[#9B6A6A] text-white font-bold">Excluir corrida</button>
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenErrorBoundary>
   );
 
@@ -703,7 +756,11 @@ export default function CardioPage() {
                       <p className="text-xs text-zinc-500 mt-0.5">
                         {format(dt, "EEEE, dd 'de' MMM", { locale: ptBR })}
                       </p>
+                      <p className="text-[10px] text-zinc-600 mt-0.5">{sourceLabel(s.source_provider, s.source_transport)}</p>
                     </div>
+                    <button onClick={(e) => { e.stopPropagation(); setConfirmDel(s); }} className="p-1.5 -mr-1 text-zinc-600 hover:text-[#C97B7B] transition-colors" title="Excluir atividade">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                     {s.distance_km && (
                       <div className="text-right">
                         <p className="text-lg font-black text-orange-400">{s.distance_km} km</p>
@@ -728,6 +785,23 @@ export default function CardioPage() {
               );
             })
           )}
+
+          {/* Atividades excluídas */}
+          <button onClick={() => { const n = !showDeleted; setShowDeleted(n); if (n) loadDeleted(); }} className="w-full text-left text-[11px] text-zinc-500 hover:text-zinc-300 pt-2">
+            {showDeleted ? '▾' : '▸'} Atividades excluídas{deletedList.length ? ` (${deletedList.length})` : ''}
+          </button>
+          {showDeleted && deletedList.map((d) => (
+            <div key={d.id} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[12px] text-zinc-300">{d.type} · {d.distance_km ?? '—'} km · {formatTime(d.duration_min)}</p>
+                <p className="text-[10px] text-zinc-600">{sourceLabel(d.source_provider, d.source_transport)} · excluída {d.deleted_at ? format(new Date(d.deleted_at), 'dd/MM', { locale: ptBR }) : ''}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; await restoreCardio(supabase, user.id, d); load(); loadDeleted(); toast.success('Corrida restaurada'); }} className="text-[11px] font-bold text-[#7FB58F] px-2 py-1">Restaurar</button>
+                <button onClick={async () => { if (!confirm('Excluir permanentemente? Esta ação não pode ser desfeita.')) return; const { data: { user } } = await supabase.auth.getUser(); if (!user) return; await permanentlyDeleteCardio(supabase, user.id, d.id); loadDeleted(); toast.success('Excluída definitivamente'); }} className="text-[11px] font-bold text-[#C97B7B] px-2 py-1">Excluir</button>
+              </div>
+            </div>
+          ))}
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════════

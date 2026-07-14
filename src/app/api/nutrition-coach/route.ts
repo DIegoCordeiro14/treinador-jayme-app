@@ -31,7 +31,7 @@ export async function POST(_req: NextRequest) {
       supabase.from('bioimpedance_data').select('weight_kg,body_fat_pct,skeletal_muscle_mass_kg,lean_mass_kg,basal_metabolic_rate_kcal,water_pct,visceral_fat_level,measured_at').eq('user_id', user.id).order('measured_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('body_weight_logs').select('log_date,weight_kg').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
       supabase.from('workout_sessions').select('started_at,total_volume_kg').eq('user_id', user.id).gte('started_at', new Date(Date.now() - 14 * 86400000).toISOString()).order('started_at', { ascending: false }),
-      supabase.from('cardio_sessions').select('distance_km').eq('user_id', user.id).gte('created_at', new Date(Date.now() - 14 * 86400000).toISOString()),
+      supabase.from('cardio_sessions').select('distance_km').eq('user_id', user.id).is('deleted_at', null).gte('created_at', new Date(Date.now() - 14 * 86400000).toISOString()),
     ]);
 
     const _sessions = workoutSessions ?? [];

@@ -1,0 +1,16 @@
+const E=require('./.tmp/fp/activity-fingerprint.js');
+let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
+const base={ userId:'u1', performedAt:'2026-07-14T10:00:00Z', durationSeconds:2100, distanceMeters:7010, activityType:'Corrida', routeStart:{latitude:-23.5505,longitude:-46.6333} };
+console.log('\n== fingerprint/dedup ==');
+check('mesma atividade → mesmo fingerprint', E.computeFingerprint(base)===E.computeFingerprint(base));
+check('início +1min → ainda mesma (isSameActivity)', E.isSameActivity(base, {...base, performedAt:'2026-07-14T10:01:00Z'}));
+check('distância +3% → mesma', E.isSameActivity(base, {...base, distanceMeters:7200}));
+check('tipo diferente → NÃO é a mesma', !E.isSameActivity(base, {...base, activityType:'Ciclismo'}));
+check('início +10min → NÃO é a mesma', !E.isSameActivity(base, {...base, performedAt:'2026-07-14T10:12:00Z', distanceMeters:9999}));
+console.log('\n== sourceLabel ==');
+check('mi_fitness via apple_health', E.sourceLabel('mi_fitness','apple_health')==='Importado do Mi Fitness via Apple Health', E.sourceLabel('mi_fitness','apple_health'));
+check('mi_fitness via google_fit', /Google Fit/.test(E.sourceLabel('mi_fitness','google_fit')));
+check('mi_fitness via strava', /Strava/.test(E.sourceLabel('mi_fitness','strava')));
+check('coach_edn → GPS', /Coach EDN/.test(E.sourceLabel('coach_edn',null)));
+check('nunca "do relógio" genérico', !/do relógio/.test(E.sourceLabel('mi_fitness','health_connect')));
+console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);

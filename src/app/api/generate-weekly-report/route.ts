@@ -43,6 +43,7 @@ export async function POST(_req: NextRequest) {
       supabase.from('cardio_sessions')
         .select('type, duration_min, distance_km, intensity, calories_burned, created_at')
         .eq('user_id', user.id)
+        .is('deleted_at', null)
         .gte('created_at', weekAgoISO)
         .order('created_at', { ascending: true }),
 

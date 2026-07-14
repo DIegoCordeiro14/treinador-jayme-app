@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         const now = Date.now();
         const [{ data: prof }, { data: runs }, { data: wm }] = await Promise.all([
           supabase.from('profiles').select('age, target_race_date').eq('id', user.id).maybeSingle(),
-          supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate').eq('user_id', user.id).gte('created_at', new Date(now - 90 * 86400000).toISOString()),
+          supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate').eq('user_id', user.id).is('deleted_at', null).gte('created_at', new Date(now - 90 * 86400000).toISOString()),
           supabase.from('wearable_metrics').select('resting_hr').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
         ]);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

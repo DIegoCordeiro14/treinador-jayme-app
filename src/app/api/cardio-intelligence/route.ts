@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest) {
 
   const [{ data: profile }, { data: runs }, { data: wearable }, { data: sessions7 }] = await Promise.all([
     supabase.from('profiles').select('age, gender, main_goal, athlete_sport, target_race_date, sleep_hours, sleep_quality, stress_level, work_type, weekly_frequency').eq('id', user.id).maybeSingle(),
-    supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate, type').eq('user_id', user.id).gte('created_at', d90.toISOString()).order('created_at', { ascending: true }),
+    supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate, type').eq('user_id', user.id).is('deleted_at', null).gte('created_at', d90.toISOString()).order('created_at', { ascending: true }),
     supabase.from('wearable_metrics').select('hrv_ms, hrv_baseline_ms, resting_hr, sleep_hours, body_battery, training_readiness, recovery_time_hours').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('workout_sessions').select('started_at').eq('user_id', user.id).gte('started_at', new Date(now - 7 * 86400000).toISOString()),
   ]);

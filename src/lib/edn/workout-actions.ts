@@ -14,6 +14,7 @@
  */
 import { invalidateAthleteContext } from '@/lib/edn/athlete-context';
 import { logTimeline } from '@/lib/athlete-os/timeline';
+import { computeFingerprint } from '@/lib/cardio/activity-fingerprint';
 
 export type WorkoutActionType =
   | 'substitute_exercise'
@@ -30,7 +31,10 @@ export type WorkoutActionType =
   | 'increase_muscle_volume'
   | 'upgrade_training_level'
   | 'create_race_preparation'
-  | 'adjust_running_goal';
+  | 'adjust_running_goal'
+  | 'soft_delete_cardio_session'
+  | 'restore_cardio_session'
+  | 'permanently_delete_cardio_session';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -70,6 +74,7 @@ export interface WorkoutAction {
   raceDate?: string;
   raceName?: string;
   goalText?: string;
+  sessionId?: string;
 }
 
 export interface WorkoutActionResult {
@@ -455,6 +460,36 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       if (error) return { ok: false, message: `Meta de corrida: ${error.message}` };
       await logCoachDecision(supabase, userId, 'cardio', `Meta de corrida: ${g}`, a.reason);
       return { ok: true, message: `Meta de corrida registrada: ${g}.` };
+    }
+
+    // ── Exclusão de corrida (soft delete) pelo Coach ──────────────────────────
+    case 'soft_delete_cardio_session': {
+      if (!a.sessionId) return { ok: false, message: 'Exclusão: falta sessionId.' };
+      const { data: sess } = await supabase.from('cardio_sessions').select('*').eq('id', a.sessionId).eq('user_id', userId).is('deleted_at', null).maybeSingle();
+      if (!sess) return { ok: false, message: 'Corrida não encontrada (ou já excluída).' };
+      const { error } = await supabase.from('cardio_sessions').update({ deleted_at: new Date().toISOString(), deleted_by: userId, deletion_reason: a.reason ?? 'coach' }).eq('id', a.sessionId);
+      if (error) return { ok: false, message: `Exclusão falhou: ${error.message}` };
+      try {
+        const coords = (sess as any).gps_track?.coordinates ?? [];
+        const fp = computeFingerprint({ userId, performedAt: (sess as any).performed_at || (sess as any).created_at, durationSeconds: ((sess as any).duration_min ?? 0) * 60, distanceMeters: (sess as any).distance_km != null ? (sess as any).distance_km * 1000 : null, activityType: (sess as any).type ?? 'Corrida', routeStart: coords.length ? { latitude: coords[0].lat, longitude: coords[0].lng } : null });
+        await supabase.from('cardio_import_tombstones').insert({ user_id: userId, provider: (sess as any).source_provider ?? null, external_id: (sess as any).external_id ?? null, activity_fingerprint: fp, expires_at: new Date(Date.now() + 365 * 86400000).toISOString() });
+        await supabase.from('activity_audit_logs').insert({ user_id: userId, session_id: a.sessionId, action: 'soft_deleted', reason: a.reason ?? 'coach', source: 'coach' });
+      } catch { /* non-fatal */ }
+      return { ok: true, message: `Corrida excluída do Coach EDN (${(sess as any).distance_km ?? '—'}km). Deixa de influenciar seus scores; dá pra restaurar nas "Atividades excluídas".` };
+    }
+    case 'restore_cardio_session': {
+      if (!a.sessionId) return { ok: false, message: 'Restaurar: falta sessionId.' };
+      const { error } = await supabase.from('cardio_sessions').update({ deleted_at: null, deleted_by: null, deletion_reason: null }).eq('id', a.sessionId).eq('user_id', userId);
+      if (error) return { ok: false, message: `Restaurar falhou: ${error.message}` };
+      try { await supabase.from('activity_audit_logs').insert({ user_id: userId, session_id: a.sessionId, action: 'restored', source: 'coach' }); } catch { /* ok */ }
+      return { ok: true, message: 'Corrida restaurada — voltou ao histórico e aos cálculos.' };
+    }
+    case 'permanently_delete_cardio_session': {
+      if (!a.sessionId) return { ok: false, message: 'Exclusão definitiva: falta sessionId.' };
+      try { await supabase.from('activity_audit_logs').insert({ user_id: userId, session_id: a.sessionId, action: 'permanently_deleted', source: 'coach' }); } catch { /* ok */ }
+      const { error } = await supabase.from('cardio_sessions').delete().eq('id', a.sessionId).eq('user_id', userId);
+      if (error) return { ok: false, message: `Exclusão definitiva falhou: ${error.message}` };
+      return { ok: true, message: 'Corrida excluída definitivamente (dados vinculados removidos).' };
     }
 
     default:

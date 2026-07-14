@@ -8,7 +8,8 @@ export type AthleteEvent =
   | 'WorkoutCompleted' | 'WorkoutSkipped' | 'BioUpdated' | 'NewWearableSync'
   | 'GoalChanged' | 'NutritionChanged' | 'CardioFinished' | 'WorkoutGenerated'
   | 'RecoveryUpdated' | 'PlanCreated' | 'PlateauDetected' | 'PRAchieved'
-  | 'SleepUpdated' | 'HRVUpdated' | 'RaceScheduled';
+  | 'SleepUpdated' | 'HRVUpdated' | 'RaceScheduled'
+  | 'CardioSessionDeleted' | 'CardioSessionRestored';
 
 // Quais motores/recomputações cada evento aciona (Bloco 4 — pipeline).
 export const EVENT_PIPELINE: Record<AthleteEvent, string[]> = {
@@ -27,6 +28,8 @@ export const EVENT_PIPELINE: Record<AthleteEvent, string[]> = {
   SleepUpdated: ['recovery', 'aos'],
   HRVUpdated: ['recovery', 'aos', 'coach-briefing'],
   RaceScheduled: ['cardio-intelligence', 'nutrition', 'calendar', 'aos'],
+  CardioSessionDeleted: ['cardio-intelligence', 'recovery', 'nutrition', 'athlete-score', 'aos', 'projections', 'coach-briefing'],
+  CardioSessionRestored: ['cardio-intelligence', 'recovery', 'nutrition', 'athlete-score', 'aos', 'projections', 'coach-briefing'],
 };
 
 type Handler = (payload?: unknown) => void;

@@ -56,6 +56,7 @@ export async function GET(_req: NextRequest) {
       .from('cardio_sessions')
       .select('distance_km')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .gte('created_at', weekStart.toISOString()),
     supabase
       .from('body_weight_logs')

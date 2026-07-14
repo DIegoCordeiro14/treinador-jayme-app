@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       .from('cardio_sessions')
       .select('distance_km, duration_min, created_at')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .eq('type', 'Corrida')
       .order('created_at', { ascending: false })
       .limit(8);

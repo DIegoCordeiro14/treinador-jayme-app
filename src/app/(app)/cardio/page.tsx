@@ -122,6 +122,7 @@ export default function CardioPage() {
       .from('cardio_sessions')
       .select('*')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(60);
     setSessions((data as CardioSession[]) ?? []);

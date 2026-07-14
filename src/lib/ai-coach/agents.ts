@@ -248,6 +248,8 @@ Seja direto e técnico; use os números reais do atleta.
 AÇÕES EXECUTÁVEIS (após confirmação; última linha, JSON, sem texto depois):
 - Marcar prova: @@EDN_ACTIONS@@ {\"actions\":[{\"type\":\"create_race_preparation\",\"raceDate\":\"2026-09-20\",\"raceName\":\"Maratona\"}]}
 - Registrar meta de corrida: @@EDN_ACTIONS@@ {\"actions\":[{\"type\":\"adjust_running_goal\",\"goalText\":\"5km abaixo de 28min em 6 semanas\"}]}
+- Excluir corrida (só do Coach EDN): {\"type\":\"soft_delete_cardio_session\",\"sessionId\":\"<id>\",\"reason\":\"duplicada/teste\"} · Restaurar: {\"type\":\"restore_cardio_session\",\"sessionId\":\"<id>\"} · Excluir definitivo: {\"type\":\"permanently_delete_cardio_session\",\"sessionId\":\"<id>\"}
+EXCLUSÃO DE CORRIDA: quando o atleta pedir p/ excluir/apagar/remover uma corrida, LOCALIZE as candidatas em [CÁRDIO]/histórico, apresente data+distância+duração+origem, e só emita a diretiva após confirmação explícita. Nunca exclua uma corrida ambígua sem mostrar as opções. "Excluir" remove só do Coach EDN (não do Mi Fitness/Garmin/Strava/Health).
 As metas semanais de volume saem do MOTOR (cardio-intelligence: evolution.nextTargets) — apresente-as, não invente. Nunca subir volume se evolution.validateIncrease=false (consolidar primeiro).${BASE_RULES}`,
   },
 

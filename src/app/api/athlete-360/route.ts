@@ -39,7 +39,7 @@ export async function GET(_req: NextRequest) {
     supabase.from('body_weight_logs').select('log_date, weight_kg, body_fat_pct').eq('user_id', user.id).gte('log_date', new Date(now - 30 * 86400000).toISOString().slice(0, 10)).order('log_date', { ascending: true }),
     supabase.from('workout_sessions').select('started_at, total_volume_kg').eq('user_id', user.id).gte('started_at', new Date(now - 14 * 86400000).toISOString()),
     supabase.from('food_logs').select('logged_at').eq('user_id', user.id).gte('logged_at', new Date(now - 14 * 86400000).toISOString()),
-    supabase.from('cardio_sessions').select('distance_km, created_at, performed_at').eq('user_id', user.id).gte('created_at', new Date(now - 28 * 86400000).toISOString()),
+    supabase.from('cardio_sessions').select('distance_km, created_at, performed_at').eq('user_id', user.id).is('deleted_at', null).gte('created_at', new Date(now - 28 * 86400000).toISOString()),
     supabase.from('wearable_metrics').select('hrv_ms, hrv_baseline_ms, resting_hr, sleep_hours, body_battery, training_readiness, recovery_time_hours').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('session_sets').select('weight_kg, reps_done, completed, session:workout_sessions!inner(started_at, user_id), exercise:exercises(muscle_group)').eq('session.user_id', user.id).gte('session.started_at', d60.toISOString()),
   ]);

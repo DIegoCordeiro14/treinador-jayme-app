@@ -33,6 +33,7 @@ export async function POST(_req: NextRequest) {
       .from('cardio_sessions')
       .select('type,duration_min,distance_km,intensity,avg_heart_rate,perceived_effort,performed_at,created_at')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(20);
 
