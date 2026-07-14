@@ -121,6 +121,14 @@ export default function ExecutarPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [prescriptions, setPrescriptions] = useState<Record<string, any>>({});
   const [showAddSet, setShowAddSet] = useState(false);
+  useEffect(() => {
+    if (!showAddSet) return;
+    // botão voltar / gesto fecha o bottom sheet em vez de sair da tela
+    window.history.pushState({ sheet: 'addset' }, '');
+    const onPop = () => setShowAddSet(false);
+    window.addEventListener('popstate', onPop);
+    return () => { window.removeEventListener('popstate', onPop); };
+  }, [showAddSet]);
   function addDynamicSet(type: AddSetType) {
     setShowAddSet(false);
     const ex = exercises[currentIdx]; const st0 = exStates[currentIdx];
@@ -933,17 +941,29 @@ export default function ExecutarPage() {
 
           {/* + Adicionar série (dinâmica, validada pelo motor EDN) */}
           {st && ex ? (
-            <div className="relative">
-              <button onClick={() => setShowAddSet(v => !v)} className="w-full mt-1 py-2.5 rounded-xl border border-dashed border-zinc-700 text-zinc-400 text-[13px] font-semibold hover:border-[#D4853A]/40 hover:text-[#E09B5A] transition-colors">+ Adicionar série</button>
-              {showAddSet && (
-                <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-zinc-700 bg-zinc-900 p-1.5 shadow-xl">
-                  {([['aquecimento','Aquecimento'],['feeder','Feeder'],['working','Working Set'],['backoff','Back-off Set'],['corrective','Série corretiva'],['top','Top Set (fadiga alta)']] as [AddSetType,string][]).map(([t,l]) => (
-                    <button key={t} onClick={() => addDynamicSet(t)} className="w-full text-left px-3 py-2 rounded-lg text-[13px] text-zinc-200 hover:bg-zinc-800">{l}</button>
+            <button onClick={() => setShowAddSet(true)} className="w-full mt-1 py-2.5 rounded-xl border border-dashed border-zinc-700 text-zinc-400 text-[13px] font-semibold hover:border-[#D4853A]/40 hover:text-[#E09B5A] transition-colors">+ Adicionar série</button>
+          ) : null}
+
+          {showAddSet && (
+            <div className="fixed inset-0 z-[60] flex flex-col justify-end" role="dialog" aria-modal="true">
+              <div className="absolute inset-0 bg-black/60 animate-in fade-in-0 duration-200" onClick={() => setShowAddSet(false)} />
+              <div className="relative w-full rounded-t-3xl border-t border-zinc-800 bg-zinc-900 animate-in slide-in-from-bottom duration-200"
+                   style={{ maxHeight: '62vh', paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 12px)' }}>
+                <div className="flex justify-center pt-2.5 pb-1"><div className="h-1 w-10 rounded-full bg-zinc-700" /></div>
+                <p className="text-center text-sm font-bold text-zinc-100 pb-2 border-b border-zinc-800">Adicionar série</p>
+                <div className="overflow-y-auto p-2" style={{ maxHeight: '44vh' }}>
+                  {([['aquecimento','Aquecimento','bg-sky-400'],['feeder','Feeder','bg-yellow-400'],['top','Top Set','bg-orange-400'],['working','Working Set','bg-zinc-400'],['backoff','Back-off Set','bg-emerald-400'],['corrective','Série corretiva','bg-purple-400']] as [AddSetType,string,string][]).map(([t,l,c]) => (
+                    <button key={t} onClick={() => addDynamicSet(t)} className="w-full flex items-center gap-3 px-4 min-h-[48px] rounded-xl text-[15px] text-zinc-100 hover:bg-zinc-800 active:bg-zinc-700 transition-colors">
+                      <span className={cn('h-2.5 w-2.5 rounded-full shrink-0', c)} />{l}
+                    </button>
                   ))}
                 </div>
-              )}
+                <div className="px-3 pt-1">
+                  <button onClick={() => setShowAddSet(false)} className="w-full min-h-[48px] rounded-xl border border-zinc-700 text-zinc-300 font-semibold">Cancelar</button>
+                </div>
+              </div>
             </div>
-          ) : null}
+          )}
 
           {/* AI Feedback */}
           {st && (st.feedbackLoading || st.feedback) && (
