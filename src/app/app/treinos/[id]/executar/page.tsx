@@ -908,8 +908,13 @@ export default function ExecutarPage() {
                   {iso ? (
                     <span className="text-center text-xs text-zinc-600">—</span>
                   ) : (
-                    <input type="number" step="0.5" placeholder={sugForSet[si] ? String(sugForSet[si]!.weightKg) : "--"} value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
+                    <div className="relative">
+                      <input type="number" step="0.5" placeholder={sugForSet[si] ? String(sugForSet[si]!.weightKg) : "--"} value={s.weight} onChange={e => updateSet(currentIdx, si, 'weight', e.target.value)} disabled={s.completed}
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />
+                      {sugForSet[si] && !s.completed && !s.weight && (
+                        <button onClick={() => { updateSet(currentIdx, si, 'weight', String(sugForSet[si]!.weightKg)); if (!s.reps) updateSet(currentIdx, si, 'reps', String(sugForSet[si]!.reps)); }} title="Preencher sugestão desta série" className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-[#D4853A] text-white text-[9px] leading-none flex items-center justify-center">↳</button>
+                      )}
+                    </div>
                   )}
                   <input type="number" step={iso ? 5 : 1} min="0" placeholder={iso ? "seg" : (sugForSet[si] ? String(sugForSet[si]!.reps) : "--")} value={s.reps} onChange={e => updateSet(currentIdx, si, 'reps', e.target.value)} disabled={s.completed}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-100 text-center placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#D4853A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" />

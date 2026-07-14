@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { prescribeLoads, type SetPerf, type RecoveryCategory } from '@/lib/edn/load-intelligence';
+import { prescribeLoads, roundToAvailableLoad, type SetPerf, type RecoveryCategory } from '@/lib/edn/load-intelligence';
+import { buildSetProfiles, profileFor, type SetHistoryRecord } from '@/lib/edn/set-progression-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
     // últimas ~40 séries completas desse exercício
     const { data: sets } = await supabase
       .from('session_sets')
-      .select('weight_kg, reps_done, rir, set_type, completed, session:workout_sessions!inner(started_at, user_id)')
+      .select('weight_kg, reps_done, rir, set_type, set_number, completed, session:workout_sessions!inner(started_at, user_id)')
       .eq('exercise_id', exId)
       .eq('session.user_id', user.id)
       .order('id', { ascending: false })
@@ -68,6 +69,32 @@ export async function GET(req: NextRequest) {
       workingSetsCount: Math.max(1, (ex.sets ?? 3) - 1),
       recoveryCategory,
     });
+    // Histórico por POSIÇÃO de série (working) — cada working usa a resposta real da sua posição
+    const typeMap: Record<string, any> = { aquecimento: 'aquecimento', warmup: 'aquecimento', feeder: 'feeder', top: 'top', top_set: 'top', working: 'working', backoff: 'backoff', corrective: 'corrective' };
+    const records: SetHistoryRecord[] = ((sets ?? []) as any[]).filter(x => x.weight_kg != null).map(x => ({
+      performedAt: x.session?.started_at ?? '', setType: (typeMap[x.set_type] ?? 'working'),
+      setPosition: 0, weightKg: x.weight_kg, reps: x.reps_done ?? null, rir: x.rir ?? null, completed: x.completed !== false,
+    }));
+    const profiles = buildSetProfiles(records);
+    if (presc) {
+      let wpos = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const st of (presc.sets as any[])) {
+        if (st.kind === 'working') {
+          wpos++;
+          const prof = profileFor(profiles, 'working', wpos);
+          if (prof && prof.latestWeightKg != null) {
+            // usa a carga real dessa posição, com micro-progressão se a tendência é de alta
+            const bump = prof.recentTrend === 'up' ? 1 : 0;
+            st.weightKg = roundToAvailableLoad(prof.latestWeightKg + bump * (prof.latestWeightKg >= 40 ? 2.5 : 1));
+            st.confidence = prof.confidence;
+            st.reason = `Working ${wpos}: baseado no seu histórico dessa posição (${prof.totalOccurrences} sessões, tendência ${prof.recentTrend}).`;
+          } else {
+            st.reason = (st.reason ?? '') + ' (sem histórico da posição — derivado do Top Set).';
+          }
+        }
+      }
+    }
     out[ex.id] = presc ? { exerciseName: ex.exercise?.name ?? '', ...presc } : { exerciseName: ex.exercise?.name ?? '', noHistory: true };
   }
 
