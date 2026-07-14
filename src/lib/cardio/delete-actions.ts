@@ -29,14 +29,17 @@ async function audit(supabase: SB, userId: string, sessionId: string, action: st
 export async function softDeleteCardio(supabase: SB, userId: string, session: Session, reason = 'manual'): Promise<boolean> {
   const { error } = await supabase.from('cardio_sessions').update({ deleted_at: new Date().toISOString(), deleted_by: userId, deletion_reason: reason }).eq('id', session.id).eq('user_id', userId);
   if (error) return false;
-  try {
-    await supabase.from('cardio_import_tombstones').insert({
-      user_id: userId, provider: session.source_provider ?? null, external_id: session.external_id ?? null,
-      activity_fingerprint: fingerprintOf(userId, session),
-      expires_at: new Date(Date.now() + 365 * 86400000).toISOString(),
-    });
-  } catch { /* non-fatal */ }
-  await audit(supabase, userId, session.id, 'soft_deleted', reason, session.source_provider ?? 'coach_edn');
+  // secundárias em segundo plano — não bloqueiam a UI
+  void (async () => {
+    try {
+      await supabase.from('cardio_import_tombstones').insert({
+        user_id: userId, provider: session.source_provider ?? null, external_id: session.external_id ?? null,
+        activity_fingerprint: fingerprintOf(userId, session),
+        expires_at: new Date(Date.now() + 365 * 86400000).toISOString(),
+      });
+    } catch { /* non-fatal */ }
+    await audit(supabase, userId, session.id, 'soft_deleted', reason, session.source_provider ?? 'coach_edn');
+  })();
   return true;
 }
 

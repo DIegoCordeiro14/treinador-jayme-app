@@ -125,13 +125,15 @@ export default function CardioPage() {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function doSoftDelete(sess: any) {
+    setConfirmDel(null);
+    // otimista: some da lista imediatamente
+    setSessions((prev) => prev.filter((x) => x.id !== sess.id));
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    setConfirmDel(null);
     const ok = await softDeleteCardio(supabase, user.id, sess);
-    if (!ok) { toast.error('Erro ao excluir'); return; }
-    load(); loadDeleted();
-    toast.success('Corrida excluída', { action: { label: 'Desfazer', onClick: async () => { await restoreCardio(supabase, user.id, sess); load(); loadDeleted(); toast.success('Corrida restaurada'); } } });
+    if (!ok) { toast.error('Erro ao excluir'); load(); return; }
+    if (showDeleted) loadDeleted();
+    toast.success('Corrida excluída', { action: { label: 'Desfazer', onClick: async () => { await restoreCardio(supabase, user.id, sess); load(); if (showDeleted) loadDeleted(); toast.success('Corrida restaurada'); } } });
   }
   const [showImport, setShowImport] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
