@@ -17,6 +17,7 @@ import type { WorkoutExerciseWithExercise } from '@/types';
 import { RestTimer } from '@/components/workout/rest-timer';
 import { fetchWorkoutMetrics, fetchLiveHr, fetchHrSamples, type WorkoutMetrics } from '@/lib/wearables/workout-metrics';
 import { mapSetPhysiology } from '@/lib/wearables/strength-physiology';
+import { queueWearableEnrichment } from '@/lib/wearables/enrichment-queue';
 
 type SetType = 'aquecimento' | 'feeder' | 'top' | 'working' | 'backoff' | 'corrective';
 interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; source?: string; addedDuringSession?: boolean; additionReason?: string; completedAt?: number; startedAt?: number; }
@@ -584,6 +585,11 @@ export default function ExecutarPage() {
     const result = await insertOrQueue(supabase, inserts, 'Treino');
     if (result === 'error') { toast.error('Erro ao salvar sessao'); setSaving(false); return; }
     clearProgress();
+    // Native Data Bridge: se nenhuma série recebeu FC do relógio agora, enfileira enriquecimento
+    // pós-treino (o relógio pode sincronizar depois — backoff 30s/2min/5min/15min).
+    if (result !== 'queued' && !perSetPhys.some(p => p.avgHr != null)) {
+      try { await queueWearableEnrichment(supabase, user.id, sessionId, startedAt.current.toISOString(), finishedAt.toISOString()); } catch { /* */ }
+    }
     if (result === 'queued') toast.success('Treino salvo offline — será enviado ao reconectar.');
     else { toast.success('Treino salvo!'); flushQueue(supabase).catch(() => {}); }
     router.push(`/app/treinos/${id}`);

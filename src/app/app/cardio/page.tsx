@@ -31,6 +31,7 @@ const RunningTracker = dynamic(() => import('@/components/cardio/running-tracker
 const RunDetailModal = dynamic(() => import('@/components/cardio/run-detail-modal'), { ssr: false });
 import type { RunDetail } from '@/components/cardio/run-detail-modal';
 import { fetchWatchRuns, runIntensity, type WatchRun } from '@/lib/wearables/import-runs';
+import { onAppOpenHealthTasks } from '@/lib/wearables/enrichment-queue';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CardioSession {
@@ -175,6 +176,17 @@ export default function CardioPage() {
   useEffect(() => {
     fetch('/api/cardio-intelligence').then(r => r.json()).then(d => { if (d && !d.error) setCardioIntel(d); }).catch(() => {});
     fetch('/api/autopilot').then(r => r.json()).then(d => { const km = d?.cardio?.weeklyTargetKm; if (typeof km === 'number' && km > 0) setAutopilotWeeklyKm(km); }).catch(() => {});
+  }, []);
+
+  // Native Data Bridge: sincroniza histórico do relógio e processa a fila de enriquecimento
+  // ao abrir a aba (best-effort; sem relógio/permissão simplesmente não faz nada).
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      try { await onAppOpenHealthTasks(supabase, user.id); load(); } catch { /* */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function openImport() {
