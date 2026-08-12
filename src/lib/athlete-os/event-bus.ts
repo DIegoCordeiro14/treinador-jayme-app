@@ -9,7 +9,10 @@ export type AthleteEvent =
   | 'GoalChanged' | 'NutritionChanged' | 'CardioFinished' | 'WorkoutGenerated'
   | 'RecoveryUpdated' | 'PlanCreated' | 'PlateauDetected' | 'PRAchieved'
   | 'SleepUpdated' | 'HRVUpdated' | 'RaceScheduled'
-  | 'CardioSessionDeleted' | 'CardioSessionRestored';
+  | 'CardioSessionDeleted' | 'CardioSessionRestored'
+  | 'WearableWorkoutMetricsImported' | 'SportActivityImported' | 'SportActivityEnriched'
+  | 'WorkoutSetConfigurationChanged' | 'WorkoutPlanStructureChanged'
+  | 'ExerciseProgressUpdated' | 'MuscleGroupProgressUpdated';
 
 // Quais motores/recomputações cada evento aciona (Bloco 4 — pipeline).
 export const EVENT_PIPELINE: Record<AthleteEvent, string[]> = {
@@ -30,6 +33,13 @@ export const EVENT_PIPELINE: Record<AthleteEvent, string[]> = {
   RaceScheduled: ['cardio-intelligence', 'nutrition', 'calendar', 'aos'],
   CardioSessionDeleted: ['cardio-intelligence', 'recovery', 'nutrition', 'athlete-score', 'aos', 'projections', 'coach-briefing'],
   CardioSessionRestored: ['cardio-intelligence', 'recovery', 'nutrition', 'athlete-score', 'aos', 'projections', 'coach-briefing'],
+  WearableWorkoutMetricsImported: ['training', 'recovery', 'athlete-score', 'aos'],
+  SportActivityImported: ['cardio-intelligence', 'recovery', 'nutrition', 'athlete-score', 'aos', 'feed'],
+  SportActivityEnriched: ['cardio-intelligence', 'recovery', 'aos'],
+  WorkoutSetConfigurationChanged: ['load-intelligence', 'volume', 'calendar', 'aos'],
+  WorkoutPlanStructureChanged: ['load-intelligence', 'volume', 'calendar', 'nutrition', 'aos'],
+  ExerciseProgressUpdated: ['exercise-evolution', 'weak-point', 'aos'],
+  MuscleGroupProgressUpdated: ['weak-point', 'volume', 'aos', 'coach-briefing'],
 };
 
 type Handler = (payload?: unknown) => void;

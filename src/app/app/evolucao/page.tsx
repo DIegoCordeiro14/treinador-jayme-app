@@ -284,6 +284,14 @@ export default function EvolucaoPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [volumeVerdicts, setVolumeVerdicts] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<{ id: string; kind: string; title: string; detail: string | null; created_at: string }[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [perf, setPerf] = useState<any>(null);
+  const [perfDays, setPerfDays] = useState(90);
+  const [perfEx, setPerfEx] = useState<string>('');
+  useEffect(() => {
+    fetch(`/api/exercise-evolution?days=${perfDays}`).then(r => r.json()).then(d => { if (d && !d.error) { setPerf(d); if (!perfEx && d.exercises?.[0]) setPerfEx(d.exercises[0].exerciseId); } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfDays]);
   const [scoreHist, setScoreHist] = useState<{ phase: string; series: { week: string; score: number }[]; windows: { d14: { score: number; label: string }; d30: { score: number; label: string }; d60: { score: number; label: string } } } | null>(null);
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -569,6 +577,7 @@ export default function EvolucaoPage() {
           <TabsTrigger value="peso">Peso</TabsTrigger>
           <TabsTrigger value="volume">Volume</TabsTrigger>
           <TabsTrigger value="medidas">Medidas</TabsTrigger>
+          <TabsTrigger value="performance" className="gap-1.5"><Dumbbell className="h-3.5 w-3.5" />Performance</TabsTrigger>
           <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatório</TabsTrigger>
           <TabsTrigger value="projecoes" className="gap-1.5"><Target className="h-3.5 w-3.5" />Projeções</TabsTrigger>
         </TabsList>
@@ -809,6 +818,60 @@ export default function EvolucaoPage() {
           </div>
         </TabsContent>
         {/* Relatorio Semanal tab */}
+        <TabsContent value="performance" className="mt-4 space-y-4">
+          {(() => {
+            if (!perf) return <p className="text-sm text-zinc-500 py-8 text-center">Carregando…</p>;
+            if (!perf.exercises?.length) return <p className="text-sm text-zinc-500 py-8 text-center">Sem histórico de treino suficiente ainda.</p>;
+            const STATUS: Record<string,{l:string;c:string}> = { progressing:{l:'Evoluindo',c:'text-[#7FB58F]'}, stable:{l:'Estável',c:'text-zinc-300'}, plateau:{l:'Platô',c:'text-[#D4A85A]'}, regressing:{l:'Regredindo',c:'text-[#C97B7B]'}, insufficient:{l:'Dados insuficientes',c:'text-zinc-500'} };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const sel = perf.exercises.find((e:any) => e.exerciseId === perfEx) ?? perf.exercises[0];
+            const ev = sel.evolution;
+            return (<>
+              <div className="flex gap-2 flex-wrap">
+                {[30,90,180,365].map(d => (
+                  <button key={d} onClick={() => setPerfDays(d)} className={cn('text-[11px] px-2.5 py-1 rounded-full border', perfDays===d ? 'bg-[#D4853A]/15 border-[#D4853A]/40 text-[#E09B5A]' : 'border-zinc-700 text-zinc-400')}>{d>=365?'1 ano':d+' dias'}</button>
+                ))}
+              </div>
+              <select value={sel.exerciseId} onChange={e => setPerfEx(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {perf.exercises.map((e:any) => <option key={e.exerciseId} value={e.exerciseId}>{e.name}</option>)}
+              </select>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-base font-extrabold italic text-zinc-100">{sel.name}</p>
+                  <span className={cn('text-[11px] font-bold', STATUS[ev.status].c)}>{STATUS[ev.status].l}</span>
+                </div>
+                {ev.current && ev.past ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Top Set atual</p><p className="text-sm font-bold text-zinc-100">{ev.current.topSetKg}kg × {ev.current.topReps}</p></div>
+                    <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Há {ev.periodDays} dias</p><p className="text-sm font-bold text-zinc-400">{ev.past.topSetKg}kg × {ev.past.topReps}</p></div>
+                    {ev.topSetTrendPct != null && <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Progressão de carga</p><p className={cn('text-sm font-black italic', ev.topSetTrendPct>=0?'text-[#7FB58F]':'text-[#C97B7B]')}>{ev.topSetTrendPct>0?'+':''}{ev.topSetTrendPct}%</p></div>}
+                    {ev.volumeTrendPct != null && <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5"><p className="text-[10px] text-zinc-500">Volume</p><p className={cn('text-sm font-black italic', ev.volumeTrendPct>=0?'text-[#7FB58F]':'text-[#C97B7B]')}>{ev.volumeTrendPct>0?'+':''}{ev.volumeTrendPct}%</p></div>}
+                  </div>
+                ) : <p className="text-[12px] text-zinc-500">Registre mais sessões deste exercício para a análise.</p>}
+              </div>
+              {/* Evolução por grupo muscular */}
+              {perf.muscles?.length > 0 && (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                  <p className="text-sm font-bold text-zinc-100 mb-2">Por grupo muscular</p>
+                  <div className="space-y-2">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {perf.muscles.map((m:any) => (
+                      <div key={m.muscle} className={cn('rounded-lg border p-2.5', m.status==='atencao'?'bg-[#8B5A5A]/10 border-[#8B5A5A]/30':m.status==='boa_evolucao'?'bg-[#5A8A6A]/10 border-[#5A8A6A]/25':'bg-black/25 border-white/[0.06]')}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-zinc-100 capitalize">{m.muscle}</span>
+                          <span className="text-[11px] text-zinc-400">{m.exercisesProgressing}/{m.exercisesTotal} evoluindo{m.avgLoadTrendPct!=null?` · carga ${m.avgLoadTrendPct>0?'+':''}${m.avgLoadTrendPct}%`:''}</span>
+                        </div>
+                        {m.weakPointSignal && <p className="text-[11px] text-[#C97B7B] mt-0.5">⚠ Possível ponto fraco — progressão baixa e maioria estagnada.</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>);
+          })()}
+        </TabsContent>
+
         <TabsContent value="relatorio" className="mt-4 space-y-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <div className="flex items-center gap-3 mb-3">
