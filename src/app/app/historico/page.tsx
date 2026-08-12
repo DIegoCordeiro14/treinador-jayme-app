@@ -13,6 +13,9 @@ interface SessionSet {
   reps_done: number;
   weight_kg: number;
   set_type: string;
+  avg_hr?: number | null;
+  hr_zone?: number | null;
+  pct_hr_max?: number | null;
   exercise?: { name: string; muscle_group: string };
 }
 
@@ -36,6 +39,7 @@ function fmtDuration(secs: number | null) {
   return `${d.minutes ?? 0}min`;
 }
 
+const ZONE_COLORS: Record<number, string> = { 1: 'text-sky-300 bg-sky-500/10', 2: 'text-emerald-300 bg-emerald-500/10', 3: 'text-amber-300 bg-amber-500/10', 4: 'text-orange-300 bg-orange-500/10', 5: 'text-rose-300 bg-rose-500/10' };
 const MUSCLE_COLORS: Record<string, string> = {
   chest: 'text-red-400 bg-red-500/10',   back: 'text-[#D4853A] bg-[#D4853A]/10',
   shoulders: 'text-purple-400 bg-purple-500/10', biceps: 'text-orange-400 bg-orange-500/10',
@@ -269,8 +273,13 @@ export default function HistoricoPage() {
                           </div>
                           <div className="flex flex-wrap gap-1.5 ml-0.5">
                             {ex.sets.map((set, i) => (
-                              <span key={i} className="text-[11px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md font-mono">
+                              <span key={i} className="text-[11px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md font-mono inline-flex items-center gap-1">
                                 {set.weight_kg}kg × {set.reps_done}
+                                {set.avg_hr != null && (
+                                  <span className={cn('text-[10px] font-semibold px-1 rounded', ZONE_COLORS[set.hr_zone ?? 0] ?? 'text-rose-300 bg-rose-500/10')} title={set.pct_hr_max != null ? `${set.pct_hr_max}% FCmax${set.hr_zone ? ' · Z' + set.hr_zone : ''}` : undefined}>
+                                    ♥{set.avg_hr}
+                                  </span>
+                                )}
                               </span>
                             ))}
                           </div>
