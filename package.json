@@ -29,7 +29,8 @@
     "test:reps": "tsc src/lib/edn/reps-range.ts src/lib/edn/load-intelligence.ts src/lib/edn/additional-set-engine.ts --outDir scripts/.tmp/rr --module commonjs --target es2019 --skipLibCheck && node scripts/test-reps-range.js",
     "test:setprog": "tsc src/lib/edn/set-progression-engine.ts --outDir scripts/.tmp/sp --module commonjs --target es2019 --skipLibCheck && node scripts/test-set-progression.js",
     "test:evolution": "tsc src/lib/edn/exercise-evolution-engine.ts src/lib/cardio/sport-types.ts --outDir scripts/.tmp/ee --module commonjs --target es2019 --skipLibCheck && node scripts/test-exercise-evolution.js",
-    "test:physio": "node scripts/test-strength-physiology.js"
+    "test:physio": "node scripts/test-strength-physiology.js",
+    "test:sporttypes": "node scripts/test-sport-types.js"
   },
   "dependencies": {
     "next": "14.2.0",
