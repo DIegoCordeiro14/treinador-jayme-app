@@ -1,5 +1,5 @@
-const E=require('./.tmp/ee/exercise-evolution-engine.js');
-const S=require('./.tmp/ee/sport-types.js');
+const E=require('./.tmp/ee/edn/exercise-evolution-engine.js');
+const S=require('./.tmp/ee/cardio/sport-types.js');
 let pass=0,fail=0; const check=(n,c,x)=>{c?(pass++,console.log('  ✓ '+n)):(fail++,console.log('  ✗ '+n+(x?' → '+x:'')));};
 const now=Date.now(),d=86400000,pt=(days,top,reps,vol,rir)=>({dateMs:now-days*d,topSetKg:top,topReps:reps,volumeKg:vol,avgRir:rir});
 console.log('\n== computeExerciseEvolution ==');
