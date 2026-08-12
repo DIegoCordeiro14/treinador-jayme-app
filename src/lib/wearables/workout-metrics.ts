@@ -72,3 +72,25 @@ export async function fetchLiveHr(): Promise<number | null> {
     return latest ? Math.round(latest.bpm) : null;
   } catch { return null; }
 }
+
+
+/**
+ * Amostras de FC com timestamp na janela — insumo para a fisiologia por série
+ * (mapSetPhysiology). Best-effort: vazio quando não há relógio/dados.
+ */
+export async function fetchHrSamples(startMs: number, endMs: number): Promise<{ t: number; bpm: number }[]> {
+  const hc = getHC();
+  if (!hc?.queryWorkouts) return [];
+  try {
+    await ensureInit(hc);
+    const r = await hc.queryWorkouts({ startDate: new Date(startMs).toISOString(), endDate: new Date(endMs).toISOString(), includeHeartRate: true, includeRoute: false, includeSteps: false });
+    const out: { t: number; bpm: number }[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const wk of (r?.workouts ?? [])) for (const h of (wk?.heartRate ?? [])) {
+      const b = Number(h?.bpm ?? h?.value);
+      const t = new Date(h?.timestamp ?? h?.startDate ?? h?.date ?? 0).getTime();
+      if (Number.isFinite(b) && b > 0 && Number.isFinite(t) && t > 0) out.push({ t, bpm: b });
+    }
+    return out.sort((a, b) => a.t - b.t);
+  } catch { return []; }
+}
