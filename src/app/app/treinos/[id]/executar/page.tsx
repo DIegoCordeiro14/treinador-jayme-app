@@ -15,10 +15,11 @@ import {
 import { cn } from '@/lib/utils';
 import type { WorkoutExerciseWithExercise } from '@/types';
 import { RestTimer } from '@/components/workout/rest-timer';
-import { fetchWorkoutMetrics, fetchLiveHr, type WorkoutMetrics } from '@/lib/wearables/workout-metrics';
+import { fetchWorkoutMetrics, fetchLiveHr, fetchHrSamples, type WorkoutMetrics } from '@/lib/wearables/workout-metrics';
+import { mapSetPhysiology } from '@/lib/wearables/strength-physiology';
 
 type SetType = 'aquecimento' | 'feeder' | 'top' | 'working' | 'backoff' | 'corrective';
-interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; source?: string; addedDuringSession?: boolean; additionReason?: string; }
+interface SetEntry { weight: string; reps: string; rir: string; completed: boolean; setType: SetType; source?: string; addedDuringSession?: boolean; additionReason?: string; completedAt?: number; startedAt?: number; }
 
 const SET_TYPE_CONFIG: Record<SetType, { label: string; color: string; bg: string }> = {
   aquecimento: { label: 'Aquecimento', color: 'text-sky-400',    bg: 'bg-sky-400/15 border-sky-400/30' },
@@ -496,7 +497,7 @@ export default function ExecutarPage() {
       const n = [...p];
       const sets = [...n[exIdx].sets];
       const prev = sets[sIdx].completed;
-      sets[sIdx] = { ...sets[sIdx], completed: !prev };
+      sets[sIdx] = { ...sets[sIdx], completed: !prev, completedAt: !prev ? Date.now() : undefined };
       n[exIdx] = { ...n[exIdx], sets };
       const allDone = sets.every(s => s.completed);
       if (allDone && !prev && !n[exIdx].feedback && !n[exIdx].feedbackLoading) {
@@ -532,6 +533,8 @@ export default function ExecutarPage() {
     const finishedAt = new Date();
     let totalVolume = 0;
     const allSets: object[] = [];
+    const setWindows: { endedAt: number | null; startMs: number; endMs: number }[] = [];
+    let setWindowPrevMs = startedAt.current.getTime();
     exercises.forEach((ex, ei) => {
       exStates[ei]?.sets.forEach((s, si) => {
         if (!s.completed) return;
@@ -539,6 +542,9 @@ export default function ExecutarPage() {
         const isoEx = !!(ex.exercise as any)?.is_isometric;
         const w = isoEx ? 0 : (parseFloat(s.weight) || 0), r = parseInt(s.reps) || 0;
         totalVolume += w * r;
+        const endMs = s.completedAt ?? finishedAt.getTime();
+        const startMs = setWindowPrevMs; setWindowPrevMs = endMs;
+        setWindows.push({ endedAt: s.completedAt ?? null, startMs, endMs });
         allSets.push({ exercise_id: ex.exercise_id, workout_exercise_id: ex.id, set_number: si + 1, weight_kg: w, reps_done: r, rir: s.rir !== '' ? parseInt(s.rir) : null, completed: true, set_type: s.setType, source: s.source ?? 'plan', added_during_session: !!s.addedDuringSession, addition_reason: s.additionReason ?? null });
       });
     });
@@ -553,7 +559,24 @@ export default function ExecutarPage() {
     // ID gerado no cliente -> permite salvar offline sem roundtrip e é idempotente no reenvio
     const sessionId = newId();
     const sessionRow = { id: sessionId, user_id: user.id, workout_day_id: dayId || null, plan_id: id || null, started_at: startedAt.current.toISOString(), finished_at: finishedAt.toISOString(), duration_seconds: Math.round((finishedAt.getTime() - startedAt.current.getTime()) / 1000), total_volume_kg: Math.round(totalVolume), notes: '', avg_hr: avgHr, max_hr: m.maxHr, calories_burned: m.calories, coach_feedback: coachFeedback };
-    const setRows = allSets.map(s => ({ id: newId(), ...(s as object), session_id: sessionId }));
+    // Fisiologia por série (Alteração 1): amostras de FC do relógio mapeadas por janela de tempo
+    let perSetPhys: { avgHr: number | null; maxHr: number | null; pctHrMax: number | null; zone: number | null; calories: number | null }[] = [];
+    try {
+      const hrSamples = await fetchHrSamples(startedAt.current.getTime(), finishedAt.getTime());
+      if (hrSamples.length) {
+        const mapped = mapSetPhysiology({ sets: setWindows.map((w, i) => ({ setNumber: i, startMs: w.startMs, endMs: w.endMs })), hrSamples, maxHr: m.maxHr });
+        perSetPhys = mapped.map(p => ({ avgHr: p.avgHr, maxHr: p.maxHr, pctHrMax: p.pctHrMax, zone: p.zone, calories: p.calories }));
+      }
+    } catch { /* sem relógio/offline */ }
+    const setRows = allSets.map((s, i) => {
+      const win = setWindows[i]; const ph = perSetPhys[i];
+      return {
+        id: newId(), ...(s as object), session_id: sessionId,
+        started_at: win ? new Date(win.startMs).toISOString() : null,
+        ended_at: win?.endedAt ? new Date(win.endedAt).toISOString() : null,
+        avg_hr: ph?.avgHr ?? null, max_hr: ph?.maxHr ?? null, pct_hr_max: ph?.pctHrMax ?? null, hr_zone: ph?.zone ?? null, calories: ph?.calories ?? null,
+      };
+    });
     const inserts = [
       { table: 'workout_sessions', rows: [sessionRow] },
       ...(setRows.length > 0 ? [{ table: 'session_sets', rows: setRows }] : []),
