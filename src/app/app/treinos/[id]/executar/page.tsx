@@ -121,6 +121,32 @@ export default function ExecutarPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [prescriptions, setPrescriptions] = useState<Record<string, any>>({});
   const [showAddSet, setShowAddSet] = useState(false);
+  const [planDirty, setPlanDirty] = useState<Set<number>>(new Set());
+  const markStructureChanged = (exIdx: number) => setPlanDirty(prev => { const n = new Set(prev); n.add(exIdx); return n; });
+  const [savingPlan, setSavingPlan] = useState(false);
+  async function saveSetConfig(exIdx: number) {
+    const ex = exercises[exIdx]; const st0 = exStates[exIdx];
+    if (!ex || !st0) return;
+    setSavingPlan(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingPlan(false); return; }
+    const map: Record<string, string> = { aquecimento: 'aquecimento', feeder: 'feeder', top: 'top', working: 'working', backoff: 'backoff', corrective: 'corrective' };
+    const rows = st0.sets.map((se, i) => ({ user_id: user.id, workout_exercise_id: ex.id, position: i + 1, set_type: map[se.setType] ?? 'working', reps_min: ex.reps_min ?? null, reps_max: ex.reps_max ?? null, target_rir: se.rir !== '' ? parseInt(se.rir) : null, is_active: true, updated_at: new Date().toISOString() }));
+    try {
+      // substitui a configuração do exercício
+      await supabase.from('workout_exercise_sets').delete().eq('workout_exercise_id', ex.id).eq('user_id', user.id);
+      const { error } = await supabase.from('workout_exercise_sets').insert(rows);
+      if (error) { toast.error('Erro ao salvar no plano'); setSavingPlan(false); return; }
+      // atualiza a contagem de séries do exercício + versiona
+      await supabase.from('workout_exercises').update({ sets: st0.sets.length }).eq('id', ex.id);
+      try {
+        await supabase.from('workout_plan_versions').insert({ user_id: user.id, plan_id: id || null, version: Date.now(), snapshot: { workout_exercise_id: ex.id, sets: rows.map(r => ({ position: r.position, set_type: r.set_type })) }, reason: 'Estrutura de séries alterada na execução' });
+      } catch { /* ok */ }
+      setPlanDirty(prev => { const n = new Set(prev); n.delete(exIdx); return n; });
+      toast.success('Estrutura salva no plano — valerá nas próximas sessões.');
+    } catch { toast.error('Erro ao salvar no plano'); }
+    setSavingPlan(false);
+  }
   useEffect(() => {
     if (!showAddSet) return;
     // botão voltar / gesto fecha o bottom sheet em vez de sair da tela
@@ -148,6 +174,7 @@ export default function ExecutarPage() {
         const entry = { weight: dec.suggested ? String(dec.suggested.weightKg) : '', reps: dec.suggested ? String(dec.suggested.reps) : '', rir: dec.suggested?.rir != null ? String(dec.suggested.rir) : '2', completed: false, setType: type as any, source: 'user_added', addedDuringSession: true, additionReason: dec.reason };
         n[currentIdx] = { ...cur, sets: [...cur.sets, entry] }; return n; });
       saveProgressRef.current?.();
+      markStructureChanged(currentIdx);
       toast.success(`Série de ${type} adicionada`, { description: dec.reason });
     };
     if (dec.requiresConfirmation || !dec.allowed) {
@@ -158,6 +185,7 @@ export default function ExecutarPage() {
   function removeSet(exIdx: number, sIdx: number) {
     setExStates(prev => { const n = [...prev]; n[exIdx] = { ...n[exIdx], sets: n[exIdx].sets.filter((_, i) => i !== sIdx) }; return n; });
     saveProgressRef.current?.();
+    markStructureChanged(exIdx);
   }
   const [prevLoads, setPrevLoads] = useState<Record<string, number>>({});
   const [prevTimes, setPrevTimes] = useState<Record<string, number>>({}); // isométrico: tempo (s) anterior
@@ -208,6 +236,21 @@ export default function ExecutarPage() {
       exs.sort((a, b) => a.order_index - b.order_index);
       setDayName((dayData as any).name ?? 'Treino');
       setExercises(exs);
+      // Estrutura de séries salva no plano (Alteração 3) — sobrescreve o padrão por índice
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cfgByEx: Record<string, any[]> = {};
+      try {
+        const { data: cfg } = await supabase.from('workout_exercise_sets').select('workout_exercise_id, position, set_type, reps_min, reps_max, target_rir').in('workout_exercise_id', exs.map(e => e.id)).eq('is_active', true).order('position', { ascending: true });
+        for (const c of (cfg ?? []) as any[]) (cfgByEx[c.workout_exercise_id] ?? (cfgByEx[c.workout_exercise_id] = [])).push(c);
+      } catch { /* tabela pode faltar */ }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mkSets = (ex: any, prevW: number | null): SetEntry[] => {
+        const cfg = cfgByEx[ex.id];
+        if (cfg && cfg.length) {
+          return cfg.map((c: any) => ({ weight: '', reps: '', rir: c.target_rir != null ? String(c.target_rir) : (c.set_type === 'aquecimento' ? '4' : c.set_type === 'feeder' ? '3' : '2'), completed: false, setType: (c.set_type as SetType), source: 'plan' }));
+        }
+        return defaultSets(ex.sets, prevW);
+      };
       if (sessions?.length) {
         const ids = sessions.map(s => s.id);
         const { data: ps } = await supabase.from('session_sets').select('exercise_id, weight_kg, reps_done, session_id').in('session_id', ids).eq('completed', true);
@@ -236,12 +279,12 @@ export default function ExecutarPage() {
             suggestions[eid] = { suggestedWeight: stagnant ? top : top + 2.5, model: stagnant ? 'Estagnado — tente aumentar o volume' : 'Progressão linear', stagnant };
           });
           setEdnSuggestions(suggestions);
-          setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, loads[ex.exercise_id] ?? null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
+          setExStates(exs.map(ex => ({ sets: mkSets(ex, loads[ex.exercise_id] ?? null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
         } else {
-          setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
+          setExStates(exs.map(ex => ({ sets: mkSets(ex, null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
         }
       } else {
-        setExStates(exs.map(ex => ({ sets: defaultSets(ex.sets, null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
+        setExStates(exs.map(ex => ({ sets: mkSets(ex, null), tip: null, tipLoading: false, feedback: null, feedbackLoading: false })));
       }
       setLoading(false);
     })();
@@ -441,6 +484,7 @@ export default function ExecutarPage() {
       n[exIdx] = { ...n[exIdx], sets };
       return n;
     });
+    markStructureChanged(exIdx);
   }
 
   function updateSet(exIdx: number, sIdx: number, field: keyof SetEntry, val: string | boolean) {
@@ -938,6 +982,18 @@ export default function ExecutarPage() {
               })}
             </div>
           )}
+
+          {/* Banner de estrutura alterada (Alteração 3 — persistir no plano) */}
+          {st && ex && planDirty.has(currentIdx) ? (
+            <div className="mt-2 rounded-xl border border-[#D4853A]/40 bg-[#D4853A]/10 p-3">
+              <p className="text-[12px] text-[#E09B5A] font-semibold">Estrutura de séries alterada</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Aplicar só nesta sessão ou salvar no plano para as próximas?</p>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => setPlanDirty(prev => { const n = new Set(prev); n.delete(currentIdx); return n; })} disabled={savingPlan} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-300 text-[12px] font-semibold disabled:opacity-50">Somente hoje</button>
+                <button onClick={() => saveSetConfig(currentIdx)} disabled={savingPlan} className="flex-1 py-2 rounded-lg bg-[#D4853A] text-white text-[12px] font-semibold disabled:opacity-50">{savingPlan ? 'Salvando…' : 'Salvar no plano'}</button>
+              </div>
+            </div>
+          ) : null}
 
           {/* + Adicionar série (dinâmica, validada pelo motor EDN) */}
           {st && ex ? (
