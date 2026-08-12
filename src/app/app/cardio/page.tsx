@@ -947,8 +947,8 @@ export default function CardioPage() {
                     <div key={run.externalId} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-zinc-100">{run.type}</span>
-                          {run.coordinates.length > 1 && <span className="flex items-center gap-1 text-[10px] text-[#D4853A]"><MapPin className="h-3 w-3" />rota</span>}
+                          <span className="text-sm font-semibold text-zinc-100">{run.sportLabel}</span>
+                          {run.coordinates.length > 1 ? <span className="flex items-center gap-1 text-[10px] text-[#D4853A]"><MapPin className="h-3 w-3" />rota</span> : run.usesGps ? <span className="text-[10px] text-zinc-500">sem rota</span> : null}
                         </div>
                         <p className="text-xs text-zinc-500 mt-0.5">{format(parseISO(run.startedAt), "dd 'de' MMM · HH:mm", { locale: ptBR })}</p>
                         <p className="text-xs text-zinc-400 mt-0.5">{run.distanceKm > 0 ? `${run.distanceKm.toFixed(2)} km · ` : ''}{run.durationMin} min{run.avgHr ? ` · ${run.avgHr} bpm` : ''}</p>

@@ -4,9 +4,14 @@
  * Funciona apenas no app instalado e quando o relógio sincronizou o treino COM rota
  * para o Health Connect. (iOS/HealthKit: rota ainda não exposta pelo plugin atual.)
  */
+import { normalizeSportType, sportUsesGps, SPORT_LABEL, type SportActivityType } from '@/lib/cardio/sport-types';
+
 export interface WatchRun {
   externalId: string;
-  type: string;                 // 'Corrida' | 'Caminhada' | 'Outro'
+  type: string;                 // rótulo legível (compat)
+  sportType: SportActivityType; // categoria normalizada (26 esportes)
+  sportLabel: string;           // rótulo do esporte
+  usesGps: boolean;             // se o esporte tipicamente usa GPS/rota
   startedAt: string;            // ISO
   durationMin: number;
   distanceKm: number;
@@ -79,13 +84,19 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
       const bpms = hrSamples.map(h => h.bpm);
       const avgHr = bpms.length ? Math.round(bpms.reduce((a, b) => a + b, 0) / bpms.length) : null;
       const maxHr = bpms.length ? Math.max(...bpms) : null;
-      const wtype = String(wk?.workoutType ?? wk?.type ?? '').toUpperCase();
-      const isRun = wtype.includes('RUN');
-      const isWalk = wtype.includes('WALK') || wtype.includes('HIK');
-      if (!isRun && !isWalk && coords.length < 2 && distanceKm <= 0) continue;
+      const wtypeRaw = String(wk?.workoutType ?? wk?.type ?? wk?.exerciseType ?? '');
+      const sportType = normalizeSportType(wtypeRaw);
+      const usesGps = sportUsesGps(sportType);
+      const sportLabel = SPORT_LABEL[sportType];
+      // Multiesporte: mantém toda atividade com duração/distância/FC ou rota — não só corrida/caminhada.
+      // Dedup vs força: musculação é registrada em workout_sessions, não como cardio.
+      if (sportType === 'musculacao') continue;
+      const hasSignal = coords.length >= 2 || distanceKm > 0 || (cal != null && cal > 0) || bpms.length > 0 || durationMin >= 1;
+      if (!hasSignal) continue;
       runs.push({
-        externalId: `${startISO ?? ''}|${distanceKm}`,
-        type: isRun ? 'Corrida' : isWalk ? 'Caminhada' : 'Outro',
+        externalId: `${startISO ?? ''}|${sportType}|${distanceKm}`,
+        type: sportLabel,
+        sportType, sportLabel, usesGps,
         startedAt: startISO ?? new Date().toISOString(),
         durationMin, distanceKm,
         calories: cal != null ? Math.round(cal) : null,
