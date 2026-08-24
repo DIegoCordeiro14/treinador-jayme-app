@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { analyzeWeight } from '@/lib/edn/weight-intelligence';
 import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
+import { DailyNutritionCard } from '@/components/edn/daily-nutrition-card';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -309,6 +310,8 @@ export default function NutricaoPage() {
 
   return (
     <div className="space-y-5 animate-in fade-in-0 duration-300 pb-6">
+
+      <DailyNutritionCard />
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
