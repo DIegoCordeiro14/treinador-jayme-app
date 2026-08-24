@@ -1,0 +1,190 @@
+name: Build Android APK (CoachEdnHealth)
+
+# Workflow EXPERIMENTAL — compila o APK com o plugin nativo CoachEdnHealth
+# (Health Connect + Health Services). Separado do android-build.yml (verde) de
+# propósito: rode este por workflow_dispatch numa branch e valide antes de promover.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+
+      - name: Install deps + Capacitor 8 + Health
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-audit --no-fund \
+            @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/app@8 \
+            @capacitor/geolocation@8 @capacitor-community/background-geolocation capacitor-health@8 \
+            @capacitor/filesystem@8 @capacitor-community/file-opener cordova-plugin-request-location-accuracy
+
+      - name: Capacitor config (shell remoto -> Vercel)
+        run: |
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = {
+            appId: 'com.coachedn.app',
+            appName: 'Coach EDN',
+            webDir: 'www',
+            server: { url: 'https://treinador-jayme-app.vercel.app', cleartext: false },
+            android: { adjustMarginsForEdgeToEdge: 'force' },
+          };
+          export default config;
+          EOF
+          mkdir -p www && echo '<!doctype html><html><body>Coach EDN</body></html>' > www/index.html
+
+      - name: Add Android platform
+        run: npx cap add android && npx cap sync android
+
+      - name: SDK/AGP
+        run: |
+          sed -i "s/compileSdkVersion = .*/compileSdkVersion = 36/" android/variables.gradle
+          sed -i "s/targetSdkVersion = .*/targetSdkVersion = 35/" android/variables.gradle
+          sed -i "s/minSdkVersion = .*/minSdkVersion = 26/" android/variables.gradle
+          sed -i "s#com.android.tools.build:gradle:[0-9.]*#com.android.tools.build:gradle:8.9.1#" android/build.gradle
+
+      - name: Kotlin + deps de saúde no app/build.gradle
+        run: |
+          python3 - <<'EOF'
+          p = 'android/app/build.gradle'
+          s = open(p).read()
+          # aplica o plugin Kotlin Android (o modulo app do Capacitor e Java por padrao)
+          if "org.jetbrains.kotlin.android" not in s:
+              s = s.replace("apply plugin: 'com.android.application'",
+                            "apply plugin: 'com.android.application'\napply plugin: 'org.jetbrains.kotlin.android'")
+          # dependencias
+          deps = """    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+              implementation 'androidx.health.connect:connect-client:1.1.0-alpha10'
+              implementation 'androidx.health:health-services-client:1.1.0-alpha05'
+              implementation 'androidx.work:work-runtime-ktx:2.9.1'
+          """
+          if "connect-client" not in s:
+              s = s.replace("dependencies {", "dependencies {\n" + deps, 1)
+          open(p, 'w').write(s)
+          print("build.gradle atualizado")
+          EOF
+          # classpath do Kotlin no projeto raiz
+          python3 - <<'EOF'
+          p = 'android/build.gradle'
+          s = open(p).read()
+          if "kotlin-gradle-plugin" not in s:
+              s = s.replace("classpath 'com.android.tools.build:gradle:8.9.1'",
+                            "classpath 'com.android.tools.build:gradle:8.9.1'\n        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24'")
+          open(p, 'w').write(s)
+          EOF
+
+      - name: Copiar o plugin CoachEdnHealth
+        run: |
+          pkg=android/app/src/main/java/com/coachedn/health
+          mkdir -p "$pkg"
+          cp native/android/CoachEdnHealthPlugin.kt "$pkg/"
+          cp native/android/HealthConnectReader.kt "$pkg/"
+          cp native/android/WearHealthService.kt "$pkg/"
+          cp native/android/HealthBackgroundSyncWorker.kt "$pkg/"
+          cp native/android/NativeModels.kt "$pkg/"
+          cp native/android/SportMap.kt "$pkg/"
+          ls "$pkg"
+
+      - name: MainActivity com registerPlugin + bateria
+        run: |
+          pkgdir=android/app/src/main/java/com/coachedn/app
+          mkdir -p "$pkgdir"
+          cat > "$pkgdir/MainActivity.java" <<'EOF'
+          package com.coachedn.app;
+
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.PowerManager;
+          import android.provider.Settings;
+          import com.getcapacitor.BridgeActivity;
+          import com.coachedn.health.CoachEdnHealthPlugin;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(CoachEdnHealthPlugin.class);
+                  super.onCreate(savedInstanceState);
+                  try {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          SharedPreferences prefs = getSharedPreferences("coach_edn", Context.MODE_PRIVATE);
+                          if (!prefs.getBoolean("battery_opt_asked", false)) {
+                              PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                              String pkg = getPackageName();
+                              if (pm != null && !pm.isIgnoringBatteryOptimizations(pkg)) {
+                                  Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                                  i.setData(Uri.parse("package:" + pkg));
+                                  startActivity(i);
+                              }
+                              prefs.edit().putBoolean("battery_opt_asked", true).apply();
+                          }
+                      }
+                  } catch (Exception e) { /* ignore */ }
+              }
+          }
+          EOF
+
+      - name: Permissoes (localizacao + Health Connect completo)
+        run: |
+          python3 - <<'EOF'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          perms = '''    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+              <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+              <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+              <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+              <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
+              <uses-permission android:name="android.permission.health.READ_SPEED" />
+              <uses-permission android:name="android.permission.health.READ_ELEVATION_GAINED" />
+              <uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES" />
+              <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+              <queries><package android:name="com.google.android.apps.healthdata" /></queries>
+          '''
+          if 'health.READ_EXERCISE' not in s:
+              s = s.replace('</manifest>', perms + '</manifest>')
+          open(p, 'w').write(s)
+          print('Manifest atualizado')
+          EOF
+
+      - name: Version + keystore + build
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}-health\"/" android/app/build.gradle
+          mkdir -p ~/.android && cp .github/coach-edn-debug.keystore ~/.android/debug.keystore || true
+          cp .github/coach-edn-debug.keystore android/app/coach-edn-debug.keystore || true
+          python3 - <<'EOF'
+          p='android/app/build.gradle'; s=open(p).read()
+          block="""    signingConfigs { debug { storeFile file('coach-edn-debug.keystore'); storePassword 'android'; keyAlias 'androiddebugkey'; keyPassword 'android' } }
+          """
+          if 'coach-edn-debug.keystore' not in s: s=s.replace('android {\n','android {\n'+block,1)
+          open(p,'w').write(s)
+          EOF
+          cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename + upload
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk coach-edn-health-v1.${{ github.run_number }}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coach-edn-health-apk
+          path: coach-edn-health-v1.${{ github.run_number }}.apk
+          retention-days: 30
