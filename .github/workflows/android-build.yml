@@ -72,6 +72,50 @@ jobs:
           grep -E "compileSdkVersion|targetSdkVersion|minSdkVersion" android/variables.gradle
           grep -E "tools.build:gradle" android/build.gradle
 
+      - name: Plugin nativo CoachEdnHealth (Kotlin + Health Connect)
+        run: |
+          # Kotlin no modulo app (Java por padrao) + kotlinOptions + deps
+          python3 - <<'EOF'
+          p = 'android/app/build.gradle'
+          s = open(p).read()
+          if "org.jetbrains.kotlin.android" not in s:
+              if "apply plugin: 'com.android.application'" in s:
+                  s = s.replace("apply plugin: 'com.android.application'",
+                                "apply plugin: 'com.android.application'\napply plugin: 'org.jetbrains.kotlin.android'")
+              elif "id 'com.android.application'" in s:
+                  s = s.replace("id 'com.android.application'",
+                                "id 'com.android.application'\n    id 'org.jetbrains.kotlin.android'")
+          if "kotlinOptions" not in s:
+              s = s.replace("android {", "android {\n    kotlinOptions { jvmTarget = '21' }", 1)
+          deps = """    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
+              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+              implementation 'androidx.health.connect:connect-client:1.1.0-alpha10'
+              implementation 'androidx.work:work-runtime-ktx:2.9.1'
+          """
+          if "connect-client" not in s:
+              s = s.replace("dependencies {", "dependencies {\n" + deps, 1)
+          open(p, 'w').write(s)
+          print("app/build.gradle: kotlin + deps")
+          EOF
+          # classpath do Kotlin no projeto raiz
+          python3 - <<'EOF'
+          p = 'android/build.gradle'
+          s = open(p).read()
+          if "kotlin-gradle-plugin" not in s:
+              s = s.replace("classpath 'com.android.tools.build:gradle:8.9.1'",
+                            "classpath 'com.android.tools.build:gradle:8.9.1'\n        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0'")
+          open(p, 'w').write(s)
+          EOF
+          # copia os arquivos do plugin (sem WearHealthService — FC ao vivo exige minSdk 30)
+          pkg=android/app/src/main/java/com/coachedn/health
+          mkdir -p "$pkg"
+          cp native/android/CoachEdnHealthPlugin.kt "$pkg/"
+          cp native/android/HealthConnectReader.kt "$pkg/"
+          cp native/android/NativeModels.kt "$pkg/"
+          cp native/android/SportMap.kt "$pkg/"
+          cp native/android/HealthBackgroundSyncWorker.kt "$pkg/"
+          ls "$pkg"
+
       - name: Permissões de localização, Health Connect rationale e edge-to-edge
         run: |
           python3 - <<'EOF'
@@ -136,10 +180,12 @@ jobs:
           import android.os.PowerManager;
           import android.provider.Settings;
           import com.getcapacitor.BridgeActivity;
+          import com.coachedn.health.CoachEdnHealthPlugin;
 
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(CoachEdnHealthPlugin.class);
                   super.onCreate(savedInstanceState);
                   try {
                       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -163,7 +209,7 @@ jobs:
 
       - name: Set version from run number (OTA)
         run: |
-          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionCode 1$/versionCode $((2000 + ${{ github.run_number }}))/" android/app/build.gradle
           sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
 
