@@ -813,9 +813,7 @@ export default function NutricaoPage() {
                   <span>Distribuicao de Refeicoes ({plan.meals?.length ?? 0}x/dia)</span>
                   {showMeals ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
-                <Button size="sm" variant="outline" onClick={() => setShowMealModal(true)} className="gap-1.5 shrink-0">
-                  <Plus className="h-3.5 w-3.5" /> Refeição
-                </Button>
+
               </div>
               {showMeals && ((plan.meals?.length ?? 0) === 0 ? (
                 <p className="text-xs text-zinc-600 text-center py-4 border border-dashed border-zinc-800 rounded-xl">Nenhuma refeição cadastrada. Toque em "+ Refeição" para adicionar.</p>
