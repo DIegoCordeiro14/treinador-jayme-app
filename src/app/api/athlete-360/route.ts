@@ -6,6 +6,7 @@ import { computeNutritionTargets, computeNutritionScore } from '@/lib/edn/nutrit
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 import { recommendSessionAdaptation } from '@/lib/edn/adaptive-session-engine';
 import { buildAthleteStateV2 } from '@/lib/athlete-os/athlete-state-2';
+import { computeAlerts } from '@/lib/edn/alert-severity';
 import { detectRecurringDiscomfort } from '@/lib/edn/physical-condition-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
 import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
@@ -219,5 +220,12 @@ export async function GET(_req: NextRequest) {
     });
   } catch { /* fonte única best-effort */ }
 
-  return Response.json({ edn360, weakPoint, athleteState, state, stateV2, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  const alertsUnified = computeAlerts({
+    safetyLevel: (stateV2?.safetyLevel ?? 'none') as any,
+    recoveryCategory: (recovery?.category ?? 'moderate') as any,
+    cardioLoadRisk: load.risk,
+    nutritionAdherencePct: nutritionScore,
+    strengthTrendPct,
+  });
+  return Response.json({ edn360, weakPoint, athleteState, state, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

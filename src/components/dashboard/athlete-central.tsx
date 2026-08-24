@@ -28,10 +28,12 @@ export function AthleteCentral() {
   const [briefLine, setBriefLine] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [session, setSession] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [alertU, setAlertU] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/athlete-360').then(r => r.json()).then(d => {
-      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); }
+      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); }
     }).catch(() => {});
     fetch('/api/daily-briefing').then(r => r.json()).then(d => {
       const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
@@ -55,6 +57,11 @@ export function AthleteCentral() {
         <span className="ml-auto text-lg font-black italic text-[#D4853A]">{edn.overall}<span className="text-[10px] text-zinc-500 font-bold">/100 · EDN 360</span></span>
       </div>
       {briefLine && <p className="text-[11px] text-zinc-400 leading-relaxed -mt-1">{briefLine}</p>}
+      {alertU && alertU.level !== 'normal' && (
+        <p className={`text-[11px] font-semibold ${alertU.level==='block'?'text-red-300':alertU.level==='intervene'?'text-orange-300':'text-amber-300'}`}>
+          {alertU.level==='block'?'🔴':alertU.level==='intervene'?'🟠':'🟡'} {alertU.items?.[0]?.message}
+        </p>
+      )}
       <div className="grid grid-cols-4 gap-2">
         {pillars.map((p) => (
           <div key={p.label} className="rounded-lg bg-black/30 border border-white/[0.06] p-2 text-center">
