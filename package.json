@@ -32,7 +32,8 @@
     "test:physio": "node scripts/test-strength-physiology.js",
     "test:sporttypes": "node scripts/test-sport-types.js",
     "test:healthbridge": "node scripts/test-health-bridge.js",
-    "test:deload": "node scripts/test-deload-engine.js"
+    "test:deload": "node scripts/test-deload-engine.js",
+    "test:adaptive": "node scripts/test-adaptive-session.js"
   },
   "dependencies": {
     "next": "14.2.0",

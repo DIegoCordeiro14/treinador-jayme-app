@@ -40,6 +40,11 @@ export interface RecoveryInput {
   avgRir: number | null;        // RIR médio dos top sets recentes
   sessionsLast7: number;
   plannedPerWeek: number;
+  // Carga de endurance / cardio (opcional): razão agudo:crônico (ACWR). >1.5 = pico de carga.
+  cardioAcwr?: number | null;
+  // Tendência de performance recente (opcional): variação % do top set nas últimas sessões.
+  // Negativo = performance caindo (fadiga). Ex.: -8 = -8%.
+  recentPerformanceDeltaPct?: number | null;
   // Wearables (opcional — quando presentes têm prioridade)
   wearable?: WearableMetrics | null;
 }
@@ -134,6 +139,20 @@ export function computeRecoveryState(input: RecoveryInput): RecoveryState {
   if (input.plannedPerWeek > 0 && input.sessionsLast7 > input.plannedPerWeek) {
     score -= 8;
     factors.push(`${input.sessionsLast7} treinos nos últimos 7 dias (planejado: ${input.plannedPerWeek}) — volume acima do programado`);
+  }
+
+  // ── 4. Carga de endurance (ACWR) — nunca decide sozinha, apenas modula ────
+  if (input.cardioAcwr != null && input.cardioAcwr > 0) {
+    if (input.cardioAcwr >= 1.5) { score -= 10; factors.push(`Carga de cardio elevada (ACWR ${input.cardioAcwr.toFixed(2)}) — pico de volume de endurance nesta semana`); }
+    else if (input.cardioAcwr >= 1.3) { score -= 5; factors.push(`Carga de cardio subindo (ACWR ${input.cardioAcwr.toFixed(2)})`); }
+    else if (input.cardioAcwr < 0.8) { score += 3; factors.push(`Carga de cardio baixa (ACWR ${input.cardioAcwr.toFixed(2)}) — endurance leve`); }
+  }
+
+  // ── 5. Tendência de performance recente ───────────────────────────────────
+  if (input.recentPerformanceDeltaPct != null) {
+    if (input.recentPerformanceDeltaPct <= -7) { score -= 10; factors.push(`Performance caiu ${Math.abs(Math.round(input.recentPerformanceDeltaPct))}% nas últimas sessões — sinal de fadiga acumulada`); }
+    else if (input.recentPerformanceDeltaPct <= -3) { score -= 5; factors.push(`Leve queda de performance (${Math.round(input.recentPerformanceDeltaPct)}%) nas últimas sessões`); }
+    else if (input.recentPerformanceDeltaPct >= 5) { score += 3; factors.push(`Performance em alta (+${Math.round(input.recentPerformanceDeltaPct)}%) — boa adaptação`); }
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
