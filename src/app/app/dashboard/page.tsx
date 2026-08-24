@@ -38,6 +38,7 @@ import {
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS, GOAL_LABELS } from "@/types";
 import { DailyBriefingPanel } from "@/components/dashboard/daily-briefing-panel";
 import { AthleteCentral } from "@/components/dashboard/athlete-central";
+import { SafetyStatusCard } from "@/components/edn/safety-status-card";
 import { AthleteIntelligencePanel } from "@/components/dashboard/athlete-intelligence-panel";
 import { ThreeLayerPanel } from "@/components/dashboard/three-layer-panel";
 import type { WorkoutSession, WorkoutPlan, WorkoutDay } from "@/types";
@@ -181,6 +182,7 @@ export default async function DashboardPage() {
       <div className={latestBio ? "grid md:grid-cols-2 gap-4 items-start" : ""}>
         <DailyBriefingPanel />
         <AthleteCentral />
+        <SafetyStatusCard />
         {latestBio && (
           <div className="rounded-xl card-gradient p-5">
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3.5">Composição Corporal</p>

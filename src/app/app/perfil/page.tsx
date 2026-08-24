@@ -339,6 +339,7 @@ export default function PerfilPage() {
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300 max-w-2xl">
       <h1 className="text-2xl font-bold text-zinc-100">Perfil</h1>
+      <a href="/app/condicoes" className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 p-3 text-sm text-zinc-200 hover:border-[#D4853A]/40"><span>🛡️</span><span className="flex-1">Condições e Restrições Físicas</span><span className="text-zinc-500">›</span></a>
 
       {/* Avatar + XP */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">

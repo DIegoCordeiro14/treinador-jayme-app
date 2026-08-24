@@ -133,6 +133,16 @@ export default function ExecutarPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [prescriptions, setPrescriptions] = useState<Record<string, any>>({});
   const [showAddSet, setShowAddSet] = useState(false);
+  const [discomfort, setDiscomfort] = useState<{ severity: string; region: string }>({ severity: 'none', region: '' });
+  async function logDiscomfort(severity: string, region: string) {
+    setDiscomfort({ severity, region });
+    if (severity === 'none') return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from('workout_discomfort_logs').insert({ user_id: user.id, session_id: null, exercise_id: null, body_region: region || null, severity });
+    } catch { /* offline ok */ }
+  }
   const [planDirty, setPlanDirty] = useState<Set<number>>(new Set());
   const markStructureChanged = (exIdx: number) => setPlanDirty(prev => { const n = new Set(prev); n.add(exIdx); return n; });
   const [savingPlan, setSavingPlan] = useState(false);
@@ -789,6 +799,20 @@ export default function ExecutarPage() {
             </div>
           );
         })}
+      </div>
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-2">
+        <p className="text-sm font-semibold text-zinc-200">Sentiu algum desconforto?</p>
+        <div className="grid grid-cols-4 gap-2">
+          {([['none','Sem'],['mild','Leve'],['moderate','Moderado'],['strong','Forte']] as const).map(([k,l]) => (
+            <button key={k} onClick={() => logDiscomfort(k, discomfort.region)} className={cn('py-2 rounded-lg text-xs font-semibold border', discomfort.severity===k ? 'border-[#D4853A] bg-[#D4853A]/10 text-[#E09B5A]' : 'border-zinc-700 text-zinc-400')}>{l}</button>
+          ))}
+        </div>
+        {discomfort.severity !== 'none' && (
+          <select value={discomfort.region} onChange={e => logDiscomfort(discomfort.severity, e.target.value)} className="w-full mt-1 bg-zinc-800 rounded-lg p-2 text-sm text-zinc-100">
+            <option value="">Local (opcional)…</option>
+            {['knee','shoulder','spine','hip','wrist','elbow','ankle','foot','other'].map(r => <option key={r} value={r}>{({knee:'Joelho',shoulder:'Ombro',spine:'Coluna',hip:'Quadril',wrist:'Punho',elbow:'Cotovelo',ankle:'Tornozelo',foot:'Pé',other:'Outro'} as Record<string,string>)[r]}</option>)}
+          </select>
+        )}
       </div>
       <div className="flex gap-3">
         <button onClick={() => { clearProgress(); router.back(); }} className="flex-1 py-3.5 rounded-xl border border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800 transition-colors">Descartar</button>

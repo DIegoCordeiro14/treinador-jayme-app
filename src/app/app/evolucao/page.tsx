@@ -33,6 +33,7 @@ import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { SafetyStatusCard } from '@/components/edn/safety-status-card';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Measurement {
@@ -588,6 +589,8 @@ export default function EvolucaoPage() {
           </div>
         </div>
       )}
+
+      <div className="mb-3"><SafetyStatusCard /></div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-zinc-900 border border-zinc-800">
