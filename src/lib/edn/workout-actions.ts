@@ -35,7 +35,12 @@ export type WorkoutActionType =
   | 'adjust_running_goal'
   | 'soft_delete_cardio_session'
   | 'restore_cardio_session'
-  | 'permanently_delete_cardio_session';
+  | 'permanently_delete_cardio_session'
+  | 'add_physical_condition'
+  | 'update_physical_condition'
+  | 'remove_physical_condition'
+  | 'set_training_restriction'
+  | 'remove_training_restriction';
 
 export interface WorkoutAction {
   type: WorkoutActionType;
@@ -76,6 +81,15 @@ export interface WorkoutAction {
   raceName?: string;
   goalText?: string;
   sessionId?: string;
+  /** condição física (Physical Condition Engine) */
+  conditionId?: string;
+  conditionType?: string;      // injury|surgery|fracture|pain|orthopedic|other
+  bodyRegion?: string;         // shoulder|elbow|wrist|spine|hip|knee|ankle|foot|other
+  side?: string;               // right|left|bilateral|na
+  conditionStatus?: string;    // recovering|rehab|cleared|partial|unknown
+  restrictedMovements?: string[];
+  allowedMovements?: string[];
+  conditionTitle?: string;
 }
 
 export interface WorkoutActionResult {
@@ -539,6 +553,69 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       const { error } = await supabase.from('cardio_sessions').delete().eq('id', a.sessionId).eq('user_id', userId);
       if (error) return { ok: false, message: `Exclusão definitiva falhou: ${error.message}` };
       return { ok: true, message: 'Corrida excluída definitivamente (dados vinculados removidos).' };
+    }
+
+    // ── Physical Condition & Training Safety Engine ──────────────────────────
+    case 'add_physical_condition': {
+      const row = {
+        user_id: userId,
+        condition_type: a.conditionType ?? 'other',
+        body_region: a.bodyRegion ?? 'other',
+        side: a.side ?? 'na',
+        title: a.conditionTitle ?? null,
+        status: a.conditionStatus ?? 'unknown',
+        restricted_movements: a.restrictedMovements ?? null,
+        allowed_movements: a.allowedMovements ?? null,
+        source: 'coach',
+        user_confirmed: true,
+        reviewed_at: new Date().toISOString(),
+      };
+      const { data, error } = await supabase.from('physical_conditions').insert(row).select('id').single();
+      if (error) return { ok: false, message: `Condição: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'treino', `Condição física registrada (${row.body_region}/${row.status})`, a.reason);
+      await logTimeline(supabase, userId, 'condition', 'Condição física registrada', `${row.body_region} · ${row.status}`);
+      void data; return { ok: true, message: `Condição em ${row.body_region} registrada — o gerador de treino passará a respeitá-la.` };
+    }
+    case 'update_physical_condition': {
+      if (!a.conditionId) return { ok: false, message: 'Atualizar condição: falta conditionId.' };
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), reviewed_at: new Date().toISOString() };
+      if (a.conditionStatus) patch.status = a.conditionStatus;
+      if (a.bodyRegion) patch.body_region = a.bodyRegion;
+      if (a.side) patch.side = a.side;
+      if (a.restrictedMovements) patch.restricted_movements = a.restrictedMovements;
+      if (a.allowedMovements) patch.allowed_movements = a.allowedMovements;
+      const { error } = await supabase.from('physical_conditions').update(patch).eq('id', a.conditionId).eq('user_id', userId);
+      if (error) return { ok: false, message: `Atualizar condição: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'treino', 'Condição física atualizada', a.reason);
+      return { ok: true, message: 'Condição física atualizada.' };
+    }
+    case 'remove_physical_condition': {
+      if (!a.conditionId) return { ok: false, message: 'Remover condição: falta conditionId.' };
+      const { error } = await supabase.from('physical_conditions').update({ active: false, updated_at: new Date().toISOString() }).eq('id', a.conditionId).eq('user_id', userId);
+      if (error) return { ok: false, message: `Remover condição: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'treino', 'Condição física removida/inativada', a.reason);
+      return { ok: true, message: 'Condição física removida — não afeta mais a prescrição.' };
+    }
+    case 'set_training_restriction': {
+      if (!a.conditionId || !a.restrictedMovements?.length) return { ok: false, message: 'Restrição: falta conditionId ou movimentos.' };
+      const { data: cur } = await supabase.from('physical_conditions').select('restricted_movements').eq('id', a.conditionId).eq('user_id', userId).maybeSingle();
+      const merged = Array.from(new Set([...(((cur as any)?.restricted_movements) ?? []), ...a.restrictedMovements]));
+      const { error } = await supabase.from('physical_conditions').update({ restricted_movements: merged, user_confirmed: true, updated_at: new Date().toISOString() }).eq('id', a.conditionId).eq('user_id', userId);
+      if (error) return { ok: false, message: `Restrição: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'treino', `Restrição de treino definida: ${a.restrictedMovements.join(', ')}`, a.reason);
+      return { ok: true, message: `Restrição aplicada — os movimentos ${a.restrictedMovements.join(', ')} serão evitados na prescrição.` };
+    }
+    case 'remove_training_restriction': {
+      if (!a.conditionId) return { ok: false, message: 'Remover restrição: falta conditionId.' };
+      const remove = new Set((a.restrictedMovements ?? []).map(m => m.toLowerCase()));
+      const { data: cur } = await supabase.from('physical_conditions').select('restricted_movements').eq('id', a.conditionId).eq('user_id', userId).maybeSingle();
+      const next = a.restrictedMovements?.length
+        ? (((cur as any)?.restricted_movements) ?? []).filter((m: string) => !remove.has(m.toLowerCase()))
+        : [];
+      const { error } = await supabase.from('physical_conditions').update({ restricted_movements: next, updated_at: new Date().toISOString() }).eq('id', a.conditionId).eq('user_id', userId);
+      if (error) return { ok: false, message: `Remover restrição: ${error.message}` };
+      await logCoachDecision(supabase, userId, 'treino', 'Restrição de treino removida', a.reason);
+      return { ok: true, message: 'Restrição removida.' };
     }
 
     default:

@@ -74,6 +74,24 @@ export async function POST(req: NextRequest) {
       includeExerciseLibrary: includeWorkoutContext,
     });
 
+    // ── CONDIÇÕES FÍSICAS (Physical Condition Engine) ─────────────────────────
+    let conditionsStr = '';
+    try {
+      const { data: pc } = await supabase.from('physical_conditions')
+        .select('id, body_region, side, status, restricted_movements, user_confirmed, professional_validated')
+        .eq('user_id', user.id).eq('active', true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list = (pc ?? []) as any[];
+      if (list.length) {
+        const lines = list.map((c) => `- ${c.body_region}${c.side && c.side !== 'na' ? ' (' + c.side + ')' : ''}: ${c.status}${(c.restricted_movements?.length) ? ` · evitar: ${c.restricted_movements.join(', ')}` : ''}${c.user_confirmed ? '' : ' [pendente de confirmação]'}${c.professional_validated ? ' [validado por profissional]' : ''} [id:${c.id}]`);
+        const pending = list.some((c) => !c.user_confirmed);
+        conditionsStr = `
+[CONDIÇÕES FÍSICAS]
+${lines.join('\n')}
+Considere estas restrições ANTES de recomendar treino/cardio. Para alterar restrições use as ações add/update/remove_physical_condition e set/remove_training_restriction — sempre pedindo confirmação. NUNCA diagnostique.${pending ? ' Há condição pendente de confirmação do usuário.' : ''}`;
+      }
+    } catch { /* tabela pode faltar */ }
+
     // ── Endurance Coach: injeta resumo determinístico da corrida ──────────────
     let enduranceStr = '';
     if (detectedAgent === 'performance') {
@@ -110,7 +128,7 @@ export async function POST(req: NextRequest) {
     // ── Build system prompt: agent-specific + athlete context ─────────────────
     const systemPrompt = `${agentConfig.systemPrompt}
 
-${athleteContextStr}${enduranceStr}${memoryStr}${supportStr}
+${athleteContextStr}${conditionsStr}${enduranceStr}${memoryStr}${supportStr}
 
 INSTRUÇÕES CRÍTICAS:
 - Os dados acima são a realidade atual do atleta. Nunca peça informações que já estão aqui.

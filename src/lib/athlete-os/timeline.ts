@@ -7,7 +7,7 @@
 export type TimelineKind =
   | 'pr' | 'phase_change' | 'new_plan' | 'mesocycle' | 'deload' | 'nutrition_change'
   | 'bioimpedance' | 'weight_change' | 'race_scheduled' | 'goal_change'
-  | 'specialization_change' | 'ai_decision' | 'achievement';
+  | 'specialization_change' | 'ai_decision' | 'achievement' | 'condition';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function logTimeline(supabase: any, userId: string, kind: TimelineKind, title: string, detail?: string, meta?: Record<string, unknown>): Promise<void> {
