@@ -6,10 +6,6 @@ name: Build Android APK (CoachEdnHealth)
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/android-build-health.yml'
-      - 'native/android/**'
 
 permissions:
   contents: write
