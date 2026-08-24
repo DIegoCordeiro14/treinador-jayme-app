@@ -179,7 +179,7 @@ jobs:
 
       - name: Version + keystore + build
         run: |
-          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionCode 1$/versionCode $((2000 + ${{ github.run_number }}))/" android/app/build.gradle
           sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}-health\"/" android/app/build.gradle
           mkdir -p ~/.android && cp .github/coach-edn-debug.keystore ~/.android/debug.keystore || true
           cp .github/coach-edn-debug.keystore android/app/coach-edn-debug.keystore || true
@@ -192,10 +192,21 @@ jobs:
           EOF
           cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Rename + upload
+      - name: Rename APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk coach-edn-health-v1.${{ github.run_number }}.apk
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload APK (artifact)
+        uses: actions/upload-artifact@v4
         with:
           name: coach-edn-health-apk
           path: coach-edn-health-v1.${{ github.run_number }}.apk
           retention-days: 30
+
+      - name: Publish Release (canal OTA)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-health-v${{ github.run_number }}
+          name: Coach EDN APK (CoachEdnHealth) v1.${{ github.run_number }}
+          body: "APK Android com o plugin nativo CoachEdnHealth (Health Connect). versionCode alto para permitir atualizacao OTA sobre o canal anterior. O app instalado detecta esta release e oferece a atualizacao."
+          files: coach-edn-health-v1.${{ github.run_number }}.apk
+          make_latest: true
