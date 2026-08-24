@@ -37,7 +37,8 @@
     "test:gpsaudit": "node scripts/test-gps-audit.js",
     "test:feedback": "node scripts/test-feedback-loop.js",
     "test:improve": "node scripts/test-workout-improvement.js",
-    "test:qasim": "node scripts/test-native-qa-sim.js"
+    "test:qasim": "node scripts/test-native-qa-sim.js",
+    "test:safety": "node scripts/test-safety.js"
   },
   "dependencies": {
     "next": "14.2.0",
