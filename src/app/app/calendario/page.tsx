@@ -90,6 +90,7 @@ export default function CalendarioPage() {
   const [sessionDays, setSessionDays] = useState<Map<string, SessionDay>>(new Map());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<Record<string, unknown>[]>([]);
+  const [selectedCardio, setSelectedCardio] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePlan, setActivePlan] = useState<{ id: string; name: string; days_per_week: number; goal: string; schedule_config: ScheduleConfig | null; } | null>(null);
   const [dayMuscleMap, setDayMuscleMap] = useState<Record<string, string>>({});
@@ -174,6 +175,13 @@ export default function CalendarioPage() {
     const { data } = await supabase.from('workout_sessions').select('*, workout_day:workout_days(name)')
       .eq('user_id', user.id).gte('started_at', dateStr).lte('started_at', dateStr + 'T23:59:59');
     setSelectedSessions(data ?? []);
+    // Cardios realizados no dia (para exibir km + kcal abaixo dos treinos)
+    const { data: cardio } = await supabase.from('cardio_sessions')
+      .select('id, type, distance_km, calories_burned, performed_at')
+      .eq('user_id', user.id).is('deleted_at', null)
+      .gte('performed_at', dateStr).lte('performed_at', dateStr + 'T23:59:59')
+      .order('performed_at', { ascending: true });
+    setSelectedCardio(cardio ?? []);
   }
 
   async function handleSchedule() {
@@ -349,8 +357,24 @@ export default function CalendarioPage() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : selectedCardio.length === 0 ? (
             <p className="text-sm text-zinc-500">Nenhum treino neste dia.</p>
+          ) : null}
+          {selectedCardio.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {selectedCardio.map((c: Record<string, unknown>) => {
+                const km = c.distance_km != null ? Number(c.distance_km) : null;
+                const kcal = c.calories_burned != null ? Math.round(Number(c.calories_burned)) : null;
+                const kmStr = km != null && km > 0 ? `${km % 1 === 0 ? km.toFixed(0) : km.toFixed(2)}km` : null;
+                const label = [(c.type as string) ?? 'Cárdio', kmStr].filter(Boolean).join(' ');
+                return (
+                  <div key={c.id as string} className="flex items-center gap-3 text-sm">
+                    <Flame className="h-3.5 w-3.5 text-orange-400 shrink-0" />
+                    <span className="text-zinc-200">{label}{kcal != null ? <span className="text-zinc-500"> ({kcal} kcal)</span> : null}</span>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
