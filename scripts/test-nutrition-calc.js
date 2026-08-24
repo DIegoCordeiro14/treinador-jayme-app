@@ -29,4 +29,12 @@ ok(meal.confidenceLevel==='moderada','confianca media (0.91,0.6) -> moderada');
 ok(m.confidenceLabel(0.95)==='alta' && m.confidenceLabel(0.42)==='baixa','labels de confianca');
 // recalculo apos correcao 150->200 (determinístico)
 ok(m.calculateItem({food:arroz,quantity:200,unit:'g'}).protein_g===5,'correcao 200g recalcula proteina=5');
+// comparação com metas (§13/§35)
+const cmp = m.compareToTargets({kcal:620,protein:58,carbs:52,fat:18},{kcal:700,protein:50,carbs:80,fat:20});
+ok(cmp.status.carbs==='below','carbo consumido abaixo da meta');
+ok(cmp.status.protein==='above','proteina acima (58 > 50+15%)');
+ok(cmp.status.calories==='ok' || cmp.status.calories==='below','calorias avaliadas');
+ok(m.compareToTargets({kcal:900,protein:0,carbs:0,fat:0},{kcal:600,protein:null,carbs:null,fat:null}).status.calories==='above','calorias acima');
+ok(m.compareToTargets({kcal:0,protein:0,carbs:0,fat:0},{kcal:null,protein:null,carbs:null,fat:null}).status.protein==='na','sem meta -> na');
+
 if(fail){console.error(fail+' falharam');process.exit(1);} else console.log('TODOS OS TESTES PASSARAM');

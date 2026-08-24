@@ -109,3 +109,32 @@ export function calculateMeal(items: MealItemInput[]): CalculatedMeal {
   const avg = confs.length ? confs.reduce((a, b) => a + b, 0) / confs.length : null;
   return { items: calc, totals, avgConfidence: avg, confidenceLevel: avg != null ? confidenceLabel(avg) : null };
 }
+
+// ─── Comparação refeição/consumo × meta (§13/§35) ────────────────────────────
+export interface MacroTargets { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null }
+export type MacroStatus = 'ok' | 'below' | 'above';
+export interface MealComparison {
+  status: Record<'calories' | 'protein' | 'carbs' | 'fat', MacroStatus | 'na'>;
+  messages: string[];
+}
+
+/** Compara valores consumidos com a meta (tolerância ±15%). Não altera a dieta — só interpreta. */
+export function compareToTargets(
+  consumed: { kcal: number; protein: number; carbs: number; fat: number },
+  target: MacroTargets,
+  tol = 0.15,
+): MealComparison {
+  const cmp = (v: number, t: number | null): MacroStatus | 'na' => {
+    if (t == null || t <= 0) return 'na';
+    if (v < t * (1 - tol)) return 'below';
+    if (v > t * (1 + tol)) return 'above';
+    return 'ok';
+  };
+  const status = { calories: cmp(consumed.kcal, target.kcal), protein: cmp(consumed.protein, target.protein), carbs: cmp(consumed.carbs, target.carbs), fat: cmp(consumed.fat, target.fat) };
+  const messages: string[] = [];
+  if (status.protein === 'below') messages.push('Proteína abaixo do planejado.');
+  if (status.carbs === 'below') messages.push('Carboidrato abaixo do planejado.');
+  if (status.calories === 'below') messages.push('Calorias abaixo da estratégia do dia.');
+  if (status.calories === 'above') messages.push('Calorias acima da estratégia do dia.');
+  return { status, messages };
+}

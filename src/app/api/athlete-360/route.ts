@@ -140,6 +140,19 @@ export async function GET(_req: NextRequest) {
     ]);
     pcRows = (pcd ?? []) as any[]; dlRows = (dld ?? []) as any[];
   } catch { /* tabelas podem faltar */ }
+  let nutritionToday: { kcal: number; protein: number; carbs: number; fat: number } | null = null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: fl } = await supabase.from('food_logs').select('calories_kcal, protein_g, carbs_g, fat_g').eq('user_id', user.id).eq('log_date', today);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = (fl ?? []) as any[];
+    if (rows.length) nutritionToday = {
+      kcal: Math.round(rows.reduce((a, r) => a + (r.calories_kcal ?? 0), 0)),
+      protein: Math.round(rows.reduce((a, r) => a + (r.protein_g ?? 0), 0)),
+      carbs: Math.round(rows.reduce((a, r) => a + (r.carbs_g ?? 0), 0)),
+      fat: Math.round(rows.reduce((a, r) => a + (r.fat_g ?? 0), 0)),
+    };
+  } catch { /* food_logs pode faltar */ }
   const conditionSnaps = pcRows.map((c) => ({ id: c.id, region: c.body_region, side: c.side, status: c.status, restricted: c.restricted_movements ?? [], confirmed: c.user_confirmed !== false }));
   const discomfortSignals = detectRecurringDiscomfort(dlRows.map((x) => ({ bodyRegion: x.body_region, severity: x.severity, createdAt: x.created_at })));
   const physicalRestricted = conditionSnaps.some((c) => c.confirmed && (c.status === 'recovering' || c.status === 'rehab' || (c.restricted?.length ?? 0) > 0));
@@ -217,6 +230,7 @@ export async function GET(_req: NextRequest) {
       adherence: { training: state.training?.consistency ?? null, nutrition: nutritionScore, overall: edn360.overall },
       strengths: weakPoint.strongest ? [weakPoint.strongest.muscle] : [],
       trends: { strengthPct: strengthTrendPct, volumePct: strengthTrendPct, weightKgPerWeek: perWeekGain, cardioAcwr },
+      nutritionToday,
     });
   } catch { /* fonte única best-effort */ }
 

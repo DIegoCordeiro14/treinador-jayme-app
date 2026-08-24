@@ -19,6 +19,7 @@ export interface AthleteStateV2Extras {
   adherence: { training: number | null; nutrition: number | null; overall: number | null };
   strengths: string[];
   trends: { strengthPct: number | null; volumePct: number | null; weightKgPerWeek: number | null; cardioAcwr: number | null };
+  nutritionToday?: { kcal: number; protein: number; carbs: number; fat: number } | null;
 }
 
 export type SafetyLevel = 'none' | 'watch' | 'intervene' | 'block';
@@ -34,6 +35,7 @@ export interface AthleteStateV2 extends AthleteState {
   limiter: { key: string; label: string; nextAction: string } | null;
   trends: { strengthPct: number | null; volumePct: number | null; weightKgPerWeek: number | null; cardioAcwr: number | null };
   safetyLevel: SafetyLevel;
+  nutritionToday: { kcal: number; protein: number; carbs: number; fat: number } | null;
 }
 
 /** Deriva o nível de segurança a partir de condições + desconfortos + risco de lesão. */
@@ -73,6 +75,7 @@ export function buildAthleteStateV2(base: AthleteState, extras: AthleteStateV2Ex
     trends: extras.trends,
     limiter,
     safetyLevel,
+    nutritionToday: extras.nutritionToday ?? null,
   };
 }
 
