@@ -35,6 +35,7 @@ export function AthleteCentral() {
     fetch('/api/athlete-360').then(r => r.json()).then(d => {
       if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); }
     }).catch(() => {});
+    fetch('/api/decisions/evaluate').catch(() => {});
     fetch('/api/daily-briefing').then(r => r.json()).then(d => {
       const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
       if (line) setBriefLine(String(line).replace(/\*\*(.*?)\*\*/g, '$1'));

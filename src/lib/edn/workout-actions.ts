@@ -315,6 +315,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
         });
       } catch { /* tabela pode não existir ainda */ }
       await logTimeline(supabase, userId, 'goal_change', `Objetivo → ${label[goal]}`, `de ${fromGoal ?? '—'} para ${goal}`, { from: fromGoal, to: goal });
+      await logDecision(supabase, userId, { trigger: a.reason ?? 'mudanca_objetivo', engine: 'nutrition', domain: 'nutrition', decision: `Objetivo: ${fromGoal ?? '—'} → ${goal}`, inputs: { from: fromGoal, to: goal }, applied: true });
       return { ok: true, message: `Objetivo atualizado para ${label[goal]} — macros e calorias recalculados automaticamente.` };
     }
 
@@ -332,6 +333,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
         if (next !== e.sets) { const { error } = await supabase.from('workout_exercises').update({ sets: next }).eq('id', e.id); if (!error) changed++; }
       }
       await logCoachDecision(supabase, userId, 'treino', `Ajuste de volume: ${a.exerciseId ? '1 exercício' : 'dia inteiro'} → ${a.sets != null ? a.sets + ' séries' : (a.setsDelta && a.setsDelta > 0 ? '+' : '') + a.setsDelta + ' séries'}`, a.reason);
+      await logDecision(supabase, userId, { trigger: a.reason ?? 'ajuste_volume', engine: 'coach', domain: 'training', decision: `Volume: ${a.sets != null ? a.sets + ' séries' : (a.setsDelta ?? 0) + ' séries'} (${changed} ex.)`, inputs: { dayId: a.dayId, exerciseId: a.exerciseId ?? null, sets: a.sets ?? null, setsDelta: a.setsDelta ?? null }, applied: changed > 0 });
       return { ok: changed > 0, message: changed > 0 ? `Volume ajustado em ${changed} exercício(s).` : 'Nenhuma alteração de volume aplicada.' };
     }
 
