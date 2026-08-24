@@ -30,10 +30,12 @@ export function AthleteCentral() {
   const [session, setSession] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [alertU, setAlertU] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [sv2, setSv2] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/athlete-360').then(r => r.json()).then(d => {
-      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); }
+      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); setSv2(d.stateV2 ?? null); }
     }).catch(() => {});
     fetch('/api/decisions/evaluate').catch(() => {});
     fetch('/api/daily-briefing').then(r => r.json()).then(d => {
@@ -71,12 +73,12 @@ export function AthleteCentral() {
           </div>
         ))}
       </div>
-      <div className="rounded-lg bg-[#8B5A5A]/10 border border-[#8B5A5A]/30 p-2.5">
-        <p className="text-[11px] font-bold text-zinc-100 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-[#C97B7B]" />Principal limitador: {edn.limiterLabel}</p>
-        <p className="text-[11px] text-zinc-300 mt-0.5">{edn.limiterMessage}</p>
-        <p className="text-[11px] text-[#D4853A] font-semibold mt-1 flex items-start gap-1"><ArrowRight className="h-3.5 w-3.5 shrink-0 mt-0.5" />{edn.nextAction}</p>
+      <div className={`rounded-lg border p-2.5 ${sv2?.safetyLevel==='block' ? 'bg-red-500/10 border-red-500/30' : 'bg-[#8B5A5A]/10 border-[#8B5A5A]/30'}`}>
+        <p className="text-[11px] font-bold text-zinc-100 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-[#C97B7B]" />Principal limitador: {sv2?.limiter?.label ?? edn.limiterLabel}</p>
+        <p className="text-[11px] text-zinc-300 mt-0.5">{sv2?.limiter ? '' : edn.limiterMessage}</p>
+        <p className="text-[11px] text-[#D4853A] font-semibold mt-1 flex items-start gap-1"><ArrowRight className="h-3.5 w-3.5 shrink-0 mt-0.5" />{sv2?.limiter?.nextAction ?? edn.nextAction}</p>
         <a
-          href={`/app/ia?ask=${encodeURIComponent(`Meu EDN 360 está em ${edn.overall}/100 e o principal limitador hoje é ${edn.limiterLabel}. A próxima ação sugerida é: "${edn.nextAction}". Analise meus dados e, se fizer sentido, aplique o ajuste.`)}`}
+          href={`/app/ia?ask=${encodeURIComponent(`Meu EDN 360 está em ${edn.overall}/100 e o principal limitador hoje é ${sv2?.limiter?.label ?? edn.limiterLabel}. A próxima ação sugerida é: "${sv2?.limiter?.nextAction ?? edn.nextAction}". Analise meus dados e, se fizer sentido, aplique o ajuste.`)}`}
           className="inline-flex items-center gap-1 mt-2 text-[11px] font-bold text-[#D4853A] hover:text-[#E09B5A]"
         >
           <Brain className="h-3.5 w-3.5" /> Aplicar próxima ação com o Coach
