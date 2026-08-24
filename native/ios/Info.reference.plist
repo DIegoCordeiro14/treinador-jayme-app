@@ -1,0 +1,16 @@
+<!-- §32 — chaves de referência para o iOS (Info.plist do wrapper Capacitor). -->
+<dict>
+  <key>NSHealthShareUsageDescription</key>
+  <string>O Coach EDN lê seus treinos, frequência cardíaca, calorias e rotas para adaptar o treinamento à sua recuperação e evolução.</string>
+  <key>NSHealthUpdateUsageDescription</key>
+  <string>O Coach EDN pode registrar treinos concluídos no seu app de Saúde.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Usado para rastrear sua corrida com mapa, distância e pace.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>Permite continuar o rastreamento da corrida com a tela bloqueada.</string>
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>location</string>
+    <string>workout-processing</string>
+  </array>
+</dict>
