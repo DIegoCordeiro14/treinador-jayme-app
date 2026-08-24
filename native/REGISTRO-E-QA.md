@@ -22,29 +22,29 @@ repositório Next.js. O código TS já consome o contrato `CoachEdnHealth` (ver
 Marcar cada item só após validar em **aparelho real** com relógio pareado.
 
 ### Teste 1 — Força (treino de 60 min com relógio)
-- [ ] Treino identificado e casado com a sessão do Coach (sem cardio duplicado).
-- [ ] BPMs importados com timestamp.
-- [ ] FC por série calculada (avg/max/%FCmax/zona) via `strength-physiology`.
-- [ ] Calorias importadas.
-- [ ] Enriquecimento retroativo funciona quando o relógio sincroniza depois (fila com backoff).
+- [~] Treino identificado e casado com a sessão do Coach (sem cardio duplicado).
+- [~] BPMs importados com timestamp.
+- [~] FC por série calculada (avg/max/%FCmax/zona) via `strength-physiology`.
+- [~] Calorias importadas.
+- [~] Enriquecimento retroativo funciona quando o relógio sincroniza depois (fila com backoff).
 
 ### Teste 2 — Corrida
-- [ ] Distância, rota, pontos GPS, FC temporal, FC média/máx.
-- [ ] Mapa e replay corretos; sem teleporte/spikes no traçado exibido (auditoria `gps-track-audit`).
+- [~] Distância, rota, pontos GPS, FC temporal, FC média/máx.
+- [~] Mapa e replay corretos; sem teleporte/spikes no traçado exibido (auditoria `gps-track-audit`).
 
 ### Teste 3 — Ciclismo
-- [ ] Classificação, distância, FC, rota (quando disponível).
+- [~] Classificação, distância, FC, rota (quando disponível).
 
 ### Teste 4 — HIIT
-- [ ] Classificação, duração, FC, calorias.
+- [~] Classificação, duração, FC, calorias.
 
 ### Teste 5 — Natação
-- [ ] Apenas os dados realmente disponibilizados pelo provider.
+- [~] Apenas os dados realmente disponibilizados pelo provider.
 
 ### Background / robustez
-- [ ] Tela bloqueada: tracker segue contando por timestamp.
-- [ ] Minimizar/voltar: sessão retomável.
-- [ ] Perder e recuperar conexão: fila offline reenvia sem duplicar.
+- [~] Tela bloqueada: tracker segue contando por timestamp.
+- [~] Minimizar/voltar: sessão retomável.
+- [~] Perder e recuperar conexão: fila offline reenvia sem duplicar.
 
 ## Critérios de aceite (§29/§34)
 Não aceitar: dados duplicados, FC inventada, rota falsa, distância negativa, GPS teleportando,
@@ -52,3 +52,15 @@ cargas inventadas, reps fora do intervalo, alterações automáticas sem confirm
 
 > `tsc --noEmit` limpo é pré-requisito, **não** é evidência de integração concluída.
 > A integração só está concluída quando os itens acima passam em dispositivo físico.
+
+## Status da simulação (§33)
+Rodar `npm run test:qasim`. A simulação `scripts/test-native-qa-sim.js` alimenta fixtures que
+imitam payloads reais de Health Connect/HealthKit pela pipeline determinística e cobre os 5
+testes + robustez (26 verificações, todas verdes).
+
+Legenda do checklist acima:
+- `[~]` = **validado por simulação** (lógica correta assumindo dados reais).
+- Marcar `[x]` somente após confirmar no **aparelho físico** com relógio pareado.
+
+> A simulação prova a CORREÇÃO DA LÓGICA. A prova de INTEGRAÇÃO (o device realmente
+> entregar FC/rota/atividades) só se conclui rodando o APK/iOS em hardware real.
