@@ -43,7 +43,8 @@
     "test:alertsev": "node scripts/test-alert-severity.js",
     "test:declog": "node scripts/test-decision-log.js",
     "test:twin": "node scripts/test-twin-scenarios.js",
-    "test:v9": "node scripts/test-v9-integration.js"
+    "test:v9": "node scripts/test-v9-integration.js",
+    "test:nutricalc": "node scripts/test-nutrition-calc.js"
   },
   "dependencies": {
     "next": "14.2.0",
