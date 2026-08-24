@@ -7,12 +7,12 @@
  */
 
 export type RecoveryCategory = 'excellent' | 'good' | 'moderate' | 'low' | 'critical';
-export type Domain = 'recovery' | 'injury' | 'overreaching' | 'plateau' | 'training' | 'nutrition' | 'cardio' | 'gamification';
+export type Domain = 'safety' | 'recovery' | 'injury' | 'overreaching' | 'plateau' | 'training' | 'nutrition' | 'cardio' | 'gamification';
 export type DecisionKind = 'reduce' | 'deload' | 'maintain' | 'increase' | 'inform';
 
 // Bloco 5 — hierarquia (quanto maior, mais prioritário)
 export const DOMAIN_PRIORITY: Record<Domain, number> = {
-  recovery: 100, injury: 95, overreaching: 85, plateau: 70, training: 55, nutrition: 45, cardio: 35, gamification: 10,
+  safety: 110, recovery: 100, injury: 95, overreaching: 85, plateau: 70, training: 55, nutrition: 45, cardio: 35, gamification: 10,
 };
 
 export interface AthleteDecision {
@@ -33,6 +33,9 @@ export interface AOSFacts {
   hrvDropPct: number | null;         // negativo = HRV caiu
   sleepHours: number | null;
   injuryRisk: 'none' | 'low' | 'high';
+  physicalRestricted: boolean;       // condição física confirmada em recuperação/reabilitação ou com movimento restrito
+  recurringDiscomfort: boolean;      // desconforto recorrente detectado
+  restrictedRegions?: string[];      // regiões afetadas (para a mensagem)
   overreaching: boolean;             // volume↑ forte + performance↓
   plateau: boolean;                  // peso/força estagnados
   inDeload: boolean;
@@ -57,6 +60,12 @@ export function buildDecisions(f: AOSFacts): AthleteDecision[] {
   const push = (d: Omit<AthleteDecision, 'rank'>) => out.push({ ...d, rank: DOMAIN_PRIORITY[d.domain] });
 
   // RECUPERAÇÃO
+  // Bloco 0 — SEGURANÇA FÍSICA (prioridade máxima).
+  if (f.physicalRestricted || f.recurringDiscomfort) {
+    const ev = [f.physicalRestricted ? 'condição física ativa' : null, f.recurringDiscomfort ? 'desconforto recorrente' : null].filter(Boolean) as string[];
+    const reg = (f.restrictedRegions ?? []).join(', ');
+    push({ domain: 'safety', kind: 'reduce', action: `Respeitar restrições físicas${reg ? ' (' + reg + ')' : ''}: evitar movimentos em conflito e não progredir cargas nas regiões afetadas.`, confidence: conf(ev, 80), reason: 'Segurança física tem prioridade sobre qualquer outro objetivo — treinar sobre uma restrição ativa aumenta risco de agravo.', evidence: ev });
+  }
   if (f.recoveryCategory === 'critical' || f.recoveryCategory === 'low' || (f.hrvDropPct != null && f.hrvDropPct <= -15)) {
     const ev: string[] = [`recuperação ${f.recoveryCategory}`];
     if (f.hrvDropPct != null) ev.push(`HRV ${f.hrvDropPct}%`);
@@ -116,15 +125,19 @@ export interface AOSResult {
 export function orchestrate(f: AOSFacts): AOSResult {
   const decisions = buildDecisions(f).sort((a, b) => b.rank - a.rank);
 
+  const safetyBlocks = f.physicalRestricted || f.recurringDiscomfort;
   const recoveryBlocks = f.recoveryCategory === 'critical' || f.recoveryCategory === 'low' || (f.hrvDropPct != null && f.hrvDropPct <= -15);
   const injuryBlocks = f.injuryRisk === 'high';
   const deloadBlocks = f.inDeload || f.overreaching;
 
   let conflictsResolved = 0;
   for (const d of decisions) {
+    if (d.domain === 'safety') continue;               // a própria decisão de segurança nunca é suprimida
     if (d.kind !== 'increase') continue;
     // Bloco 14 — proibições: nada de aumentar carga/volume/intensidade sob esses estados.
-    if (recoveryBlocks) { d.suppressed = true; d.suppressedBy = 'recovery'; conflictsResolved++; }
+    // SEGURANÇA FÍSICA em 1º: suprime inclusive quando a recuperação estaria ok.
+    if (safetyBlocks) { d.suppressed = true; d.suppressedBy = 'safety'; conflictsResolved++; }
+    else if (recoveryBlocks) { d.suppressed = true; d.suppressedBy = 'recovery'; conflictsResolved++; }
     else if (injuryBlocks) { d.suppressed = true; d.suppressedBy = 'injury'; conflictsResolved++; }
     else if (deloadBlocks) { d.suppressed = true; d.suppressedBy = 'overreaching'; conflictsResolved++; }
   }

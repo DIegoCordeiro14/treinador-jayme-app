@@ -130,6 +130,21 @@ export async function GET(_req: NextRequest) {
     periodDays: 30,
   });
 
+  // ── Condições físicas / desconforto (segurança física no topo da hierarquia) ─
+  let pcRows: any[] = []; let dlRows: any[] = [];
+  try {
+    const [{ data: pcd }, { data: dld }] = await Promise.all([
+      supabase.from('physical_conditions').select('id, body_region, side, status, restricted_movements, user_confirmed').eq('user_id', user.id).eq('active', true),
+      supabase.from('workout_discomfort_logs').select('body_region, severity, created_at').eq('user_id', user.id).gte('created_at', new Date(now - 60 * 86400000).toISOString()),
+    ]);
+    pcRows = (pcd ?? []) as any[]; dlRows = (dld ?? []) as any[];
+  } catch { /* tabelas podem faltar */ }
+  const conditionSnaps = pcRows.map((c) => ({ id: c.id, region: c.body_region, side: c.side, status: c.status, restricted: c.restricted_movements ?? [], confirmed: c.user_confirmed !== false }));
+  const discomfortSignals = detectRecurringDiscomfort(dlRows.map((x) => ({ bodyRegion: x.body_region, severity: x.severity, createdAt: x.created_at })));
+  const physicalRestricted = conditionSnaps.some((c) => c.confirmed && (c.status === 'recovering' || c.status === 'rehab' || (c.restricted?.length ?? 0) > 0));
+  const recurringDiscomfort = discomfortSignals.some((d) => d.recommend);
+  const restrictedRegions = Array.from(new Set(conditionSnaps.filter((c) => c.confirmed).map((c) => c.region)));
+
   // ── Athlete Operating System: decisão única coordenada ────────────────────
   const perWeekGain = weightTrendKg != null ? weightTrendKg / (30 / 7) : null;
   const aosFacts: AOSFacts = {
@@ -138,6 +153,9 @@ export async function GET(_req: NextRequest) {
     hrvDropPct,
     sleepHours: wm?.sleep_hours ?? null,
     injuryRisk: 'none',
+    physicalRestricted,
+    recurringDiscomfort,
+    restrictedRegions,
     overreaching: (strengthTrendPct != null && strengthTrendPct < -10) && load.risk === 'alto',
     plateau: goalIsCut && weightTrendKg != null && Math.abs(weightTrendKg) < 0.3,
     inDeload: false,
@@ -189,16 +207,9 @@ export async function GET(_req: NextRequest) {
   // ── AthleteState 2.0 (fonte única) ────────────────────────────────────────
   let stateV2 = null;
   try {
-    const [{ data: pc }, { data: dl }] = await Promise.all([
-      supabase.from('physical_conditions').select('id, body_region, side, status, restricted_movements, user_confirmed').eq('user_id', user.id).eq('active', true),
-      supabase.from('workout_discomfort_logs').select('body_region, severity, created_at').eq('user_id', user.id).gte('created_at', new Date(now - 60 * 86400000).toISOString()),
-    ]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const conditions = ((pc ?? []) as any[]).map((c) => ({ id: c.id, region: c.body_region, side: c.side, status: c.status, restricted: c.restricted_movements ?? [], confirmed: c.user_confirmed !== false }));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const discomforts = detectRecurringDiscomfort(((dl ?? []) as any[]).map((x) => ({ bodyRegion: x.body_region, severity: x.severity, createdAt: x.created_at }))).map((d) => ({ region: d.region, count: d.count, recommend: d.recommend }));
+    const discomforts = discomfortSignals.map((d) => ({ region: d.region, count: d.count, recommend: d.recommend }));
     stateV2 = buildAthleteStateV2(state, {
-      conditions, discomforts,
+      conditions: conditionSnaps, discomforts,
       sleep: { hours: wm?.sleep_hours ?? null, quality: profile?.sleep_quality ?? null },
       calendar: { plannedThisWeek: profile?.weekly_frequency ?? 0, doneThisWeek: sessions7, nextWorkoutLabel: null },
       race: { date: (profile as any)?.target_race_date ?? null, weeksAway: null, name: null },

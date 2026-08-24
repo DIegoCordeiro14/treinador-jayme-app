@@ -30,4 +30,18 @@ check('sem sinais críticos → manter/train', ['training','nutrition'].includes
 
 // hierarquia de prioridade
 check('recovery(100) > injury(95) > overreaching(85)', E.DOMAIN_PRIORITY.recovery>E.DOMAIN_PRIORITY.injury && E.DOMAIN_PRIORITY.injury>E.DOMAIN_PRIORITY.overreaching);
+
+console.log('\n== V9: seguranca fisica no topo ==');
+{
+  const b = { ...base, recoveryCategory:'good', recoveryScore:80, prReady:true, strengthTrendPct:3 };
+  const s1 = E.orchestrate({ ...b, physicalRestricted:true, restrictedRegions:['knee'] });
+  check('restricao fisica -> nextBestAction = safety', s1.nextBestAction.domain==='safety', s1.nextBestAction.domain);
+  check('increase suprimido por safety mesmo com recuperacao boa', s1.decisions.some(d=>d.kind==='increase' && d.suppressed && d.suppressedBy==='safety'));
+  const s2 = E.orchestrate({ ...b, recurringDiscomfort:true });
+  check('desconforto recorrente bloqueia progressao', s2.decisions.some(d=>d.kind==='increase' && d.suppressedBy==='safety'));
+  const s3 = E.orchestrate(b);
+  check('sem restricao -> safety nao domina', s3.nextBestAction.domain!=='safety');
+  check('DOMAIN_PRIORITY: safety(110) > recovery(100)', E.DOMAIN_PRIORITY.safety > E.DOMAIN_PRIORITY.recovery);
+}
+
 console.log(`\n== RESULTADO: ${pass} passaram, ${fail} falharam ==\n`); process.exit(fail?1:0);
