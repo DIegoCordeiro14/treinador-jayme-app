@@ -40,7 +40,8 @@
     "test:qasim": "node scripts/test-native-qa-sim.js",
     "test:safety": "node scripts/test-safety.js",
     "test:state2": "node scripts/test-athlete-state-2.js",
-    "test:alertsev": "node scripts/test-alert-severity.js"
+    "test:alertsev": "node scripts/test-alert-severity.js",
+    "test:declog": "node scripts/test-decision-log.js"
   },
   "dependencies": {
     "next": "14.2.0",

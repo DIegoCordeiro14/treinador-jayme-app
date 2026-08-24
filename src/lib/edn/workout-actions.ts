@@ -14,6 +14,7 @@
  */
 import { invalidateAthleteContext } from '@/lib/edn/athlete-context';
 import { logTimeline } from '@/lib/athlete-os/timeline';
+import { logDecision } from '@/lib/edn/decision-log';
 import { computeExerciseDeload, deloadSignal, type DeloadSetRecord } from '@/lib/edn/deload-engine';
 import { computeFingerprint } from '@/lib/cardio/activity-fingerprint';
 
@@ -393,6 +394,7 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       const reason = a.reason ?? (anySignal ? 'Fadiga/estagnação detectada no histórico.' : 'Deload preventivo solicitado.');
       await logCoachDecision(supabase, userId, 'treino', `Deload aplicado ${scope} (–40% séries, –12% carga por 7 dias)`, reason);
       await logTimeline(supabase, userId, 'deload', 'Deload aplicado', `${scope}: ${changed} exercício(s), carga reduzida por 7 dias`);
+      await logDecision(supabase, userId, { trigger: anySignal ? 'fadiga/estagnacao' : 'deload_solicitado', engine: 'deload-engine', domain: 'recovery', decision: `Deload ${scope}: -40% séries, -12% carga por 7 dias`, inputs: { changed, scope, anySignal }, applied: changed > 0 });
       return { ok: changed > 0, message: changed > 0
         ? `Deload aplicado ${scope}: ${changed} exercício(s) com séries e carga reduzidas por 7 dias (lido do seu histórico).`
         : 'Deload não alterou os exercícios.' };
