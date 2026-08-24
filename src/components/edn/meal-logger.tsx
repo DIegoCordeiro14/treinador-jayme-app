@@ -24,6 +24,7 @@ export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: (
   const [meal, setMeal] = useState<string>('almoco');
   const [rows, setRows] = useState<Row[]>([]);
   const [notes, setNotes] = useState('');
+  const [description, setDescription] = useState('');
   const [source, setSource] = useState<'manual'|'photo'|'voice'|'text'>('manual');
   const [photo, setPhoto] = useState<{ b64: string; type: string } | null>(null);
   const [search, setSearch] = useState('');
@@ -48,7 +49,7 @@ export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: (
     if (t.meal) setMeal(t.meal);
     toast('Refeição habitual carregada — ajuste se precisar.');
   }
-  const reset = () => { setRows([]); setNotes(''); setPhoto(null); setSearch(''); setResults([]); setTextInput(''); setSource('manual'); setFit(null); };
+  const reset = () => { setRows([]); setNotes(''); setPhoto(null); setSearch(''); setResults([]); setTextInput(''); setSource('manual'); setFit(null); setDescription(''); };
 
   // ── Busca na base ──
   const doSearch = useCallback(async (q: string) => {
@@ -81,8 +82,9 @@ export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: (
         newRows.push({ name: f.name, quantity: it.estimated_quantity ?? f.usual_quantity ?? 100, unit: it.unit ?? f.serving_unit ?? 'g', preparation: it.preparation ?? null, confidence: it.confidence,
           serving_size: f.serving_size ?? 100, serving_unit: f.serving_unit ?? 'g', calories: f.calories, protein: f.protein, carbohydrates: f.carbohydrates, fat: f.fat, fiber: f.fiber ?? null, food_id: f.id ?? null });
       }
-      setRows(newRows); setNotes(d.notes ?? '');
-      if (d.notes) toast(d.notes);
+      setRows(newRows); setNotes(d.notes ?? ''); setDescription(d.description ?? '');
+      if (d.description) toast(`Identifiquei: ${d.description}`);
+      else if (!newRows.length) toast.error('Não consegui identificar alimentos na foto. Tente uma foto mais nítida ou registre por texto.');
       const confs = newRows.map(r => r.confidence).filter((c): c is number => c != null);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) supabase.from('nutrition_vision_events').insert({ user_id: user.id, kind: newRows.length ? 'photo_analysis_success' : 'photo_analysis_failure', source: src, items_detected: newRows.length, avg_confidence: confs.length ? confs.reduce((a,b)=>a+b,0)/confs.length : null, latency_ms: Date.now() - analyzeStart.t }).then(() => {}, () => {});
@@ -90,10 +92,37 @@ export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: (
     setBusy(false);
   }
 
+  // Converte QUALQUER foto (inclusive HEIC do iPhone) para JPEG reduzido — evita
+  // formato não suportado pela IA e payload grande demais.
+  async function fileToJpeg(file: File, maxDim = 1280, quality = 0.82): Promise<{ b64: string } | null> {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise<HTMLImageElement>((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d'); if (!ctx) { URL.revokeObjectURL(url); return null; }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      return { b64: dataUrl.split(',')[1] };
+    } catch { return null; }
+  }
+
   async function onPhoto(file: File) {
-    const b64 = await new Promise<string>((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result).split(',')[1]); rd.onerror = rej; rd.readAsDataURL(file); });
-    setPhoto({ b64, type: file.type });
-    analyze({ image: b64, mediaType: file.type }, 'photo');
+    setBusy(true); setSource('photo');
+    const conv = await fileToJpeg(file);
+    if (!conv) {
+      // fallback: envia como está se a conversão falhar
+      try {
+        const b64 = await new Promise<string>((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result).split(',')[1]); rd.onerror = rej; rd.readAsDataURL(file); });
+        setPhoto({ b64, type: file.type || 'image/jpeg' });
+        analyze({ image: b64, mediaType: file.type || 'image/jpeg' }, 'photo');
+      } catch { toast.error('Não consegui ler a imagem'); setBusy(false); }
+      return;
+    }
+    setPhoto({ b64: conv.b64, type: 'image/jpeg' });
+    analyze({ image: conv.b64, mediaType: 'image/jpeg' }, 'photo');
   }
 
   function onVoice() {
@@ -218,7 +247,8 @@ export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: (
           )}
         </div>
 
-        {notes && <p className="text-[11px] text-amber-300/90">⚠ {notes}</p>}
+        {!fit && description && <p className="text-[12px] text-zinc-200">🍽️ <span className="font-semibold">{description}</span></p>}
+        {!fit && notes && <p className="text-[11px] text-amber-300/90">⚠ {notes}</p>}
 
         {/* Como isso se encaixa no seu dia (§35) */}
         {fit ? (

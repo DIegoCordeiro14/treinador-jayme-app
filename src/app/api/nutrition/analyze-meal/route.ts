@@ -26,7 +26,11 @@ export async function POST(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const blocks: any[] = [];
-    if (image) blocks.push({ type: 'image', source: { type: 'base64', media_type: (mediaType ?? 'image/jpeg'), data: image } });
+    if (image) {
+      const supported = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      const mt = supported.includes(mediaType ?? '') ? (mediaType as string) : 'image/jpeg';
+      blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: image } });
+    }
 
     const instruction = `Você está identificando alimentos ${image ? 'em uma FOTO de refeição' : 'em uma DESCRIÇÃO de refeição'}.
 ${text ? `Descrição do usuário: """${text}"""\n` : ''}
@@ -41,6 +45,7 @@ REGRAS OBRIGATÓRIAS:
 - Nomes em português do Brasil, minúsculos.
 Retorne APENAS JSON, sem markdown:
 {
+ "description": "descrição curta do prato em 1 frase (ex.: arroz branco, salada e frango grelhado)",
  "items": [
    { "candidate_name": "arroz branco", "estimated_quantity": 150, "unit": "g", "preparation": "cozido|grelhado|frito|assado|null", "confidence": 0.0 }
  ],
@@ -67,6 +72,7 @@ Retorne APENAS JSON, sem markdown:
         preparation: i.preparation ?? null,
         confidence: typeof i.confidence === 'number' ? i.confidence : null,
       })),
+      description: parsed.description ?? '',
       notes: parsed.notes ?? '',
       disclaimer: 'Identificação automática — estimativas, não medições. Confirme os itens; os valores nutricionais são calculados pelo sistema após a confirmação.',
     });
