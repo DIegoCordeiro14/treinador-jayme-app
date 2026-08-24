@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { prescribeLoads, roundToAvailableLoad, type SetPerf, type RecoveryCategory } from '@/lib/edn/load-intelligence';
 import { buildSetProfiles, profileFor, type SetHistoryRecord } from '@/lib/edn/set-progression-engine';
+import { analyzeFeedbackLoop, type SessionOutcome } from '@/lib/edn/feedback-loop-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -111,7 +112,10 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-    out[ex.id] = presc ? { exerciseName: ex.exercise?.name ?? '', ...presc } : { exerciseName: ex.exercise?.name ?? '', noHistory: true };
+    // Feedback loop (§29/§40): aprende o modelo de progressão a partir da trajetória
+    const outcomes: SessionOutcome[] = history.map(h => ({ performedAt: new Date(h.dateMs ?? Date.now()).toISOString(), topWeightKg: h.weightKg, reps: h.reps ?? 0, rir: h.rir ?? null, repsMin: ex.reps_min ?? 8, repsMax: ex.reps_max ?? 12 }));
+    const feedback = outcomes.length >= 3 ? analyzeFeedbackLoop(outcomes) : null;
+    out[ex.id] = presc ? { exerciseName: ex.exercise?.name ?? '', ...presc, feedback } : { exerciseName: ex.exercise?.name ?? '', noHistory: true, feedback };
   }
 
   return Response.json({ recoveryCategory, deloadActive, prescriptions: out });
