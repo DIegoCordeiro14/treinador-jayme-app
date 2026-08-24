@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { analyzeWeight } from '@/lib/edn/weight-intelligence';
 import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
-import { DailyNutritionCard } from '@/components/edn/daily-nutrition-card';
+import { MealLogger } from '@/components/edn/meal-logger';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -98,6 +98,7 @@ export default function NutricaoPage() {
   const [weightForm, setWeightForm] = useState({ weight_kg: '', body_fat_pct: '' });
   const [savingWeight, setSavingWeight] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
+  const [showLogger, setShowLogger] = useState(false);
   const [savingMeal, setSavingMeal] = useState(false);
   const [mealForm, setMealForm] = useState({ name: '', time: '', calories_pct: '', focus: '', example: '' });
   const [activeTab, setActiveTab] = useState('coach');
@@ -311,7 +312,10 @@ export default function NutricaoPage() {
   return (
     <div className="space-y-5 animate-in fade-in-0 duration-300 pb-6">
 
-      <DailyNutritionCard />
+      <button onClick={() => setShowLogger(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#D4853A] text-white text-sm font-bold">
+        <span>＋ Registrar refeição</span>
+      </button>
+      <MealLogger controlledOpen={showLogger} onClose={() => setShowLogger(false)} onLogged={() => { setShowLogger(false); }} />
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">

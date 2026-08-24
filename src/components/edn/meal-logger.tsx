@@ -15,9 +15,11 @@ const MEALS = [['cafe','Café'],['almoco','Almoço'],['lanche','Lanche'],['janta
 const confDot = (c: number | null) => c == null ? '' : c >= 0.8 ? '🟢' : c >= 0.55 ? '🟡' : '🔴';
 
 /** Registro inteligente de refeição: foto / voz / texto / manual → confirmação → cálculo determinístico. */
-export function MealLogger({ onLogged }: { onLogged?: () => void }) {
+export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: () => void; controlledOpen?: boolean; onClose?: () => void }) {
   const supabase = createClient();
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = controlledOpen ?? openInner;
+  const setOpen = (v: boolean) => { if (controlledOpen !== undefined) { if (!v) onClose?.(); } else { setOpenInner(v); } };
   const [busy, setBusy] = useState(false);
   const [meal, setMeal] = useState<string>('almoco');
   const [rows, setRows] = useState<Row[]>([]);
@@ -167,7 +169,7 @@ export function MealLogger({ onLogged }: { onLogged?: () => void }) {
     setBusy(false); onLogged?.();
   }
 
-  if (!open) return (
+  if (!open) return controlledOpen !== undefined ? null : (
     <div className="grid grid-cols-3 gap-2">
       <button onClick={() => { reset(); setOpen(true); }} className="flex flex-col items-center gap-1 py-3 rounded-xl bg-[#D4853A] text-white text-xs font-semibold"><Camera className="h-4 w-4" />Foto</button>
       <button onClick={() => { reset(); setOpen(true); setTimeout(onVoice, 300); }} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-semibold"><Mic className="h-4 w-4" />Voz</button>
