@@ -34,6 +34,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { SafetyStatusCard } from '@/components/edn/safety-status-card';
+import { TwinScenariosCard } from '@/components/edn/twin-scenarios-card';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Measurement {
@@ -590,7 +591,7 @@ export default function EvolucaoPage() {
         </div>
       )}
 
-      <div className="mb-3"><SafetyStatusCard /></div>
+      <div className="mb-3 space-y-2"><SafetyStatusCard /><TwinScenariosCard /></div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-zinc-900 border border-zinc-800">
