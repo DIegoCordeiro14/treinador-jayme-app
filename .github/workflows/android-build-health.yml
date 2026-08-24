@@ -173,6 +173,20 @@ jobs:
           '''
           if 'health.READ_EXERCISE' not in s:
               s = s.replace('</manifest>', perms + '</manifest>')
+          # Android 14+: tela de justificativa/uso das permissoes de saude
+          alias = '''        <activity-alias
+                      android:name="ViewPermissionUsageActivity"
+                      android:exported="true"
+                      android:targetActivity=".MainActivity"
+                      android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                          <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+                      </intent-filter>
+                  </activity-alias>
+          '''
+          if 'VIEW_PERMISSION_USAGE' not in s:
+              s = s.replace('</application>', alias + '    </application>')
           open(p, 'w').write(s)
           print('Manifest atualizado')
           EOF

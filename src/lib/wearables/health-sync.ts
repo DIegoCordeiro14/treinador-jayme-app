@@ -16,8 +16,12 @@ export interface SyncResult { state: SyncState; imported: number; enriched: numb
 export async function runHealthSync(supabase: SB, userId: string): Promise<SyncResult> {
   const now = new Date().toISOString();
   const avail = await CoachEdnHealth.isAvailable();
-  const perms = await CoachEdnHealth.getHealthPermissionsStatus();
   if (!avail.available) return { state: 'not_connected', imported: 0, enriched: 0, skipped: 0, lastSyncAt: now };
+  let perms = await CoachEdnHealth.getHealthPermissionsStatus();
+  // Sem permissão -> abre a tela do Health Connect para conceder (inclui READ_EXERCISE) e reavalia.
+  if (!perms.granted) {
+    try { perms = await CoachEdnHealth.requestHealthPermissions(); } catch { /* usuário pode recusar */ }
+  }
   if (!perms.granted) return { state: 'permission_required', imported: 0, enriched: 0, skipped: 0, lastSyncAt: now };
 
   // cursor

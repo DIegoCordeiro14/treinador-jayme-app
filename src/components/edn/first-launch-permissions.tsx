@@ -1,4 +1,5 @@
 'use client';
+import { CoachEdnHealth } from '@/native/health';
 
 import { useEffect, useState } from 'react';
 import { MapPin, Bell, HeartPulse, DownloadCloud, ShieldCheck, X } from 'lucide-react';
@@ -46,6 +47,8 @@ export function FirstLaunchPermissions() {
         permissions: ['READ_STEPS', 'READ_ACTIVE_CALORIES', 'READ_TOTAL_CALORIES', 'READ_DISTANCE', 'READ_HEART_RATE', 'READ_WORKOUTS'],
       });
     } catch (e) { void e; }
+    // Plugin nativo CoachEdnHealth: solicita o conjunto exato (inclui READ_EXERCISE)
+    try { await CoachEdnHealth.requestHealthPermissions(); } catch (e) { void e; }
     try { localStorage.setItem('edn_perms_done', '1'); } catch (e) { void e; }
     setBusy(false);
     setShow(false);

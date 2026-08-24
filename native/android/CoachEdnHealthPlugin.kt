@@ -6,6 +6,9 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.getcapacitor.annotation.ActivityCallback
+import androidx.activity.result.ActivityResult
+import androidx.health.connect.client.PermissionController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,8 +39,18 @@ class CoachEdnHealthPlugin : Plugin() {
 
   @PluginMethod
   fun requestHealthPermissions(call: PluginCall) {
-    // O fluxo de request usa ActivityResultContract registrado no MainActivity.
-    // Aqui devolvemos o status atual; a UI dispara a tela de permissões do HC.
+    try {
+      val contract = PermissionController.createRequestPermissionResultContract()
+      val intent = contract.createIntent(context, reader.permissions)
+      startActivityForResult(call, intent, "healthPermsResult")
+    } catch (e: Exception) {
+      call.reject("HEALTH_PERMISSIONS_REQUEST", e)
+    }
+  }
+
+  @ActivityCallback
+  fun healthPermsResult(call: PluginCall?, result: ActivityResult) {
+    if (call == null) return
     scope.launch {
       try { call.resolve(reader.permissionStatus().toJs()) }
       catch (e: Exception) { call.reject("HEALTH_PERMISSIONS", e) }
