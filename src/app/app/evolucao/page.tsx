@@ -3,6 +3,24 @@
 import { useEffect, useState } from 'react';
 import { Scale, TrendingUp, TrendingDown, Minus, AlertTriangle, Target, BarChart2, Dumbbell, Plus, Activity, Droplets, Flame, Heart, Upload, Loader2, Sparkles, FileText, CheckCircle2, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
+
+// §36 — cada gráfico responde a uma pergunta. Deriva a resposta da própria série.
+function seriesTrend(data: Array<Record<string, unknown>>, key: string): { dir: 'up' | 'down' | 'flat'; deltaPct: number | null } {
+  const vals = data.map(d => Number(d[key])).filter(v => Number.isFinite(v));
+  if (vals.length < 2) return { dir: 'flat', deltaPct: null };
+  const first = vals[0], last = vals[vals.length - 1];
+  if (first === 0) return { dir: 'flat', deltaPct: null };
+  const deltaPct = Math.round(((last - first) / Math.abs(first)) * 1000) / 10;
+  return { dir: deltaPct > 1 ? 'up' : deltaPct < -1 ? 'down' : 'flat', deltaPct };
+}
+function ChartQA({ question, answer }: { question: string; answer: string }) {
+  return (
+    <div className="mb-2">
+      <p className="text-[11px] text-zinc-400"><span className="text-zinc-500">Pergunta:</span> {question}</p>
+      <p className="text-[11px] font-semibold text-[#E09B5A]"><span className="text-zinc-500 font-normal">Resposta:</span> {answer}</p>
+    </div>
+  );
+}
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -653,6 +671,13 @@ export default function EvolucaoPage() {
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-6">
                   <h3 className="text-sm font-semibold text-zinc-300">Evolução</h3>
                   <div>
+                    {(() => { const g = seriesTrend(bioChartData, 'gordura'); const mm = seriesTrend(bioChartData, 'musculo'); return (
+                      <ChartQA question="Minha composição está melhorando?" answer={
+                        (mm.deltaPct != null || g.deltaPct != null)
+                          ? `${mm.dir === 'up' ? 'Músculo subindo' : mm.dir === 'down' ? 'Músculo caindo' : 'Músculo estável'}${g.deltaPct != null ? ` e gordura ${g.dir === 'down' ? 'caindo' : g.dir === 'up' ? 'subindo' : 'estável'}` : ''} no período — ${mm.dir === 'up' && g.dir !== 'up' ? 'recomposição positiva.' : g.dir === 'down' ? 'boa direção.' : 'acompanhe as próximas medições.'}`
+                          : 'Registre mais medições para ver a tendência.'
+                      } />
+                    ); })()}
                     <p className="text-xs text-zinc-500 mb-2">Gordura (%) e Músculo (kg)</p>
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={bioChartData}>
@@ -690,6 +715,9 @@ export default function EvolucaoPage() {
                     <h3 className="text-sm font-semibold text-zinc-300">Nutrition Score</h3>
                     <span className="text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold capitalize">{scoreHist.phase}</span>
                   </div>
+                  {(() => { const t = seriesTrend(scoreHist.series as any, 'score'); return (
+                    <ChartQA question="Minha aderência à nutrição está melhorando?" answer={t.dir === 'up' ? 'Score subindo — aderência em melhora.' : t.dir === 'down' ? 'Score caindo — atenção à consistência.' : 'Score estável nas últimas semanas.'} />
+                  ); })()}
                   <div className="grid grid-cols-3 gap-2">
                     {([['14 dias', scoreHist.windows.d14], ['30 dias', scoreHist.windows.d30], ['60 dias', scoreHist.windows.d60]] as const).map(([label, w]) => (
                       <div key={label} className="rounded-lg bg-black/30 border border-white/[0.06] p-2 text-center">
@@ -728,7 +756,10 @@ export default function EvolucaoPage() {
         {/* Peso tab */}
         <TabsContent value="peso" className="mt-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-            <h3 className="font-semibold text-zinc-100 mb-4">Evolução do Peso (kg)</h3>
+            <h3 className="font-semibold text-zinc-100 mb-1">Evolução do Peso (kg)</h3>
+            {weightData.length >= 2 && (() => { const t = seriesTrend(weightData, 'peso'); return (
+              <ChartQA question="Estou caminhando para minha meta de peso?" answer={t.deltaPct != null ? `${t.dir === 'down' ? 'Peso caindo' : t.dir === 'up' ? 'Peso subindo' : 'Peso estável'} ${t.deltaPct != null ? `(${t.deltaPct > 0 ? '+' : ''}${t.deltaPct}%)` : ''} no período registrado.` : 'Poucos dados ainda.'} />
+            ); })()}
             {weightData.length < 2 ? (
               <p className="text-sm text-zinc-500 py-8 text-center">Registre pelo menos 2 medições para ver o gráfico</p>
             ) : (
@@ -769,7 +800,10 @@ export default function EvolucaoPage() {
             </div>
           )}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-            <h3 className="font-semibold text-zinc-100 mb-4">Volume por Sessão (kg)</h3>
+            <h3 className="font-semibold text-zinc-100 mb-1">Volume por Sessão (kg)</h3>
+            {(() => { const t = seriesTrend(volumeData as any, 'volume'); return (
+              <ChartQA question="Estou aumentando o volume de treino?" answer={t.dir === 'up' ? `Volume subindo (${t.deltaPct! > 0 ? '+' : ''}${t.deltaPct}%) — sobrecarga progressiva.` : t.dir === 'down' ? `Volume caindo (${t.deltaPct}%) — verifique recuperação ou consistência.` : 'Volume estável entre as sessões.'} />
+            ); })()}
             {volumeData.length === 0 ? (
               <p className="text-sm text-zinc-500 py-8 text-center">Nenhuma sessão registrada ainda</p>
             ) : (
