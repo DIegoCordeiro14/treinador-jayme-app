@@ -1,0 +1,13 @@
+const { execSync } = require('child_process');
+execSync('node node_modules/typescript/bin/tsc src/lib/athlete-os/digital-twin.ts --outDir scripts/.tmp/tw --module commonjs --target es2019 --skipLibCheck', { stdio: 'inherit' });
+const m = require('./.tmp/tw/digital-twin.js');
+let fail=0; const ok=(c,x)=>{ if(!c){console.error('FAIL:',x);fail++;} else console.log('ok:',x); };
+const twin={ weightKg:80, bfPct:18, leanKg:65, weeklyKcalBalance:-1000, weeklyCardioKm:10, weeklyVolumeKg:5000, recoveryScore:70, weeklyStrengthSessions:4 };
+const cut=m.simulateScenario(twin,'enter_cutting');
+ok(cut.label==='Entrar em cutting' && cut.horizons.length===3,'cutting: label + horizontes 30/60/90');
+ok(cut.horizons[2].weightKg < twin.weightKg,'cutting reduz peso projetado');
+const dl=m.simulateScenario(twin,'deload');
+ok(dl.label==='Fazer um deload','deload label');
+ok(m.simulateAllScenarios(twin).length===5,'5 cenarios');
+ok(m.simulateScenario(twin,'add_cardio').horizons[2].weightKg <= twin.weightKg,'cardio tende a reduzir/estabilizar peso');
+if(fail){process.exit(1);} else console.log('TODOS OS TESTES PASSARAM');

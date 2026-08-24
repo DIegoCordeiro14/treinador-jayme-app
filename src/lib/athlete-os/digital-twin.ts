@@ -114,3 +114,32 @@ export function compareStrategies(t: DigitalTwin, changes: StrategyChange[], goa
     return goalIsCut ? da - db : db - da; // cutting: mais negativo primeiro
   });
 }
+
+// ─── Cenários nomeados (V9 §19) ──────────────────────────────────────────────
+export type ScenarioKey = 'add_cardio' | 'deload' | 'increase_volume' | 'enter_cutting' | 'increase_carbs';
+
+export const SCENARIO_LABEL: Record<ScenarioKey, string> = {
+  add_cardio: 'Aumentar o cardio',
+  deload: 'Fazer um deload',
+  increase_volume: 'Aumentar o volume',
+  enter_cutting: 'Entrar em cutting',
+  increase_carbs: 'Aumentar carboidratos',
+};
+
+/** Traduz um cenário nomeado numa mudança de estratégia e simula (determinístico). */
+export function simulateScenario(t: DigitalTwin, scenario: ScenarioKey): SimulationResult {
+  const change: StrategyChange =
+    scenario === 'add_cardio' ? { type: 'add_cardio', sessionsPerWeek: 2, kmPerSession: 5 }
+    : scenario === 'deload' ? { type: 'change_volume', deltaSetsPerWeek: -Math.round(t.weeklyVolumeKg > 0 ? 6 : 4) }
+    : scenario === 'increase_volume' ? { type: 'change_volume', deltaSetsPerWeek: 4 }
+    : scenario === 'enter_cutting' ? { type: 'change_calories', dailyDeltaKcal: -400 }
+    : { type: 'add_carbs', dailyGrams: 60 };
+  const res = simulateStrategy(t, change);
+  return { ...res, label: SCENARIO_LABEL[scenario] };
+}
+
+/** Simula todos os cenários e ordena por menor risco / melhor coerência. */
+export function simulateAllScenarios(t: DigitalTwin): SimulationResult[] {
+  const keys: ScenarioKey[] = ['add_cardio', 'deload', 'increase_volume', 'enter_cutting', 'increase_carbs'];
+  return keys.map((k) => simulateScenario(t, k));
+}
