@@ -35,7 +35,8 @@
     "test:deload": "node scripts/test-deload-engine.js",
     "test:adaptive": "node scripts/test-adaptive-session.js",
     "test:gpsaudit": "node scripts/test-gps-audit.js",
-    "test:feedback": "node scripts/test-feedback-loop.js"
+    "test:feedback": "node scripts/test-feedback-loop.js",
+    "test:improve": "node scripts/test-workout-improvement.js"
   },
   "dependencies": {
     "next": "14.2.0",

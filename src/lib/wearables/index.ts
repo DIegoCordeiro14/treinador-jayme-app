@@ -34,7 +34,8 @@ export type WearableProviderId =
   | 'suunto'
   | 'samsung_health'
   | 'apple_health'
-  | 'health_connect';
+  | 'health_connect'
+  | 'mi_fitness';
 
 export type WearableStatus = 'native' | 'oauth_pending' | 'manual';
 
@@ -45,6 +46,8 @@ export interface WearableProvider {
   status: WearableStatus;
   /** Métricas que o provider expõe quando ativo. */
   metrics: Array<keyof WearableWorkout>;
+  /** Fonte oficial por onde os dados chegam (ex.: sincroniza via Health Connect). */
+  via?: string;
 }
 
 export const WEARABLE_PROVIDERS: WearableProvider[] = [
@@ -64,6 +67,8 @@ export const WEARABLE_PROVIDERS: WearableProvider[] = [
     metrics: ['distanceKm', 'durationSec', 'avgHr', 'elevationGainM', 'calories'] },
   { id: 'samsung_health', label: 'Samsung Health', platform: 'android', status: 'oauth_pending',
     metrics: ['distanceKm', 'durationSec', 'avgHr', 'calories'] },
+  { id: 'mi_fitness', label: 'Mi Fitness (Xiaomi)', platform: 'android', status: 'native', via: 'health_connect',
+    metrics: ['distanceKm', 'durationSec', 'avgHr', 'maxHr', 'calories'] },
 ];
 
 /** Normaliza qualquer payload bruto de provider para WearableWorkout. */
