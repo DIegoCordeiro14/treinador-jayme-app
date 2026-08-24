@@ -5,6 +5,8 @@ import { computeEdn360FromState, detectWeakPoint, type MuscleVolume, type Athlet
 import { computeNutritionTargets, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 import { recommendSessionAdaptation } from '@/lib/edn/adaptive-session-engine';
+import { buildAthleteStateV2 } from '@/lib/athlete-os/athlete-state-2';
+import { detectRecurringDiscomfort } from '@/lib/edn/physical-condition-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
 import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
 import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
@@ -184,5 +186,27 @@ export async function GET(_req: NextRequest) {
   });
 
   await persistStateSnapshot(supabase, user.id, state);
-  return Response.json({ edn360, weakPoint, athleteState, state, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  // ── AthleteState 2.0 (fonte única) ────────────────────────────────────────
+  let stateV2 = null;
+  try {
+    const [{ data: pc }, { data: dl }] = await Promise.all([
+      supabase.from('physical_conditions').select('id, body_region, side, status, restricted_movements, user_confirmed').eq('user_id', user.id).eq('active', true),
+      supabase.from('workout_discomfort_logs').select('body_region, severity, created_at').eq('user_id', user.id).gte('created_at', new Date(now - 60 * 86400000).toISOString()),
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conditions = ((pc ?? []) as any[]).map((c) => ({ id: c.id, region: c.body_region, side: c.side, status: c.status, restricted: c.restricted_movements ?? [], confirmed: c.user_confirmed !== false }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const discomforts = detectRecurringDiscomfort(((dl ?? []) as any[]).map((x) => ({ bodyRegion: x.body_region, severity: x.severity, createdAt: x.created_at }))).map((d) => ({ region: d.region, count: d.count, recommend: d.recommend }));
+    stateV2 = buildAthleteStateV2(state, {
+      conditions, discomforts,
+      sleep: { hours: wm?.sleep_hours ?? null, quality: profile?.sleep_quality ?? null },
+      calendar: { plannedThisWeek: profile?.weekly_frequency ?? 0, doneThisWeek: sessions7, nextWorkoutLabel: null },
+      race: { date: (profile as any)?.target_race_date ?? null, weeksAway: null, name: null },
+      adherence: { training: state.training?.consistency ?? null, nutrition: nutritionScore, overall: edn360.overall },
+      strengths: weakPoint.strongest ? [weakPoint.strongest.muscle] : [],
+      trends: { strengthPct: strengthTrendPct, volumePct: strengthTrendPct, weightKgPerWeek: perWeekGain, cardioAcwr },
+    });
+  } catch { /* fonte única best-effort */ }
+
+  return Response.json({ edn360, weakPoint, athleteState, state, stateV2, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

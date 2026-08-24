@@ -38,7 +38,8 @@
     "test:feedback": "node scripts/test-feedback-loop.js",
     "test:improve": "node scripts/test-workout-improvement.js",
     "test:qasim": "node scripts/test-native-qa-sim.js",
-    "test:safety": "node scripts/test-safety.js"
+    "test:safety": "node scripts/test-safety.js",
+    "test:state2": "node scripts/test-athlete-state-2.js"
   },
   "dependencies": {
     "next": "14.2.0",
