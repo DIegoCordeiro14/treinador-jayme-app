@@ -4,6 +4,7 @@ import { getCachedAthleteContext } from '@/lib/edn/athlete-context';
 import { computeEdn360FromState, detectWeakPoint, type MuscleVolume, type AthleteState } from '@/lib/edn/athlete-intelligence-engine';
 import { computeNutritionTargets, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
+import { recommendSessionAdaptation } from '@/lib/edn/adaptive-session-engine';
 import { computeCardioLoad, computeCardioScore } from '@/lib/cardio/endurance-engine';
 import { buildCoachAlerts } from '@/lib/edn/coach-alert-engine';
 import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
@@ -150,6 +151,19 @@ export async function GET(_req: NextRequest) {
   const aos = orchestrate(aosFacts);
   const notifications = buildNotifications(aos);
 
+  // ── Adaptação da sessão de hoje (V8): cruza recuperação + ACWR + performance ─
+  const km7v = kmIn(7); const km28v = kmIn(28); const chronicWeekly = km28v / 4;
+  const cardioAcwr = chronicWeekly > 0 ? Math.round((km7v / chronicWeekly) * 100) / 100 : null;
+  const session = recommendSessionAdaptation({
+    recoveryScore: recovery?.score ?? s.recovery,
+    recoveryCategory: (recovery?.category ?? 'moderate') as any,
+    cardioAcwr,
+    recentPerformanceDeltaPct: strengthTrendPct,
+    todayIsHeavyCompound: false,
+    primaryMuscleToday: null,
+    daysSinceLastWorkout: sessions7 > 0 ? 1 : 3,
+  });
+
   // ── AthleteState canônico (Bloco 2) — fonte única versionada ──────────────
   const meso = detectMesocyclePhase({ weeksOnPlan: 0, recentVolumeTrendPct: strengthTrendPct, recoveryCategory: (recovery?.category ?? 'moderate') as any, hadPrRecently: (strengthTrendPct ?? 0) >= 3 });
   const state = mergeAthleteState({
@@ -170,5 +184,5 @@ export async function GET(_req: NextRequest) {
   });
 
   await persistStateSnapshot(supabase, user.id, state);
-  return Response.json({ edn360, weakPoint, athleteState, state, alerts, aos, notifications, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  return Response.json({ edn360, weakPoint, athleteState, state, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false });
 }

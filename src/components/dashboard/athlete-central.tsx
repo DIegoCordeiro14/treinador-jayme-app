@@ -26,10 +26,12 @@ export function AthleteCentral() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aos, setAos] = useState<any>(null);
   const [briefLine, setBriefLine] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/athlete-360').then(r => r.json()).then(d => {
-      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); }
+      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); }
     }).catch(() => {});
     fetch('/api/daily-briefing').then(r => r.json()).then(d => {
       const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
@@ -72,6 +74,18 @@ export function AthleteCentral() {
           <Brain className="h-3.5 w-3.5" /> Aplicar próxima ação com o Coach
         </a>
       </div>
+      {session && session.intensity !== 'normal' && (
+        <div className="rounded-lg bg-black/30 border border-white/[0.06] p-2.5">
+          <p className="text-[11px] font-bold text-[#E09B5A] flex items-center gap-1.5"><Activity className="h-3.5 w-3.5" />Seu momento — treino de hoje</p>
+          <p className="text-[11px] text-zinc-300 mt-0.5 leading-relaxed">{session.explanation}</p>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {session.workingVolumePct < 100 && <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full">Working −{100 - session.workingVolumePct}%</span>}
+            <span className="text-[10px] font-semibold text-zinc-300 bg-zinc-800/80 px-2 py-0.5 rounded-full">RIR ≥ {session.targetRirMin}</span>
+            {session.allowPr && <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full">Pode tentar PR</span>}
+            {session.loadDeltaPct < 0 && <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full">Carga {session.loadDeltaPct}%</span>}
+          </div>
+        </div>
+      )}
       {aos?.nextBestAction && (
         <div className="rounded-lg bg-[#D4853A]/10 border border-[#D4853A]/30 p-2.5">
           <div className="flex items-center justify-between">
