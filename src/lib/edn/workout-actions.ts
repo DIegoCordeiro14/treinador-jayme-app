@@ -14,6 +14,7 @@
  */
 import { invalidateAthleteContext } from '@/lib/edn/athlete-context';
 import { logTimeline } from '@/lib/athlete-os/timeline';
+import { computeExerciseDeload, deloadSignal, type DeloadSetRecord } from '@/lib/edn/deload-engine';
 import { computeFingerprint } from '@/lib/cardio/activity-fingerprint';
 
 export type WorkoutActionType =
@@ -319,20 +320,68 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
       return { ok: changed > 0, message: changed > 0 ? `Volume ajustado em ${changed} exercício(s).` : 'Nenhuma alteração de volume aplicada.' };
     }
 
-    // ── Deload de um dia (reduz ~40% das séries) ──────────────────────────────
+    // ── Deload autônomo: lê o histórico completo (carga/reps/RIR) e aplica ─────
+    // Reduz volume (~40% das séries) AGORA e carga (~12% do top recente) por uma
+    // semana via Load Intelligence. Funciona SEM dayId: aplica ao plano ativo inteiro.
+    // A IA não precisa receber números — o motor lê tudo do histórico do atleta.
     case 'create_deload': {
-      if (!a.dayId) return { ok: false, message: 'Deload: falta dayId.' };
-      if (!(await ownsDay(supabase, userId, a.dayId))) return { ok: false, message: 'Deload: dia não pertence a você.' };
-      const { data: exs } = await supabase.from('workout_exercises').select('id, sets').eq('workout_day_id', a.dayId);
-      if (!exs || !exs.length) return { ok: false, message: 'Deload: nenhum exercício no dia.' };
-      let changed = 0;
-      for (const e of exs as any[]) {
-        const next = Math.max(1, Math.round(e.sets * 0.6));
-        if (next !== e.sets) { const { error } = await supabase.from('workout_exercises').update({ sets: next }).eq('id', e.id); if (!error) changed++; }
+      // resolve alvo: dia específico OU todos os dias do plano ativo
+      let planId: string | null = null;
+      let dayIds: string[] = [];
+      if (a.dayId) {
+        const pid = await ownsDay(supabase, userId, a.dayId);
+        if (!pid) return { ok: false, message: 'Deload: dia não pertence a você.' };
+        planId = pid; dayIds = [a.dayId];
+      } else {
+        planId = await activePlanId(supabase, userId);
+        if (!planId) return { ok: false, message: 'Deload: nenhum plano ativo encontrado.' };
+        const { data: days } = await supabase.from('workout_days').select('id').eq('plan_id', planId);
+        dayIds = ((days ?? []) as any[]).map(d => d.id);
+        if (!dayIds.length) return { ok: false, message: 'Deload: o plano ativo não tem dias.' };
       }
-      await logCoachDecision(supabase, userId, 'treino', 'Deload aplicado (-40% séries no dia)', a.reason);
-      await logTimeline(supabase, userId, 'deload', 'Deload aplicado', '-40% séries no dia');
-      return { ok: changed > 0, message: changed > 0 ? `Deload aplicado: séries reduzidas em ${changed} exercício(s).` : 'Deload não alterou as séries.' };
+
+      const { data: exs } = await supabase
+        .from('workout_exercises')
+        .select('id, exercise_id, sets, reps_min, reps_max')
+        .in('workout_day_id', dayIds);
+      if (!exs || !exs.length) return { ok: false, message: 'Deload: nenhum exercício encontrado.' };
+
+      let changed = 0; let anySignal = false; const details: string[] = [];
+      for (const e of exs as any[]) {
+        // histórico real desse exercício (carga/reps/RIR por série)
+        const { data: sets } = await supabase
+          .from('session_sets')
+          .select('weight_kg, reps_done, rir, set_type, completed, session:workout_sessions!inner(started_at, user_id)')
+          .eq('exercise_id', e.exercise_id)
+          .eq('session.user_id', userId)
+          .order('id', { ascending: false })
+          .limit(80);
+        const records: DeloadSetRecord[] = ((sets ?? []) as any[]).map(x => ({
+          performedAt: x.session?.started_at ?? '', weightKg: x.weight_kg, reps: x.reps_done,
+          rir: x.rir, setType: x.set_type, completed: x.completed !== false,
+        }));
+        if (deloadSignal(records).recommended) anySignal = true;
+        const d = computeExerciseDeload(records, e.sets ?? 3, e.reps_min ?? 8, e.reps_max ?? 12);
+        const { error } = await supabase.from('workout_exercises').update({
+          sets: d.deloadSets,
+          pre_deload_sets: e.sets ?? null,
+          deload_active: true,
+          deload_load_kg: d.deloadLoadKg,
+        }).eq('id', e.id);
+        if (!error) { changed++; if (d.deloadLoadKg != null) details.push(`${d.deloadLoadKg}kg×${d.deloadReps}`); }
+      }
+
+      // janela de deload de 7 dias no plano (Load Intelligence reduz a carga automaticamente)
+      const until = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+      if (planId) await supabase.from('workout_plans').update({ deload_until: until, deload_started_at: new Date().toISOString() }).eq('id', planId);
+
+      const scope = a.dayId ? 'no dia' : 'no plano ativo';
+      const reason = a.reason ?? (anySignal ? 'Fadiga/estagnação detectada no histórico.' : 'Deload preventivo solicitado.');
+      await logCoachDecision(supabase, userId, 'treino', `Deload aplicado ${scope} (–40% séries, –12% carga por 7 dias)`, reason);
+      await logTimeline(supabase, userId, 'deload', 'Deload aplicado', `${scope}: ${changed} exercício(s), carga reduzida por 7 dias`);
+      return { ok: changed > 0, message: changed > 0
+        ? `Deload aplicado ${scope}: ${changed} exercício(s) com séries e carga reduzidas por 7 dias (lido do seu histórico).`
+        : 'Deload não alterou os exercícios.' };
     }
 
     // ── Memória do atleta (preferências/limitações) ───────────────────────────

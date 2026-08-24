@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   // valida posse do dia
   const { data: day } = await supabase
     .from('workout_days')
-    .select('id, plan:workout_plans!inner(user_id), workout_exercises(id, exercise_id, sets, reps_min, reps_max, exercise:exercises(name, muscle_group))')
+    .select('id, plan_id, plan:workout_plans!inner(user_id, deload_until), workout_exercises(id, exercise_id, sets, reps_min, reps_max, deload_active, deload_load_kg, pre_deload_sets, exercise:exercises(name, muscle_group))')
     .eq('id', dayId)
     .maybeSingle();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,6 +33,21 @@ export async function GET(req: NextRequest) {
   if (wm && (wm as any).hrv_ms && (wm as any).hrv_baseline_ms) {
     const drop = (((wm as any).hrv_ms - (wm as any).hrv_baseline_ms) / (wm as any).hrv_baseline_ms) * 100;
     if (drop <= -20) recoveryCategory = 'critical'; else if (drop <= -10) recoveryCategory = 'low';
+  }
+
+  // Janela de deload do plano: enquanto ativa, reduz a carga automaticamente.
+  const today = new Date().toISOString().slice(0, 10);
+  const deloadUntil: string | null = (day as any).plan?.deload_until ?? null;
+  const deloadActive = !!deloadUntil && deloadUntil >= today;
+  // Deload expirou → restaura séries originais e limpa as flags (autônomo).
+  if (deloadUntil && deloadUntil < today) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const ex of ((day as any).workout_exercises ?? []) as any[]) {
+      if (ex.deload_active) {
+        await supabase.from('workout_exercises').update({ sets: ex.pre_deload_sets ?? ex.sets, deload_active: false, deload_load_kg: null, pre_deload_sets: null }).eq('id', ex.id);
+      }
+    }
+    await supabase.from('workout_plans').update({ deload_until: null }).eq('id', (day as any).plan_id);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,6 +83,7 @@ export async function GET(req: NextRequest) {
       isCompound: compoundMuscles.includes(ex.exercise?.muscle_group),
       workingSetsCount: Math.max(1, (ex.sets ?? 3) - 1),
       recoveryCategory,
+      deloadActive,
     });
     // Histórico por POSIÇÃO de série (working) — cada working usa a resposta real da sua posição
     const typeMap: Record<string, any> = { aquecimento: 'aquecimento', warmup: 'aquecimento', feeder: 'feeder', top: 'top', top_set: 'top', working: 'working', backoff: 'backoff', corrective: 'corrective' };
@@ -98,5 +114,5 @@ export async function GET(req: NextRequest) {
     out[ex.id] = presc ? { exerciseName: ex.exercise?.name ?? '', ...presc } : { exerciseName: ex.exercise?.name ?? '', noHistory: true };
   }
 
-  return Response.json({ recoveryCategory, prescriptions: out });
+  return Response.json({ recoveryCategory, deloadActive, prescriptions: out });
 }
