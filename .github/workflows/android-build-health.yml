@@ -6,6 +6,10 @@ name: Build Android APK (CoachEdnHealth)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/android-build-health.yml'
+      - 'native/android/**'
 
 permissions:
   contents: write
@@ -75,7 +79,6 @@ jobs:
           deps = """    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
               implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
               implementation 'androidx.health.connect:connect-client:1.1.0-alpha10'
-              implementation 'androidx.health:health-services-client:1.1.0-alpha05'
               implementation 'androidx.work:work-runtime-ktx:2.9.1'
           """
           if "connect-client" not in s:
@@ -99,7 +102,6 @@ jobs:
           mkdir -p "$pkg"
           cp native/android/CoachEdnHealthPlugin.kt "$pkg/"
           cp native/android/HealthConnectReader.kt "$pkg/"
-          cp native/android/WearHealthService.kt "$pkg/"
           cp native/android/HealthBackgroundSyncWorker.kt "$pkg/"
           cp native/android/NativeModels.kt "$pkg/"
           cp native/android/SportMap.kt "$pkg/"

@@ -20,7 +20,6 @@ class CoachEdnHealthPlugin : Plugin() {
 
   private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
   private val reader by lazy { HealthConnectReader(context) }
-  private val live by lazy { WearHealthService(context) { emitLive(it) } }
 
   @PluginMethod
   fun isAvailable(call: PluginCall) {
@@ -93,17 +92,11 @@ class CoachEdnHealthPlugin : Plugin() {
     }
   }
 
+  // FC ao vivo (Health Services) exige minSdk 30 — desativado neste build (minSdk 26).
+  // Sera adicionado em um build voltado ao Wear OS. Stubs mantem o contrato.
   @PluginMethod
-  fun startLiveMetrics(call: PluginCall) {
-    try { live.start(call.getString("sportType")); call.resolve() }
-    catch (e: Exception) { call.reject("HEALTH_LIVE_START", e) }
-  }
+  fun startLiveMetrics(call: PluginCall) { call.resolve() }
 
   @PluginMethod
-  fun stopLiveMetrics(call: PluginCall) {
-    try { live.stop(); call.resolve() }
-    catch (e: Exception) { call.reject("HEALTH_LIVE_STOP", e) }
-  }
-
-  private fun emitLive(event: JSObject) { notifyListeners("liveMetrics", event) }
+  fun stopLiveMetrics(call: PluginCall) { call.resolve() }
 }
