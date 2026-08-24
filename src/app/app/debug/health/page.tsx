@@ -39,6 +39,31 @@ export default function HealthDebugPage() {
     setBusy(false);
   }
 
+  async function systemDiag() {
+    setBusy(true); add('— Diagnóstico do sistema —');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { add('sem usuário'); setBusy(false); return; }
+    try {
+      const r = await fetch('/api/athlete-360'); const d = await r.json();
+      if (d?.stateV2) {
+        add(`AthleteState 2.0: v${d.stateV2.version ?? '?'} · limitador=${d.stateV2.limiter?.label ?? '—'} · segurança=${d.stateV2.safetyLevel}`);
+        add(`Condições ativas: ${d.stateV2.conditions?.length ?? 0} · desconfortos: ${d.stateV2.discomforts?.length ?? 0}`);
+      } else add('AthleteState 2.0: indisponível');
+      if (d?.alertsUnified) add(`Alerta: ${d.alertsUnified.level} — ${d.alertsUnified.items?.[0]?.message ?? ''}`);
+      if (d?.aos?.nextBestAction) add(`AOS próxima ação: [${d.aos.nextBestAction.domain}] ${d.aos.nextBestAction.action}`);
+      // fila offline
+      try { const q = JSON.parse(localStorage.getItem('edn_offline_queue') || '[]'); add(`Fila offline: ${Array.isArray(q) ? q.length : 0} item(s)`); } catch { add('Fila offline: n/d'); }
+      // DB básico
+      const [{ count: sess }, { count: cond }, { count: dec }] = await Promise.all([
+        supabase.from('workout_sessions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('physical_conditions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('athlete_decisions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      ]);
+      add(`DB: ${sess ?? 0} treinos · ${cond ?? 0} condições · ${dec ?? 0} decisões registradas`);
+    } catch (e) { add(`ERRO diag: ${e instanceof Error ? e.message : String(e)}`); }
+    setBusy(false);
+  }
+
   async function doSync() {
     setBusy(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -59,6 +84,7 @@ export default function HealthDebugPage() {
       <div className="flex gap-2 mb-3">
         <button onClick={diagnose} disabled={busy} className="px-3 py-2 rounded-lg bg-zinc-800 text-zinc-100 text-xs font-semibold disabled:opacity-50">Diagnosticar</button>
         <button onClick={doSync} disabled={busy} className="px-3 py-2 rounded-lg bg-[#D4853A] text-white text-xs font-semibold disabled:opacity-50">Sincronizar agora</button>
+        <button onClick={systemDiag} disabled={busy} className="px-3 py-2 rounded-lg bg-zinc-800 text-zinc-100 text-xs font-semibold disabled:opacity-50">Diagnóstico do sistema</button>
       </div>
       <pre className="whitespace-pre-wrap rounded-lg bg-zinc-950 border border-zinc-800 p-3 text-[11px] text-zinc-300 min-h-[200px]">{log.join('\n') || 'Sem dados. Toque em Diagnosticar.'}</pre>
     </div>
