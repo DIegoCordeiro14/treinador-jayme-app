@@ -50,4 +50,11 @@ ok(cm.normalizeRegion('Reconstrução do LCA joelho direito')==='knee','normaliz
 ok(cm.normalizeRegion('hérnia de disco lombar')==='spine','normaliza lombar -> spine');
 ok(cm.normalizeSide('joelho direito')==='right','normaliza lado direito');
 
+// --- desconforto recorrente ---
+const D=(region,sev)=>({bodyRegion:region,severity:sev});
+const rec=m.detectRecurringDiscomfort([D('knee','moderate'),D('knee','moderate'),D('knee','strong'),D('shoulder','mild'),D('shoulder','moderate')]);
+ok(rec.find(r=>r.region==='knee')?.recommend===true,'joelho 3x -> recomenda revisar');
+ok(!rec.find(r=>r.region==='shoulder'),'ombro 1 relevante -> nao entra (mild ignorado)');
+ok(m.detectRecurringDiscomfort([D('spine','strong'),D('spine','strong')]).find(r=>r.region==='spine')?.recommend===true,'2x forte -> recomenda');
+
 if(fail){console.error(fail+' falharam');process.exit(1);} else console.log('TODOS OS TESTES PASSARAM');

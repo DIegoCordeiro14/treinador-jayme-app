@@ -28,6 +28,8 @@ export default function ConditionsPage() {
   const [saving, setSaving] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [extracted, setExtracted] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [docFile, setDocFile] = useState<any>(null);
   const [form, setForm] = useState({ condition_type:'injury' as ConditionType, body_region:'knee' as BodyRegion, side:'na' as Side, status:'unknown' as ConditionStatus, title:'', restricted:'', allowed:'', notes:'' });
 
   const load = useCallback(async () => {
@@ -46,6 +48,7 @@ export default function ConditionsPage() {
       if (!r.ok) { toast.error(d?.error ?? 'Falha ao analisar'); setAnalyzing(false); return; }
       const e = d.extracted;
       setExtracted(e);
+      setDocFile({ base64: b64, fileType: file.type, fileName: file.name, documentType: e.documentType, summary: e.summary, confidence: e.confidence, extractedText: d.raw_text });
       setForm(f => ({ ...f, body_region: e.bodyRegion ?? f.body_region, side: e.side ?? f.side, title: e.procedureOrCondition ?? f.title, restricted: (e.restrictedMovements ?? []).join(', '), allowed: (e.allowedMovements ?? []).join(', '), notes: e.summary ?? f.notes, status: 'unknown' }));
       setShowForm(true);
       toast('Documento interpretado — revise e confirme.');
@@ -61,11 +64,12 @@ export default function ConditionsPage() {
       restricted_movements: form.restricted ? form.restricted.split(',').map(s=>s.trim()).filter(Boolean) : null,
       allowed_movements: form.allowed ? form.allowed.split(',').map(s=>s.trim()).filter(Boolean) : null,
       source: extracted ? 'document' : 'manual', user_confirmed: true,
+      ...(docFile ? { document: docFile } : {}),
     };
     const r = await fetch('/api/physical-conditions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if (!r.ok) { const d = await r.json().catch(()=>({})); toast.error(d?.error ?? 'Erro ao salvar'); setSaving(false); return; }
     toast.success('Condição salva — o treino passará a respeitá-la.');
-    setShowForm(false); setExtracted(null); setSaving(false);
+    setShowForm(false); setExtracted(null); setDocFile(null); setSaving(false);
     setForm({ condition_type:'injury', body_region:'knee', side:'na', status:'unknown', title:'', restricted:'', allowed:'', notes:'' });
     load();
   }

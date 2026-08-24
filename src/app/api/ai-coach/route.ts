@@ -7,6 +7,7 @@ import { detectAgent, AGENT_CONFIGS } from '@/lib/ai-coach/agents';
 import { routeIntent } from '@/lib/ai-coach/coach-router';
 import { buildLongitudinalMemory } from '@/lib/athlete-os/longitudinal-memory';
 import { getCachedAthleteContext, serializeAthleteContext } from '@/lib/edn/athlete-context';
+import { detectRecurringDiscomfort } from '@/lib/edn/physical-condition-engine';
 import { classifyRunner, computeCardioLoad, computeTrainingZones, deriveRacePhase, analyzeRunPerformance, type RunPoint } from '@/lib/cardio/endurance-engine';
 import {
   applyWorkoutActions,
@@ -91,6 +92,19 @@ ${lines.join('\n')}
 Considere estas restrições ANTES de recomendar treino/cardio. Para alterar restrições use as ações add/update/remove_physical_condition e set/remove_training_restriction — sempre pedindo confirmação. NUNCA diagnostique.${pending ? ' Há condição pendente de confirmação do usuário.' : ''}`;
       }
     } catch { /* tabela pode faltar */ }
+
+    // ── Desconforto recorrente (alerta que o Coach considera) ─────────────────
+    try {
+      const since = new Date(Date.now() - 60 * 86400000).toISOString();
+      const { data: dl } = await supabase.from('workout_discomfort_logs')
+        .select('body_region, severity, created_at').eq('user_id', user.id).gte('created_at', since);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const signals = detectRecurringDiscomfort(((dl ?? []) as any[]).map((x) => ({ bodyRegion: x.body_region, severity: x.severity, createdAt: x.created_at })));
+      const relevant = signals.filter((s) => s.recommend);
+      if (relevant.length) {
+        conditionsStr += `\n[DESCONFORTO RECORRENTE]\n${relevant.map((s) => '- ' + s.message).join('\n')}\nSe a região tiver condição cadastrada, recomende revisar a estratégia antes de aumentar a carga. NUNCA diagnostique.`;
+      }
+    } catch { /* */ }
 
     // ── Endurance Coach: injeta resumo determinístico da corrida ──────────────
     let enduranceStr = '';

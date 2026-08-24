@@ -42,6 +42,26 @@ export async function POST(req: NextRequest) {
   };
   const { data, error } = await supabase.from('physical_conditions').insert(row).select('*').single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  // Arquiva o documento enviado (opcional) no bucket privado + registro
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const doc = (b as any).document;
+  if (doc?.base64 && data?.id) {
+    try {
+      const ext = (doc.fileName?.split('.').pop() || (doc.fileType?.includes('pdf') ? 'pdf' : 'bin')).toLowerCase();
+      const path = `${user.id}/${data.id}/${crypto.randomUUID()}.${ext}`;
+      const bytes = Buffer.from(doc.base64, 'base64');
+      const up = await supabase.storage.from('medical-docs').upload(path, bytes, { contentType: doc.fileType || 'application/octet-stream', upsert: false });
+      if (!up.error) {
+        const { data: docRow } = await supabase.from('physical_condition_documents').insert({
+          user_id: user.id, condition_id: data.id, file_path: path, file_type: doc.fileType ?? null, file_name: doc.fileName ?? null,
+          document_type: doc.documentType ?? null, ai_extracted_text: doc.extractedText ?? null, ai_summary: doc.summary ?? null,
+          ai_confidence: typeof doc.confidence === 'number' ? doc.confidence : null, user_confirmed: true,
+        }).select('id').single();
+        if (docRow?.id) await supabase.from('physical_conditions').update({ source_document_id: docRow.id }).eq('id', data.id);
+      }
+    } catch { /* upload best-effort */ }
+  }
   return Response.json({ condition: data });
 }
 

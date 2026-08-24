@@ -121,3 +121,35 @@ export function trainingSafetyStatus(conditions: PhysicalCondition[]): { level: 
   if (hard) return { level: 'restricted', activeCount: active.length, label: 'Existem restrições que afetam o treino' };
   return { level: 'watch', activeCount: active.length, label: `${active.length} condição(ões) em acompanhamento` };
 }
+
+// ─── Desconforto recorrente (§15/§16) ───────────────────────────────────────
+export interface DiscomfortLog { bodyRegion: string | null; severity: string; exerciseId?: string | null; createdAt?: string }
+export interface DiscomfortSignal { region: string; count: number; hasStrong: boolean; recommend: boolean; message: string }
+
+/**
+ * Detecta desconforto recorrente por região. Recorrência = 3+ registros não-leves
+ * (ou 2+ 'strong') na janela recente. Determinístico. Alimenta o Coach (não diagnostica).
+ */
+export function detectRecurringDiscomfort(logs: DiscomfortLog[]): DiscomfortSignal[] {
+  const byRegion = new Map<string, { count: number; strong: number }>();
+  for (const l of logs ?? []) {
+    if (!l.bodyRegion || l.severity === 'none') continue;
+    const relevant = l.severity === 'moderate' || l.severity === 'strong';
+    if (!relevant) continue;
+    const e = byRegion.get(l.bodyRegion) ?? { count: 0, strong: 0 };
+    e.count++; if (l.severity === 'strong') e.strong++;
+    byRegion.set(l.bodyRegion, e);
+  }
+  const out: DiscomfortSignal[] = [];
+  for (const [region, e] of byRegion) {
+    const recommend = e.count >= 3 || e.strong >= 2;
+    if (e.count < 2) continue;
+    out.push({
+      region, count: e.count, hasStrong: e.strong > 0, recommend,
+      message: recommend
+        ? `Desconforto recorrente em ${region} (${e.count} registros${e.strong ? `, ${e.strong} forte(s)` : ''}). Recomendo revisar os exercícios dessa região antes de manter a progressão.`
+        : `Desconforto em ${region} registrado ${e.count}x — acompanhar.`,
+    });
+  }
+  return out.sort((a, b) => b.count - a.count);
+}
