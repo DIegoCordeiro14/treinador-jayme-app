@@ -62,10 +62,19 @@ jobs:
           python3 - <<'EOF'
           p = 'android/app/build.gradle'
           s = open(p).read()
-          # aplica o plugin Kotlin Android (o modulo app do Capacitor e Java por padrao)
+          # aplica o plugin Kotlin Android — cobre os dois formatos (apply plugin / plugins DSL)
           if "org.jetbrains.kotlin.android" not in s:
-              s = s.replace("apply plugin: 'com.android.application'",
-                            "apply plugin: 'com.android.application'\napply plugin: 'org.jetbrains.kotlin.android'")
+              if "apply plugin: 'com.android.application'" in s:
+                  s = s.replace("apply plugin: 'com.android.application'",
+                                "apply plugin: 'com.android.application'\napply plugin: 'org.jetbrains.kotlin.android'")
+              elif "id 'com.android.application'" in s:
+                  s = s.replace("id 'com.android.application'",
+                                "id 'com.android.application'\n    id 'org.jetbrains.kotlin.android'")
+              else:
+                  s = "apply plugin: 'org.jetbrains.kotlin.android'\n" + s
+          # kotlinOptions jvmTarget alinhado ao Java 21 do runner
+          if "kotlinOptions" not in s:
+              s = s.replace("android {", "android {\n    kotlinOptions { jvmTarget = '21' }", 1)
           # dependencias
           deps = """    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
               implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'

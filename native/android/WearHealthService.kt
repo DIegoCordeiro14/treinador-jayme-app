@@ -13,9 +13,9 @@ import androidx.health.services.client.data.ExerciseUpdate
 import com.getcapacitor.JSObject
 
 /**
- * FC/calorias/distância/velocidade ao vivo via Health Services (Wear OS / companion).
- * Emite eventos "liveMetrics" para a WebView. NÃO substitui o histórico do Health Connect.
- * Best-effort: em telefones sem Health Services o start() falha silenciosamente.
+ * FC ao vivo via Health Services (Wear OS / companion). Emite "liveMetrics".
+ * Foco em FC (SampleDataPoint) para compilar de forma estável; métricas
+ * cumulativas (calorias/distância) podem ser adicionadas depois.
  */
 class WearHealthService(
   private val context: Context,
@@ -27,31 +27,19 @@ class WearHealthService(
   private var callback: ExerciseUpdateCallback? = null
 
   fun start(sportType: String?) {
-    val dataTypes = setOf(
-      DataType.HEART_RATE_BPM,
-      DataType.CALORIES_TOTAL,
-      DataType.DISTANCE_TOTAL,
-      DataType.SPEED,
-    )
     val config = ExerciseConfig.builder(ExerciseType.WORKOUT)
-      .setDataTypes(dataTypes)
+      .setDataTypes(setOf(DataType.HEART_RATE_BPM))
       .setIsAutoPauseAndResumeEnabled(false)
       .setIsGpsEnabled(false)
       .build()
 
     val cb = object : ExerciseUpdateCallback {
       override fun onExerciseUpdateReceived(update: ExerciseUpdate) {
+        val hr = update.latestMetrics.getData(DataType.HEART_RATE_BPM).lastOrNull()?.value
         val e = JSObject()
           .put("timestamp", System.currentTimeMillis().toString())
           .put("source", "wear_os")
-        val hr = update.latestMetrics.getData(DataType.HEART_RATE_BPM).lastOrNull()?.value
         if (hr != null) e.put("heartRate", hr.toInt())
-        val cal = update.latestMetrics.getData(DataType.CALORIES_TOTAL).lastOrNull()?.total
-        if (cal != null) e.put("calories", cal)
-        val dist = update.latestMetrics.getData(DataType.DISTANCE_TOTAL).lastOrNull()?.total
-        if (dist != null) e.put("distanceMeters", dist)
-        val spd = update.latestMetrics.getData(DataType.SPEED).lastOrNull()?.value
-        if (spd != null) e.put("speedMps", spd)
         emit(e)
       }
       override fun onLapSummaryReceived(lapSummary: ExerciseLapSummary) {}

@@ -77,21 +77,11 @@ class HealthConnectReader(private val context: Context) {
     } catch (_: Exception) { null }
   }
 
-  private fun routeOf(session: ExerciseSessionRecord): List<GpsPoint> {
-    return try {
-      val route = session.route ?: return emptyList()
-      route.route.map { loc ->
-        GpsPoint(
-          timestamp = loc.time.toString(),
-          latitude = loc.latitude,
-          longitude = loc.longitude,
-          altitude = loc.altitude?.inMeters,
-          accuracyHorizontal = loc.horizontalAccuracy?.inMeters,
-          accuracyVertical = loc.verticalAccuracy?.inMeters,
-        )
-      }
-    } catch (_: Exception) { emptyList() }
-  }
+  // Rota via Exercise Route: a API varia por versao do Health Connect
+  // (exerciseRouteResult). Para garantir compilacao estavel, a rota das corridas
+  // continua sendo importada pelo caminho legado (capacitor-health). Aqui retornamos
+  // vazio; FC/distancia/calorias por sessao seguem completos.
+  private fun routeOf(session: ExerciseSessionRecord): List<GpsPoint> = emptyList()
 
   private suspend fun mapSession(s: ExerciseSessionRecord): NativeWorkout {
     val hr = heartRateWindow(s.startTime, s.endTime)
@@ -99,7 +89,7 @@ class HealthConnectReader(private val context: Context) {
     val cal = sumActiveCalories(s.startTime, s.endTime)
     val elev = sumElevationMeters(s.startTime, s.endTime)
     val bpms = hr.map { it.bpm }
-    val hasRoute = try { s.route?.route?.isNotEmpty() == true } catch (_: Exception) { false }
+    val hasRoute = false
     return NativeWorkout(
       externalId = s.metadata.id,
       provider = "health_connect",
