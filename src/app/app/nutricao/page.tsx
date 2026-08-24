@@ -99,6 +99,17 @@ export default function NutricaoPage() {
   const [savingWeight, setSavingWeight] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
   const [showLogger, setShowLogger] = useState(false);
+  const [consumedToday, setConsumedToday] = useState<{ kcal: number; p: number; c: number; f: number } | null>(null);
+  const loadConsumedToday = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase.from('food_logs').select('calories_kcal, protein_g, carbs_g, fat_g').eq('user_id', user.id).eq('log_date', today);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = (data ?? []) as any[];
+    if (!rows.length) { setConsumedToday(null); return; }
+    setConsumedToday({ kcal: Math.round(rows.reduce((a,r)=>a+(r.calories_kcal??0),0)), p: Math.round(rows.reduce((a,r)=>a+(r.protein_g??0),0)), c: Math.round(rows.reduce((a,r)=>a+(r.carbs_g??0),0)), f: Math.round(rows.reduce((a,r)=>a+(r.fat_g??0),0)) });
+  }, [supabase]);
   const [savingMeal, setSavingMeal] = useState(false);
   const [mealForm, setMealForm] = useState({ name: '', time: '', calories_pct: '', focus: '', example: '' });
   const [activeTab, setActiveTab] = useState('coach');
@@ -188,6 +199,7 @@ export default function NutricaoPage() {
   }, [supabase]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadConsumedToday(); }, [loadConsumedToday]);
 
   async function generateNutrition() {
     setGenerating(true);
@@ -315,7 +327,7 @@ export default function NutricaoPage() {
       <button onClick={() => setShowLogger(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#D4853A] text-white text-sm font-bold">
         <span>＋ Registrar refeição</span>
       </button>
-      <MealLogger controlledOpen={showLogger} onClose={() => setShowLogger(false)} onLogged={() => { setShowLogger(false); }} />
+      <MealLogger controlledOpen={showLogger} onClose={() => setShowLogger(false)} onLogged={() => { setShowLogger(false); loadConsumedToday(); }} />
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -379,6 +391,11 @@ export default function NutricaoPage() {
                       ? <>TMB {autoNutri.tmbKcal} kcal · TDEE {autoNutri.tdeeKcal} kcal (×{autoNutri.activityFactor}) · {autoNutri.goalAdjustmentKcal === 0 ? 'manutenção' : `${autoNutri.goalAdjustmentKcal > 0 ? '+' : ''}${autoNutri.goalAdjustmentKcal} kcal pelo objetivo`}</>
                       : <>TDEE estimado: {tdee ?? '—'} kcal</>}
                   </p>
+                  {consumedToday && (
+                    <p className="text-[11px] text-[#E09B5A] font-semibold mt-1">
+                      Consumido hoje: {consumedToday.kcal}{targetKcal ? ` / ${Math.round(targetKcal)}` : ''} kcal · {consumedToday.p}g P · {consumedToday.c}g C · {consumedToday.f}g G
+                    </p>
+                  )}
                   {((autoNutri?.whyThisPlan && autoNutri.whyThisPlan.length > 0) || (autoNutri?.explanation && autoNutri.explanation.length > 0)) && (
                     <button onClick={() => setShowWhy(v => !v)} className="mt-2 text-[11px] text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1">
                       <ChevronDown className={cn('h-3 w-3 transition-transform', showWhy && 'rotate-180')} />
