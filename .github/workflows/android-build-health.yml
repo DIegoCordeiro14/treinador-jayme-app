@@ -76,8 +76,8 @@ jobs:
           if "kotlinOptions" not in s:
               s = s.replace("android {", "android {\n    kotlinOptions { jvmTarget = '21' }", 1)
           # dependencias
-          deps = """    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
-              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+          deps = """    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
+              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
               implementation 'androidx.health.connect:connect-client:1.1.0-alpha10'
               implementation 'androidx.work:work-runtime-ktx:2.9.1'
           """
@@ -92,7 +92,7 @@ jobs:
           s = open(p).read()
           if "kotlin-gradle-plugin" not in s:
               s = s.replace("classpath 'com.android.tools.build:gradle:8.9.1'",
-                            "classpath 'com.android.tools.build:gradle:8.9.1'\n        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24'")
+                            "classpath 'com.android.tools.build:gradle:8.9.1'\n        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0'")
           open(p, 'w').write(s)
           EOF
 

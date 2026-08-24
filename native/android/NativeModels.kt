@@ -3,6 +3,10 @@ package com.coachedn.health
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 
+// JSArray do Capacitor nao tem construtor a partir de Collection — construimos em loop.
+fun jsArray(items: List<JSObject>): JSArray { val a = JSArray(); for (x in items) a.put(x); return a }
+fun jsStrArray(items: List<String>): JSArray { val a = JSArray(); for (x in items) a.put(x); return a }
+
 /**
  * Modelo normalizado devolvido pela camada nativa (espelha
  * src/native/health/definitions.ts). A camada nativa NÃO calcula fisiologia —
@@ -75,8 +79,8 @@ data class NativeWorkoutDetails(
 ) {
   fun toJs(): JSObject {
     val js = workout.toJs()
-    js.put("route", JSArray(route.map { it.toJs() }))
-    js.put("heartRateSamples", JSArray(heartRateSamples.map { it.toJs() }))
+    js.put("route", jsArray(route.map { it.toJs() }))
+    js.put("heartRateSamples", jsArray(heartRateSamples.map { it.toJs() }))
     return js
   }
 }
@@ -85,5 +89,5 @@ data class PermStatus(val available: Boolean, val granted: Boolean, val missing:
   fun toJs(): JSObject = JSObject()
     .put("available", available)
     .put("granted", granted)
-    .put("missing", JSArray(missing))
+    .put("missing", jsStrArray(missing))
 }

@@ -51,7 +51,7 @@ class CoachEdnHealthPlugin : Plugin() {
     scope.launch {
       try {
         val list = reader.queryWorkouts(start, end)
-        call.resolve(JSObject().put("workouts", JSArray(list.map { it.toJs() })))
+        call.resolve(JSObject().put("workouts", jsArray(list.map { it.toJs() })))
       } catch (e: Exception) { call.reject("HEALTH_QUERY_WORKOUTS", e) }
     }
   }
@@ -74,7 +74,7 @@ class CoachEdnHealthPlugin : Plugin() {
     scope.launch {
       try {
         val samples = reader.readHeartRate(start, end)
-        call.resolve(JSObject().put("samples", JSArray(samples.map { it.toJs() })))
+        call.resolve(JSObject().put("samples", jsArray(samples.map { it.toJs() })))
       } catch (e: Exception) { call.reject("HEALTH_QUERY_HR", e) }
     }
   }
@@ -87,7 +87,7 @@ class CoachEdnHealthPlugin : Plugin() {
     scope.launch {
       try {
         val route = reader.readRoute(id, start, end)
-        call.resolve(JSObject().put("route", JSArray(route.map { it.toJs() })))
+        call.resolve(JSObject().put("route", jsArray(route.map { it.toJs() })))
       } catch (e: Exception) { call.reject("HEALTH_QUERY_ROUTE", e) }
     }
   }
