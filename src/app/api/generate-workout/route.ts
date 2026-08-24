@@ -2,6 +2,7 @@ import { detectWeakPoint, type MuscleVolume } from '@/lib/edn/athlete-intelligen
 import { analyzeWorkoutContext } from '@/lib/edn/workout-intelligence-engine';
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { evaluateExerciseSafety } from "@/lib/edn/physical-condition-engine";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
 import {
   getEffectiveObjective,
@@ -302,8 +303,36 @@ export async function POST(req: NextRequest) {
     const dislikedIds = new Set(((profileData?.disliked_exercises as string[] | null) ?? []));
     const favoriteIds = new Set(((profileData?.favorite_exercises as string[] | null) ?? []));
     const allowedExercises = (exercises as any[]).filter((ex: any) => !forbiddenIds.has(ex.id));
-    const favoriteNames = allowedExercises.filter((ex: any) => favoriteIds.has(ex.id)).map((ex: any) => ex.name);
-    const dislikedNames = allowedExercises.filter((ex: any) => dislikedIds.has(ex.id)).map((ex: any) => ex.name);
+
+    // ─── Physical Condition & Training Safety Engine ──────────────────────────
+    // Exercícios em conflito EXPLÍCITO com condições confirmadas nunca chegam à IA.
+    const { data: pcRows } = await supabase.from('physical_conditions')
+      .select('id, body_region, side, status, restricted_movements, user_confirmed, active')
+      .eq('user_id', user.id).eq('active', true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conditions = ((pcRows ?? []) as any[]).map((c) => ({
+      id: c.id, conditionType: 'injury' as const, bodyRegion: c.body_region, side: c.side, status: c.status,
+      restrictedMovements: c.restricted_movements ?? [], userConfirmed: c.user_confirmed !== false,
+    }));
+    let conditionStr = '';
+    let safeExercises = allowedExercises;
+    if (conditions.length) {
+      const blocked: string[] = [];
+      const caution: string[] = [];
+      safeExercises = allowedExercises.filter((ex: any) => {
+        const r = evaluateExerciseSafety({ name: ex.name, muscle_group: ex.muscle_group }, conditions);
+        if (r.status === 'restricted') { blocked.push(ex.name); return false; }
+        if (r.status === 'caution') caution.push(ex.name);
+        return true;
+      });
+      conditionStr = `
+CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/${c.status}`).join(', ')}. ` +
+        (blocked.length ? `Exercícios BLOQUEADOS por conflito (já removidos do catálogo): ${blocked.slice(0, 12).join(', ')}. ` : '') +
+        (caution.length ? `Usar com CAUTELA (só se necessário, priorize alternativas): ${caution.slice(0, 10).join(', ')}. ` : '') +
+        'Nunca prescreva exercícios que sobrecarreguem as regiões em recuperação/reabilitação.';
+    }
+    const favoriteNames = safeExercises.filter((ex: any) => favoriteIds.has(ex.id)).map((ex: any) => ex.name);
+    const dislikedNames = safeExercises.filter((ex: any) => dislikedIds.has(ex.id)).map((ex: any) => ex.name);
     const preferencesStr = (favoriteNames.length > 0 || dislikedNames.length > 0)
       ? `\nPreferências: ${favoriteNames.length > 0 ? `FAVORITOS (incluir quando coerente): ${favoriteNames.slice(0, 8).join(', ')}. ` : ''}${dislikedNames.length > 0 ? `NÃO GOSTA (usar somente se não houver alternativa): ${dislikedNames.slice(0, 8).join(', ')}.` : ''}`
       : '';
@@ -365,13 +394,13 @@ export async function POST(req: NextRequest) {
     });
 
     // ─── Exercise catalog (já sem os PROIBIDOS — nunca sugeridos) ──────────────
-    const exerciseCatalog = allowedExercises
+    const exerciseCatalog = safeExercises
       .map((ex: any) => `${ex.id}|${ex.name}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
       .join('\n');
 
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${preferencesStr}${ednEvalStr}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 
@@ -410,7 +439,7 @@ Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayC
     }
 
     // Validar IDs + garantir que PROIBIDOS jamais entrem no plano
-    const validIds = new Set(allowedExercises.map((ex: any) => ex.id));
+    const validIds = new Set(safeExercises.map((ex: any) => ex.id));
     for (const day of parsed.days) {
       day.exercises = (day.exercises ?? []).filter((ex: any) => validIds.has(ex.exerciseId) && !forbiddenIds.has(ex.exerciseId));
     }
