@@ -50,10 +50,20 @@ interface ExState {
 
 // V6.5 — Pilar 5: análise pré-treino do Coach EDN
 type PreCheckAdjustment = 'progress' | 'maintain' | 'reduce_10' | 'reduce_25' | 'rest';
+interface AdaptiveSession {
+  intensity: 'push' | 'normal' | 'reduce' | 'deload' | 'rest';
+  workingVolumePct: number;
+  targetRirMin: number;
+  allowPr: boolean;
+  loadDeltaPct: number;
+  drivers: string[];
+  explanation: string;
+}
 interface PreCheck {
   adjustment: PreCheckAdjustment;
   message: string;
   recovery: { score: number; category: string };
+  session?: AdaptiveSession;
 }
 
 const PRECHECK_STYLE: Record<PreCheckAdjustment, { title: string; border: string; bg: string; text: string }> = {
@@ -218,11 +228,12 @@ export default function ExecutarPage() {
 
   // V6.5 — Pilar 5: consulta o Coach EDN antes do treino
   useEffect(() => {
-    fetch('/api/pre-workout-check')
+    if (!dayId) return;
+    fetch(`/api/pre-workout-check?dayId=${dayId}`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d?.adjustment) setPreCheck(d as PreCheck); })
       .catch(() => {});
-  }, []);
+  }, [dayId]);
 
   useEffect(() => {
     if (!dayId) return;
@@ -644,7 +655,24 @@ export default function ExecutarPage() {
                 Prontidão {preCheck.recovery.score}/100
               </span>
             </div>
-            <p className="text-xs text-zinc-300 leading-relaxed">{preCheck.message}</p>
+            <p className="text-xs text-zinc-300 leading-relaxed">{preCheck.session?.explanation ?? preCheck.message}</p>
+            {preCheck.session && preCheck.session.intensity !== 'normal' && preCheck.session.intensity !== 'push' && (
+              <div className="flex flex-wrap gap-1.5">
+                {preCheck.session.workingVolumePct < 100 && (
+                  <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full">Working −{100 - preCheck.session.workingVolumePct}%</span>
+                )}
+                <span className="text-[10px] font-semibold text-zinc-300 bg-zinc-800/80 px-2 py-0.5 rounded-full">RIR ≥ {preCheck.session.targetRirMin}</span>
+                {preCheck.session.loadDeltaPct < 0 && (
+                  <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full">Carga {preCheck.session.loadDeltaPct}%</span>
+                )}
+              </div>
+            )}
+            {preCheck.session?.allowPr && (
+              <span className="inline-block text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full">Dia bom para tentar PR</span>
+            )}
+            {preCheck.session && preCheck.session.drivers.length > 1 && (
+              <p className="text-[10px] text-zinc-500">Fatores: {preCheck.session.drivers.join(' · ')}</p>
+            )}
             <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
               <div
                 className={cn('h-full rounded-full transition-all',
