@@ -58,8 +58,9 @@ export function MealLogger({ onLogged, controlledOpen, onClose }: { onLogged?: (
   }, []);
   useEffect(() => { const t = setTimeout(() => doSearch(search), 300); return () => clearTimeout(t); }, [search, doSearch]);
 
-  function addFood(f: Food, qty = 100) {
-    setRows(r => [...r, { name: f.name, quantity: f.usual_quantity ?? qty, unit: f.serving_unit ?? 'g', preparation: f.usual_preparation ?? null, confidence: null,
+  function addFood(f: Food, qty?: number) {
+    const defQty = f.usual_quantity ?? qty ?? f.serving_size ?? 100;
+    setRows(r => [...r, { name: f.name, quantity: defQty, unit: f.serving_unit ?? 'g', preparation: f.usual_preparation ?? null, confidence: null,
       serving_size: f.serving_size ?? 100, serving_unit: f.serving_unit ?? 'g', calories: f.calories ?? 0, protein: f.protein ?? 0, carbohydrates: f.carbohydrates ?? 0, fat: f.fat ?? 0, fiber: f.fiber ?? null, food_id: f.id ?? null }]);
     setSearch(''); setResults([]);
   }
