@@ -60,7 +60,8 @@
     "test:recdec": "tsc src/lib/edn/recovery-evolution-engine.ts src/lib/edn/decision-outcome-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/rd --module commonjs --target es2019 --skipLibCheck && node scripts/test-recovery-decision.js",
     "test:timeline": "tsc src/lib/edn/evolution-timeline-engine.ts src/lib/edn/athlete-evolution-report.ts src/lib/edn/evolution-intelligence-engine.ts src/lib/edn/muscle-development-score.ts src/lib/edn/performance-composition-matrix.ts src/lib/edn/before-after-engine.ts src/lib/edn/recovery-evolution-engine.ts src/lib/edn/decision-outcome-engine.ts src/lib/edn/body-metrics-unifier.ts src/lib/edn/evolution-signal-engine.ts src/lib/edn/recomposition-plateau-engine.ts src/lib/edn/goal-progress-engine.ts --outDir scripts/.tmp/tr --module commonjs --target es2019 --skipLibCheck && node scripts/test-timeline-report.js",
     "test:correlation": "tsc src/lib/edn/evolution-correlation-engine.ts --outDir scripts/.tmp/co --module commonjs --target es2019 --skipLibCheck && node scripts/test-correlation.js",
-    "test:scenarios": "tsc src/lib/edn/body-projection-scenarios.ts src/lib/edn/decision-simulation-engine.ts --outDir scripts/.tmp/ss --module commonjs --target es2019 --skipLibCheck && node scripts/test-scenarios-simulation.js"
+    "test:scenarios": "tsc src/lib/edn/body-projection-scenarios.ts src/lib/edn/decision-simulation-engine.ts --outDir scripts/.tmp/ss --module commonjs --target es2019 --skipLibCheck && node scripts/test-scenarios-simulation.js",
+    "test:evomemory": "tsc src/lib/edn/athlete-evolution-memory.ts src/lib/edn/decision-outcome-engine.ts --outDir scripts/.tmp/em --module commonjs --target es2019 --skipLibCheck && node scripts/test-evolution-memory.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
