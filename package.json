@@ -54,7 +54,8 @@
     "test:bodyunifier": "tsc src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/bmu --module commonjs --target es2019 --skipLibCheck && node scripts/test-body-metrics-unifier.js",
     "test:evosignal": "tsc src/lib/edn/evolution-signal-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/esg --module commonjs --target es2019 --skipLibCheck && node scripts/test-evolution-signal.js",
     "test:recomp": "tsc src/lib/edn/recomposition-plateau-engine.ts --outDir scripts/.tmp/rpe --module commonjs --target es2019 --skipLibCheck && node scripts/test-recomp-plateau.js",
-    "test:goalprog": "tsc src/lib/edn/goal-progress-engine.ts --outDir scripts/.tmp/gpe --module commonjs --target es2019 --skipLibCheck && node scripts/test-goal-progress.js"
+    "test:goalprog": "tsc src/lib/edn/goal-progress-engine.ts --outDir scripts/.tmp/gpe --module commonjs --target es2019 --skipLibCheck && node scripts/test-goal-progress.js",
+    "test:evointel": "tsc src/lib/edn/evolution-intelligence-engine.ts src/lib/edn/before-after-engine.ts src/lib/edn/body-metrics-unifier.ts src/lib/edn/evolution-signal-engine.ts src/lib/edn/recomposition-plateau-engine.ts src/lib/edn/goal-progress-engine.ts --outDir scripts/.tmp/eie --module commonjs --target es2019 --skipLibCheck && node scripts/test-evolution-intelligence.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
