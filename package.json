@@ -51,7 +51,8 @@
     "test:split": "tsc src/lib/edn/split-generation-engine.ts src/lib/edn/exercise-suitability-score.ts src/lib/edn/stagnation-engine.ts --outDir scripts/.tmp/e4 --module commonjs --target es2019 --skipLibCheck && node scripts/test-split-suitability-stagnation.js",
     "test:respq": "tsc src/lib/edn/training-response-profile.ts src/lib/edn/workout-quality-score.ts src/lib/edn/workout-plan-preview.ts --outDir scripts/.tmp/e5 --module commonjs --target es2019 --skipLibCheck && node scripts/test-response-quality-preview.js",
     "test:workout-generation": "node scripts/test-workout-generation.js",
-    "test:bodyunifier": "tsc src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/bmu --module commonjs --target es2019 --skipLibCheck && node scripts/test-body-metrics-unifier.js"
+    "test:bodyunifier": "tsc src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/bmu --module commonjs --target es2019 --skipLibCheck && node scripts/test-body-metrics-unifier.js",
+    "test:evosignal": "tsc src/lib/edn/evolution-signal-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/esg --module commonjs --target es2019 --skipLibCheck && node scripts/test-evolution-signal.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
