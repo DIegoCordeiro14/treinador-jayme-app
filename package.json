@@ -46,7 +46,8 @@
     "test:v9": "node scripts/test-v9-integration.js",
     "test:nutricalc": "node scripts/test-nutrition-calc.js",
     "test:snapshot": "tsc src/lib/edn/athlete-training-snapshot.ts --outDir scripts/.tmp/ats --module commonjs --target es2019 --skipLibCheck && node scripts/test-athlete-training-snapshot.js",
-    "test:exhist": "tsc src/lib/edn/exercise-history-intelligence.ts src/lib/edn/exercise-rotation-engine.ts src/lib/edn/athlete-training-snapshot.ts --outDir scripts/.tmp/ehr --module commonjs --target es2019 --skipLibCheck && node scripts/test-exercise-history-rotation.js"
+    "test:exhist": "tsc src/lib/edn/exercise-history-intelligence.ts src/lib/edn/exercise-rotation-engine.ts src/lib/edn/athlete-training-snapshot.ts --outDir scripts/.tmp/ehr --module commonjs --target es2019 --skipLibCheck && node scripts/test-exercise-history-rotation.js",
+    "test:volume2": "tsc src/lib/edn/muscle-volume-intelligence.ts --outDir scripts/.tmp/mvi --module commonjs --target es2019 --skipLibCheck && node scripts/test-muscle-volume-intelligence.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
