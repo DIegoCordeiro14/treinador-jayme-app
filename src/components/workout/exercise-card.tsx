@@ -204,15 +204,21 @@ export function ExerciseCard({ exercise, isFavorite = false, onToggleFavorite }:
                     Demonstração em Vídeo
                   </span>
                 </h4>
-                <div className="aspect-video rounded-lg overflow-hidden bg-zinc-800">
-                  <iframe
-                    src={exercise.youtube_url.replace("watch?v=", "embed/")}
-                    title={exercise.name + " - demonstracao"}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+                {exercise.youtube_url.includes("watch?v=") ? (
+                  <div className="aspect-video rounded-lg overflow-hidden bg-zinc-800">
+                    <iframe
+                      src={exercise.youtube_url.replace("watch?v=", "embed/")}
+                      title={exercise.name + " - demonstracao"}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <a href={exercise.youtube_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 aspect-video rounded-lg bg-zinc-800 text-zinc-200 text-sm font-semibold hover:bg-zinc-700">
+                    <Play className="h-5 w-5 text-red-500" /> Ver vídeo de execução
+                  </a>
+                )}
               </div>
             )}
           </div>
