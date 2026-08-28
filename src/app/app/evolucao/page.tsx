@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAthleteState } from '@/hooks/useAthleteState';
 import { ProjectionCompare } from '@/components/evolucao/projection-compare';
+import { EvolutionIntelligencePanel } from '@/components/evolucao/evolution-intelligence-panel';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -543,6 +544,8 @@ export default function EvolucaoPage() {
           </div>
         ))}
       </div>
+
+      <EvolutionIntelligencePanel />
 
       {progress?.diagnosis && progress.diagnosis.status !== 'dados_insuficientes' && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-2">
