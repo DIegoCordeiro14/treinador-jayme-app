@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAthleteState } from '@/hooks/useAthleteState';
 import { ProjectionCompare } from '@/components/evolucao/projection-compare';
 import { EvolutionIntelligencePanel } from '@/components/evolucao/evolution-intelligence-panel';
+import { EvolutionIntelligenceTab } from '@/components/evolucao/evolution-intelligence-tab';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -604,8 +605,14 @@ export default function EvolucaoPage() {
           <TabsTrigger value="medidas">Medidas</TabsTrigger>
           <TabsTrigger value="performance" className="gap-1.5"><Dumbbell className="h-3.5 w-3.5" />Performance</TabsTrigger>
           <TabsTrigger value="relatorio" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+          <TabsTrigger value="inteligencia" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />Inteligência</TabsTrigger>
           <TabsTrigger value="projecoes" className="gap-1.5"><Target className="h-3.5 w-3.5" />Projeções</TabsTrigger>
         </TabsList>
+
+        {/* ── Inteligência tab (Fases 1-3) ─────────────────── */}
+        <TabsContent value="inteligencia" className="mt-4">
+          <EvolutionIntelligenceTab />
+        </TabsContent>
 
         {/* ── Bioimpedância tab ────────────────────────────── */}
         <TabsContent value="bioimpedancia" className="mt-4 space-y-4">

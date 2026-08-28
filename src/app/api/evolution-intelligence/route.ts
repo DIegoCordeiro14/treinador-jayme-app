@@ -8,6 +8,11 @@ import { scoreAllMuscles, type MuscleDevInput } from '@/lib/edn/muscle-developme
 import { planMuscleVolume } from '@/lib/edn/muscle-volume-intelligence';
 import { projectScenarios } from '@/lib/edn/body-projection-scenarios';
 import { compareBeforeAfter } from '@/lib/edn/before-after-engine';
+import { buildEvolutionReport } from '@/lib/edn/athlete-evolution-report';
+import { buildTimeline, groupTimelineByMonth, type TimelineKind } from '@/lib/edn/evolution-timeline-engine';
+import { summarizeDecisions, type DecisionOutcome } from '@/lib/edn/decision-outcome-engine';
+import { buildEvolutionMemory } from '@/lib/edn/athlete-evolution-memory';
+import type { RecoveryEvolution } from '@/lib/edn/recovery-evolution-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -27,7 +32,7 @@ export async function GET(_req: NextRequest) {
     const iso = new Date(now - 90 * 86400000).toISOString();
     const date90 = iso.slice(0, 10);
 
-    const [{ data: profile }, { data: bios }, { data: meas }, { data: wl }, { data: sess }, { data: sets }, { data: food }] =
+    const [{ data: profile }, { data: bios }, { data: meas }, { data: wl }, { data: sess }, { data: sets }, { data: food }, { data: tl }, { data: dec }] =
       await Promise.all([
         supabase.from('profiles').select('main_goal, experience_level, weekly_frequency, sleep_hours, sleep_quality, stress_level').eq('id', user.id).maybeSingle(),
         supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, lean_mass_kg, skeletal_muscle_mass_kg, measured_at').eq('user_id', user.id).gte('measured_at', date90).order('measured_at', { ascending: true }),
@@ -36,6 +41,8 @@ export async function GET(_req: NextRequest) {
         supabase.from('workout_sessions').select('started_at, total_volume_kg').eq('user_id', user.id).gte('started_at', iso).order('started_at', { ascending: true }),
         supabase.from('session_sets').select('weight_kg, rir, completed, exercise:exercises(muscle_group), session:workout_sessions!inner(started_at, user_id)').eq('session.user_id', user.id).gte('session.started_at', iso),
         supabase.from('food_logs').select('logged_at').eq('user_id', user.id).gte('logged_at', new Date(now - 14 * 86400000).toISOString()),
+        supabase.from('athlete_timeline').select('kind, title, detail, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(40),
+        supabase.from('athlete_decisions').select('id, decision, domain, applied, outcome, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
       ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,7 +171,54 @@ export async function GET(_req: NextRequest) {
       { label: 'Massa magra', unit: 'kg', before: avg(unified.slice(0, mid).map((u) => u.leanKg)), after: avg(unified.slice(mid).map((u) => u.leanKg)), higherIsBetter: true },
     ]) : null;
 
-    return Response.json({ state, matrix, muscleScores, scenarios, beforeAfter });
+    // ── Decisões → resultados (mapeia outcome textual em verdict) ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const DEC = (dec ?? []) as any[];
+    const mapVerdict = (o: string | null, applied: boolean): DecisionOutcome['verdict'] => {
+      const t = (o ?? '').toLowerCase();
+      if (/positiv|melhor|sucesso|good|efic/.test(t)) return 'positive';
+      if (/negativ|pior|falh|bad|inefic/.test(t)) return 'negative';
+      if (!o) return applied ? 'pending' : 'neutral';
+      return 'neutral';
+    };
+    const decisionOutcomes: DecisionOutcome[] = DEC.map((d) => {
+      const verdict = mapVerdict(d.outcome, d.applied !== false);
+      return { id: d.id, decision: d.decision ?? 'Decisão', verdict, scoreDelta: 0,
+        summary: `${verdict === 'positive' ? 'Decisão positiva' : verdict === 'negative' ? 'Decisão negativa' : verdict === 'pending' ? 'Aguardando resultado' : 'Resultado neutro'}: ${d.decision ?? ''}`.trim() };
+    });
+    const decisionStats = summarizeDecisions(decisionOutcomes);
+    const memory = buildEvolutionMemory({
+      decisions: DEC.map((d, i) => ({ action: String(d.domain ?? d.decision ?? 'decisao'), outcome: decisionOutcomes[i] })),
+      responses: [],
+    });
+
+    // ── Timeline (athlete_timeline) ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const TL = (tl ?? []) as any[];
+    const KIND_MAP: Record<string, TimelineKind> = { pr: 'pr', body: 'body_change', recovery: 'recovery_drop', deload: 'deload', decision: 'decision', plateau: 'plateau', milestone: 'milestone' };
+    const timelineEvents = buildTimeline(TL.map((e) => ({
+      dateISO: String(e.created_at).slice(0, 10),
+      kind: (KIND_MAP[String(e.kind ?? '').toLowerCase()] ?? 'milestone') as TimelineKind,
+      title: e.title ?? '', detail: e.detail ?? undefined,
+    })));
+    const timeline = groupTimelineByMonth(timelineEvents);
+
+    // ── Recuperação (proxy) em forma de RecoveryEvolution p/ o relatório ──
+    const recoveryEvo: RecoveryEvolution = {
+      recoveryTrendPerWeek: null, sleepTrendPerWeek: null, restingHrTrendPerWeek: null, hrvTrendPerWeek: null,
+      direction: recoveryLabel === 'baixa' ? 'declining' : recoveryLabel === 'boa' ? 'improving' : 'stable',
+      performanceLink: 'unknown',
+      message: recoveryLabel ? `Recuperação estimada: ${recoveryLabel} (sono/estresse do perfil).` : 'Sem dados de recuperação.',
+    };
+
+    // ── Relatório mensal (assembler determinístico) ──
+    const report = beforeAfter ? buildEvolutionReport({
+      periodLabel: `Últimos ${Math.round(spanDays)} dias`,
+      state, beforeAfter, muscleScores, matrix, recovery: recoveryEvo,
+      decisions: decisionOutcomes, decisionStats,
+    }) : null;
+
+    return Response.json({ state, matrix, muscleScores, scenarios, beforeAfter, report, timeline, decisions: decisionOutcomes, decisionStats, memory });
   } catch (err) {
     return Response.json({ state: null, error: err instanceof Error ? err.message : 'Erro interno' }, { status: 200 });
   }
