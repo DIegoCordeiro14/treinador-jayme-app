@@ -177,6 +177,7 @@ export interface SessionSet {
   set_number: number;
   reps_done: number;
   weight_kg: number;
+  rir: number | null;
   completed: boolean;
   notes: string;
   // Joined

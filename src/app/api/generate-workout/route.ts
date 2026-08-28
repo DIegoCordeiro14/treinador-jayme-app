@@ -409,7 +409,7 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
       const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
       const { data: histSets } = await supabase
         .from('session_sets')
-        .select('exercise_id, weight_kg, reps_done, completed, session:workout_sessions!inner(started_at, user_id), exercise:exercises(name, muscle_group)')
+        .select('exercise_id, weight_kg, reps_done, rir, completed, session:workout_sessions!inner(started_at, user_id), exercise:exercises(name, muscle_group)')
         .eq('session.user_id', user.id)
         .gte('session.started_at', since90);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -422,7 +422,7 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
           performed_at: r.session?.started_at,
           weight_kg: r.weight_kg ?? null,
           reps: r.reps_done ?? null,
-          rir: null,
+          rir: r.rir ?? null,
         }));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const candidates = (safeExercises as any[]).map((ex) => ({
