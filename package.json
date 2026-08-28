@@ -49,7 +49,8 @@
     "test:exhist": "tsc src/lib/edn/exercise-history-intelligence.ts src/lib/edn/exercise-rotation-engine.ts src/lib/edn/athlete-training-snapshot.ts --outDir scripts/.tmp/ehr --module commonjs --target es2019 --skipLibCheck && node scripts/test-exercise-history-rotation.js",
     "test:volume2": "tsc src/lib/edn/muscle-volume-intelligence.ts --outDir scripts/.tmp/mvi --module commonjs --target es2019 --skipLibCheck && node scripts/test-muscle-volume-intelligence.js",
     "test:split": "tsc src/lib/edn/split-generation-engine.ts src/lib/edn/exercise-suitability-score.ts src/lib/edn/stagnation-engine.ts --outDir scripts/.tmp/e4 --module commonjs --target es2019 --skipLibCheck && node scripts/test-split-suitability-stagnation.js",
-    "test:respq": "tsc src/lib/edn/training-response-profile.ts src/lib/edn/workout-quality-score.ts src/lib/edn/workout-plan-preview.ts --outDir scripts/.tmp/e5 --module commonjs --target es2019 --skipLibCheck && node scripts/test-response-quality-preview.js"
+    "test:respq": "tsc src/lib/edn/training-response-profile.ts src/lib/edn/workout-quality-score.ts src/lib/edn/workout-plan-preview.ts --outDir scripts/.tmp/e5 --module commonjs --target es2019 --skipLibCheck && node scripts/test-response-quality-preview.js",
+    "test:workout-generation": "node scripts/test-workout-generation.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

@@ -3,6 +3,7 @@ import { analyzeWorkoutContext } from '@/lib/edn/workout-intelligence-engine';
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateExerciseSafety } from "@/lib/edn/physical-condition-engine";
+import { buildGenerationIntelligence } from "@/lib/edn/generation-intelligence";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
 import {
   getEffectiveObjective,
@@ -398,9 +399,59 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
       .map((ex: any) => `${ex.id}|${ex.name}${ex.difficulty === 'advanced' ? '[ADV]' : ''}`)
       .join('\n');
 
+    // ─── GERAÇÃO v2: inteligência longitudinal (aditivo, guardado) ────────────
+    // Motores determinísticos (Etapas 1-5) rankeiam candidatos JÁ seguros e
+    // definem volume/frequência/rotação. A IA apenas ORGANIZA com base nisto.
+    let genV2Block = '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let genV2: any = null;
+    try {
+      const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+      const { data: histSets } = await supabase
+        .from('session_sets')
+        .select('exercise_id, weight_kg, reps_done, completed, session:workout_sessions!inner(started_at, user_id), exercise:exercises(name, muscle_group)')
+        .eq('session.user_id', user.id)
+        .gte('session.started_at', since90);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const snapSets = ((histSets ?? []) as any[])
+        .filter((r) => r.completed !== false && r.exercise && r.session)
+        .map((r) => ({
+          exercise_id: r.exercise_id,
+          exercise_name: r.exercise?.name ?? r.exercise_id,
+          muscle_group: r.exercise?.muscle_group ?? 'full_body',
+          performed_at: r.session?.started_at,
+          weight_kg: r.weight_kg ?? null,
+          reps: r.reps_done ?? null,
+          rir: null,
+        }));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const candidates = (safeExercises as any[]).map((ex) => ({
+        id: ex.id, name: ex.name, muscle_group: ex.muscle_group, equipment: ex.equipment ?? 'machine',
+        difficulty: ex.difficulty ?? 'intermediate', is_compound: ex.is_compound ?? undefined,
+        objective_tags: ex.objective_tags ?? undefined,
+      }));
+      genV2 = buildGenerationIntelligence({
+        profile: {
+          sex: (sex ?? 'male') as 'male' | 'female',
+          experience: (effectiveLevelKey ?? 'beginner') as 'beginner' | 'intermediate' | 'advanced',
+          objective: effectiveObjective,
+          aesthetic_goal: aestheticGoal,
+          days_per_week: daysPerWeek ?? dayCount,
+          available_equipment: profileData?.available_equipment ?? undefined,
+        },
+        sets: snapSets,
+        candidates,
+        weakPoints: weakMuscle ? [weakMuscle] : [],
+        recovery: 'good',
+        likedIds: [...favoriteIds] as string[],
+        dislikedIds: [...dislikedIds] as string[],
+      });
+      genV2Block = genV2.promptBlock;
+    } catch { /* aditivo: se falhar, gera como antes (sem inteligência v2) */ }
+
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 
@@ -460,7 +511,7 @@ Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayC
       }
     } catch { /* não-fatal */ }
 
-    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct });
+    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct, intelligence: genV2 ? { split: genV2.split?.name ?? null, volumePlan: genV2.volumePlan, retainedIds: genV2.retainedIds, swaps: genV2.swaps, stagnation: genV2.stagnation, topSuitable: genV2.topSuitable, snapshotBullets: genV2.snapshotBullets } : null });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);
     // AI falhou — retornar 200 com whyText para o client mostrar o card
