@@ -88,6 +88,7 @@ export default function CalendarioPage() {
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sessionDays, setSessionDays] = useState<Map<string, SessionDay>>(new Map());
+  const [cardioDays, setCardioDays] = useState<Set<string>>(new Set());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<Record<string, unknown>[]>([]);
   const [selectedCardio, setSelectedCardio] = useState<Record<string, unknown>[]>([]);
@@ -117,7 +118,7 @@ export default function CalendarioPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [{ data: sessions }, { data: plan }, { data: prof }] = await Promise.all([
+    const [{ data: sessions }, { data: plan }, { data: prof }, { data: cardioSessions }] = await Promise.all([
       supabase.from('workout_sessions').select('started_at, finished_at, total_volume_kg')
         .eq('user_id', user.id)
         .gte('started_at', format(calStart, 'yyyy-MM-dd'))
@@ -125,6 +126,10 @@ export default function CalendarioPage() {
       supabase.from('workout_plans').select('id, name, days_per_week, goal, schedule_config')
         .eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('profiles').select('train_weekends').eq('id', user.id).maybeSingle(),
+      supabase.from('cardio_sessions').select('performed_at')
+        .eq('user_id', user.id).is('deleted_at', null)
+        .gte('performed_at', format(calStart, 'yyyy-MM-dd'))
+        .lte('performed_at', format(calEnd, 'yyyy-MM-dd') + 'T23:59:59'),
     ]);
 
     const map = new Map<string, SessionDay>();
@@ -136,6 +141,11 @@ export default function CalendarioPage() {
     });
 
     setSessionDays(map);
+    const cardioSet = new Set<string>();
+    (cardioSessions ?? []).forEach((c: Record<string, unknown>) => {
+      if (c.performed_at) cardioSet.add(format(parseISO(c.performed_at as string), 'yyyy-MM-dd'));
+    });
+    setCardioDays(cardioSet);
     setActivePlan(plan as any ?? null);
 
     // Mapa letra/nome do dia -> agrupamento muscular (derivado dos exercícios reais)
@@ -280,7 +290,8 @@ export default function CalendarioPage() {
             const isSelected = selectedDay && isSameDay(day, selectedDay);
             const dateStr = format(day, 'yyyy-MM-dd');
             const session = sessionDays.get(dateStr);
-            const planned = !session && isScheduledDay(day, cfg) && day >= TODAY_START;
+            const hasCardio = cardioDays.has(dateStr);
+            const planned = !session && !hasCardio && isScheduledDay(day, cfg) && day >= TODAY_START;
             const workoutLabel = getWorkoutLabel(day, cfg);
             const isPast = day < TODAY_START;
             return (
@@ -288,10 +299,15 @@ export default function CalendarioPage() {
                 className={cn('relative flex flex-col items-center justify-center rounded-lg p-1 min-h-[48px] transition-all text-sm font-medium',
                   !inMonth && 'opacity-20 cursor-default', inMonth && 'hover:bg-zinc-800',
                   isToday(day) && 'ring-1 ring-[#D4853A]', isSelected && 'bg-zinc-800',
-                  session && 'text-zinc-100', planned && 'text-[#E09B5A]',
+                  session && 'text-zinc-100', !session && hasCardio && 'text-[#8FD0E0]', planned && 'text-[#E09B5A]',
                   !session && !planned && inMonth && (isPast ? 'text-zinc-500' : 'text-zinc-600'))}>
                 <span>{format(day, 'd')}</span>
-                {session && <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-green-400" />}
+                {(session || hasCardio) && (
+                  <span className="absolute bottom-1 flex items-center gap-0.5">
+                    {session && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
+                    {hasCardio && <span className="w-1.5 h-1.5 rounded-full bg-[#3FA7C4]" />}
+                  </span>
+                )}
                 {planned && (
                   <>
                     <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#D4853A]/70" />
@@ -303,7 +319,8 @@ export default function CalendarioPage() {
           })}
         </div>
         <div className="flex items-center gap-4 px-4 py-3 border-t border-zinc-800 flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" />Treino feito</div>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" />Musculação</div>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-[#3FA7C4] inline-block" />Cardio</div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-[#D4853A]/70 inline-block" />Treino planejado</div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-4 h-0.5 rounded bg-[#D4853A] inline-block" />Hoje</div>
         </div>

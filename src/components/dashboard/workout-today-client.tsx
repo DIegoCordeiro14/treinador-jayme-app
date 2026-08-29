@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { WorkoutTodayCard } from './workout-today-card';
 import { selectTodayWorkout, selectNextWorkout, type SimpleDay, type Schedule } from '@/lib/edn/today-workout';
 import type { WorkoutPlan, WorkoutDay } from '@/types';
+import { createClient } from '@/lib/supabase/client';
+import { format } from 'date-fns';
 
 /**
  * Wrapper CLIENTE do card "Treino de Hoje".
@@ -16,6 +18,7 @@ export function WorkoutTodayClient({ plan }: { plan: WorkoutPlan | null }) {
   const [todayLabel, setTodayLabel] = useState(() =>
     new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
   );
+  const [cardioToday, setCardioToday] = useState<{ count: number; km: number | null; type: string | null } | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -29,6 +32,29 @@ export function WorkoutTodayClient({ plan }: { plan: WorkoutPlan | null }) {
     setNextWorkout(selectNextWorkout(days, schedule, jsDay));
   }, [plan]);
 
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const dateStr = format(new Date(), 'yyyy-MM-dd');
+        const { data } = await supabase.from('cardio_sessions')
+          .select('type, distance_km')
+          .eq('user_id', user.id).is('deleted_at', null)
+          .gte('performed_at', dateStr).lte('performed_at', dateStr + 'T23:59:59');
+        if (!alive) return;
+        const rows = (data ?? []) as { type: string | null; distance_km: number | null }[];
+        if (rows.length) {
+          const km = rows.reduce((a, r) => a + (r.distance_km ?? 0), 0);
+          setCardioToday({ count: rows.length, km: km > 0 ? Math.round(km * 10) / 10 : null, type: rows[0].type ?? null });
+        } else setCardioToday(null);
+      } catch { /* silencioso */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   return (
     <WorkoutTodayCard
       workoutDay={workoutDay}
@@ -36,6 +62,7 @@ export function WorkoutTodayClient({ plan }: { plan: WorkoutPlan | null }) {
       isRestDay={!workoutDay}
       nextWorkout={nextWorkout}
       todayLabel={todayLabel}
+      cardioToday={cardioToday}
     />
   );
 }

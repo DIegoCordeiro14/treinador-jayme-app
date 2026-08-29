@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Play, Moon, ChevronRight, Dumbbell } from "lucide-react";
+import { Play, Moon, ChevronRight, Dumbbell, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { WorkoutDay, WorkoutPlan } from "@/types";
 
@@ -11,6 +11,8 @@ interface WorkoutTodayCardProps {
   nextWorkout?: { weekday: string; name: string; label?: string | null } | null;
   /** Data de "hoje" já formatada no fuso correto (vem do servidor para casar com o Calendário) */
   todayLabel?: string;
+  /** Cardio realizado hoje (para não rotular dia de cardio como descanso/musculação) */
+  cardioToday?: { count: number; km: number | null; type: string | null } | null;
 }
 
 function NextWorkoutInfo({ nextWorkout }: { nextWorkout?: { weekday: string; name: string; label?: string | null } | null }) {
@@ -35,6 +37,7 @@ export function WorkoutTodayCard({
   isRestDay = false,
   nextWorkout = null,
   todayLabel,
+  cardioToday = null,
 }: WorkoutTodayCardProps) {
   const dateLabel =
     todayLabel ??
@@ -45,23 +48,33 @@ export function WorkoutTodayCard({
     });
 
   if (isRestDay || !workoutDay || !plan) {
+    const isCardioDay = !!cardioToday && cardioToday.count > 0;
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <div className={`rounded-xl border p-6 ${isCardioDay ? 'border-[#3FA7C4]/30 bg-[#3FA7C4]/[0.05]' : 'border-zinc-800 bg-zinc-900'}`}>
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-800">
-            <Moon className="h-5 w-5 text-zinc-400" />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isCardioDay ? 'bg-[#3FA7C4]/20 border border-[#3FA7C4]/30' : 'bg-zinc-800'}`}>
+            {isCardioDay ? <Activity className="h-5 w-5 text-[#3FA7C4]" /> : <Moon className="h-5 w-5 text-zinc-400" />}
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-100">Treino de Hoje</h3>
+            <h3 className="text-sm font-semibold text-zinc-100">{isCardioDay ? 'Cardio de Hoje' : 'Treino de Hoje'}</h3>
             <p className="text-xs text-zinc-500">{dateLabel}</p>
           </div>
         </div>
+        {isCardioDay ? (
+          <div className="text-center py-4">
+            <p className="text-[#8FD0E0] font-medium">{cardioToday!.type ? cardioToday!.type : 'Cardio'} concluído</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {cardioToday!.count > 1 ? `${cardioToday!.count} sessões` : '1 sessão'}{cardioToday!.km ? ` · ${cardioToday!.km} km` : ''} · sem musculação hoje
+            </p>
+          </div>
+        ) : (
         <div className="text-center py-4">
           <p className="text-zinc-400 font-medium">Dia de Descanso</p>
           <p className="text-xs text-zinc-600 mt-1">
             Recuperação é parte do treino. Descanse bem!
           </p>
         </div>
+        )}
         <NextWorkoutInfo nextWorkout={nextWorkout} />
         <Link href="/app/treinos">
           <Button variant="outline" className="w-full mt-2" size="sm">
