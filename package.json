@@ -92,7 +92,8 @@
     "test:cardiohr": "tsc src/lib/edn/hr-outlier-engine.ts src/lib/edn/heart-rate-zone-engine.ts --outDir scripts/.tmp/hr --module commonjs --target es2019 --skipLibCheck && node scripts/test-hr-engines.js",
     "test:gpscore": "tsc src/lib/cardio/gps-core.ts src/lib/cardio/gps-filter.ts src/lib/cardio/gps-anomaly-detector.ts --outDir scripts/.tmp/gc --module commonjs --target es2019 --skipLibCheck && node scripts/test-gps-core.js",
     "test:cardioenergy": "tsc src/lib/edn/cardio-energy-engine.ts --outDir scripts/.tmp/ce2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-energy.js",
-    "test:cardioresp": "tsc src/lib/edn/cardio-response-profile.ts --outDir scripts/.tmp/crp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-response.js"
+    "test:cardioresp": "tsc src/lib/edn/cardio-response-profile.ts --outDir scripts/.tmp/crp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-response.js",
+    "test:cardioadh": "tsc src/lib/edn/cardio-adherence-engine.ts src/lib/edn/performance-forecast-engine.ts --outDir scripts/.tmp/af --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-forecast.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
