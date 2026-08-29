@@ -62,7 +62,8 @@
     "test:correlation": "tsc src/lib/edn/evolution-correlation-engine.ts --outDir scripts/.tmp/co --module commonjs --target es2019 --skipLibCheck && node scripts/test-correlation.js",
     "test:scenarios": "tsc src/lib/edn/body-projection-scenarios.ts src/lib/edn/decision-simulation-engine.ts --outDir scripts/.tmp/ss --module commonjs --target es2019 --skipLibCheck && node scripts/test-scenarios-simulation.js",
     "test:evomemory": "tsc src/lib/edn/athlete-evolution-memory.ts src/lib/edn/decision-outcome-engine.ts --outDir scripts/.tmp/em --module commonjs --target es2019 --skipLibCheck && node scripts/test-evolution-memory.js",
-    "test:priority": "tsc src/lib/edn/priority-allocation-engine.ts --outDir scripts/.tmp/pa --module commonjs --target es2019 --skipLibCheck && node scripts/test-priority-allocation.js"
+    "test:priority": "tsc src/lib/edn/priority-allocation-engine.ts --outDir scripts/.tmp/pa --module commonjs --target es2019 --skipLibCheck && node scripts/test-priority-allocation.js",
+    "test:budget": "tsc src/lib/edn/priority-budget-engine.ts --outDir scripts/.tmp/pb --module commonjs --target es2019 --skipLibCheck && node scripts/test-priority-budget.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
