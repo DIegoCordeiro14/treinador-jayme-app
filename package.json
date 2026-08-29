@@ -71,7 +71,8 @@
     "test:specialization": "tsc src/lib/edn/specialization-block-engine.ts src/lib/edn/priority-response-engine.ts --outDir scripts/.tmp/sr --module commonjs --target es2019 --skipLibCheck && node scripts/test-specialization-response.js",
     "test:changebudget": "tsc src/lib/edn/plan-change-budget-engine.ts src/lib/edn/equilibrium-score-engine.ts --outDir scripts/.tmp/ce --module commonjs --target es2019 --skipLibCheck && node scripts/test-changebudget-equilibrium.js",
     "test:validator": "tsc src/lib/edn/workout-complexity-engine.ts src/lib/edn/plan-quality-validator.ts --outDir scripts/.tmp/cv --module commonjs --target es2019 --skipLibCheck && node scripts/test-complexity-validator.js",
-    "test:planresponse": "tsc src/lib/edn/adherence-engine.ts src/lib/edn/plan-response-engine.ts --outDir scripts/.tmp/ap --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-planresponse.js"
+    "test:planresponse": "tsc src/lib/edn/adherence-engine.ts src/lib/edn/plan-response-engine.ts --outDir scripts/.tmp/ap --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-planresponse.js",
+    "test:orchestrator": "tsc src/lib/edn/workout-generation-orchestrator-v3.ts src/lib/edn/priority-allocation-engine.ts src/lib/edn/priority-budget-engine.ts src/lib/edn/muscle-balance-guard.ts src/lib/edn/effective-muscle-volume-engine.ts src/lib/edn/movement-pattern-engine.ts src/lib/edn/equilibrium-score-engine.ts src/lib/edn/plan-quality-validator.ts --outDir scripts/.tmp/o3 --module commonjs --target es2019 --skipLibCheck && node scripts/test-orchestrator-v3.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
