@@ -1,4 +1,5 @@
 "use client";
+import { GenerationExplanationCard } from '@/components/workout/generation-explanation-card';
 import { ExercisePreferenceToggle } from "@/components/workout/exercise-preference-toggle";
 
 import { useState, useEffect } from "react";
@@ -142,6 +143,8 @@ export default function PlanDetailPage() {
   const [biometricNote, setBiometricNote] = useState("");
   const [aiError, setAiError] = useState<string|null>(null);
   const [whyText, setWhyText] = useState<string|null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [genExplanation, setGenExplanation] = useState<any|null>(null);
 
   // evolution
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory>({});
@@ -325,6 +328,7 @@ export default function PlanDetailPage() {
           return { dayId:day.id, dayName:day.name, focusLabel:aiDay?.focusLabel??`Treino ${day.name}`, muscleGroups:mgs, exercises:dayExercises };
         });
         if (json.whyText) setWhyText(json.whyText);
+        if (json.generationExplanation) setGenExplanation(json.generationExplanation);
         if (json.aiError) {
           setAiError("IA indisponível — usando algoritmo EDN padrão");
           preview = generateFallback(sortedDays, plan.days_per_week, plan.goal, exercises, experienceLevel, highBMI);
@@ -671,7 +675,7 @@ export default function PlanDetailPage() {
           )}
 
           {/* ── V3.2 Por que este treino? ──────────────────────────────────── */}
-          {whyText && (
+          {(whyText || genExplanation) && (
             <details className="group rounded-xl border border-emerald-500/25 bg-emerald-600/5 overflow-hidden">
               <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-xs font-semibold text-emerald-400 hover:bg-emerald-600/10 transition-colors list-none">
                 <span className="text-base">🧠</span>
@@ -679,11 +683,15 @@ export default function PlanDetailPage() {
                 <span className="ml-auto text-zinc-500 group-open:rotate-180 transition-transform">▾</span>
               </summary>
               <div className="px-4 pb-4 pt-1 space-y-2">
-                {whyText.split('\n\n').map((line, i) => (
-                  <p key={i} className="text-[11px] text-zinc-300 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-zinc-100">$1</strong>') }}
-                  />
-                ))}
+                {genExplanation ? (
+                  <GenerationExplanationCard exp={genExplanation} />
+                ) : (
+                  (whyText ?? '').split('\n\n').map((line, i) => (
+                    <p key={i} className="text-[11px] text-zinc-300 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-zinc-100">$1</strong>') }}
+                    />
+                  ))
+                )}
               </div>
             </details>
           )}
