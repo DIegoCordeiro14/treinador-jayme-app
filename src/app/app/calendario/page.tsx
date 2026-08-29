@@ -8,7 +8,7 @@ import { planWeek, type RecoveryCategory } from '@/lib/edn/training-periodizatio
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay,
-  parseISO, addMonths, subMonths, getDay,
+  parseISO, addMonths, subMonths, getDay, addDays,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn, formatVolume } from '@/lib/utils';
@@ -257,7 +257,18 @@ export default function CalendarioPage() {
       {cfg?.pattern && cfg.pattern.length > 0 && (() => {
         const week = planWeek({
           pattern: cfg.pattern, dayAssignments: cfg.day_assignments ?? {},
-          cardioDays: [], todayWeekday: jsToEdn(getDay(new Date())),
+          cardioDays: (() => {
+            // dias EDN (1-7) com cardio REAL feito na semana atual + cardio planejado
+            const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
+            const set = new Set<number>();
+            for (let d = 0; d < 7; d++) {
+              const day = addDays(monday, d);
+              const ds = format(day, 'yyyy-MM-dd');
+              if (cardioDays.has(ds) || plannedCardioForDay(day, cfg)) set.add(jsToEdn(getDay(day)));
+            }
+            return [...set];
+          })(),
+          todayWeekday: jsToEdn(getDay(new Date())),
           recoveryCategory: recCat ?? 'good',
         });
         return (

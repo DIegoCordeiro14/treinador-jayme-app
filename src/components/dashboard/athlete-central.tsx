@@ -32,10 +32,14 @@ export function AthleteCentral() {
   const [alertU, setAlertU] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sv2, setSv2] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [nba, setNba] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [dataHealth, setDataHealth] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/athlete-360').then(r => r.json()).then(d => {
-      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); setSv2(d.stateV2 ?? null); }
+      if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); setSv2(d.stateV2 ?? null); setNba(d.nextBestAction ?? null); setDataHealth(d.dataHealth ?? null); }
     }).catch(() => {});
     fetch('/api/decisions/evaluate').catch(() => {});
     fetch('/api/daily-briefing').then(r => r.json()).then(d => {
@@ -59,6 +63,28 @@ export function AthleteCentral() {
         <span className="text-base font-extrabold italic text-zinc-100">Central do Atleta</span>
         <span className="ml-auto text-lg font-black italic text-[#D4853A]">{edn.overall}<span className="text-[10px] text-zinc-500 font-bold">/100 · EDN 360</span></span>
       </div>
+
+      {nba?.primary && (() => { const p = nba.primary; const c = p.priority === 'critical' ? '#C97B7B' : p.priority === 'important' ? '#A67C3A' : p.priority === 'recommended' ? '#5A8A6A' : '#607D8B';
+        const pt: Record<string,string> = { critical: 'CRÍTICO', important: 'IMPORTANTE', recommended: 'RECOMENDADO', optional: 'OPCIONAL' };
+        const inner = (
+          <div className="rounded-xl border p-3 flex items-start gap-2" style={{ borderColor: c + '55', background: c + '11' }}>
+            <span className="text-base shrink-0">{p.emoji}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold tracking-wide" style={{ color: c }}>{pt[p.priority]} · sua melhor ação agora</p>
+              <p className="text-[12px] font-semibold text-zinc-100">{p.title}</p>
+              <p className="text-[11px] text-zinc-400">{p.detail}</p>
+            </div>
+          </div>
+        );
+        return p.href ? <a href={p.href} className="block">{inner}</a> : inner;
+      })()}
+
+      {dataHealth && dataHealth.score < 85 && (
+        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+          <span>Qualidade dos dados: <b className="text-zinc-300">{dataHealth.score}%</b></span>
+          {dataHealth.topGap && <span className="truncate">· resolver: {dataHealth.topGap}</span>}
+        </div>
+      )}
       {briefLine && <p className="text-[11px] text-zinc-400 leading-relaxed -mt-1">{briefLine}</p>}
       {alertU && alertU.level !== 'normal' && (
         <p className={`text-[11px] font-semibold ${alertU.level==='block'?'text-red-300':alertU.level==='intervene'?'text-orange-300':'text-amber-300'}`}>

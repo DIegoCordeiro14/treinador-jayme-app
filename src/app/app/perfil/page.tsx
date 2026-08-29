@@ -262,6 +262,11 @@ export default function PerfilPage() {
       disliked_exercises: form.disliked_exercises,
       forbidden_exercises: form.forbidden_exercises,
       meals_per_day: form.meals_per_day ? parseInt(form.meals_per_day) : null,
+      // privacidade/notificações (agora persistidos)
+      show_in_ranking: showInRanking,
+      notif_training: notifTraining,
+      notif_challenge: notifChallenge,
+      notif_level: notifLevel,
     });
 
     if (error) { toast.error('Erro ao salvar perfil'); setSaving(false); return; }
