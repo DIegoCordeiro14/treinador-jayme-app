@@ -88,7 +88,8 @@
     "test:foodconsistency": "tsc src/lib/edn/food-consistency-engine.ts --outDir scripts/.tmp/fc2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-food-consistency.js",
     "test:nutcondition": "tsc src/lib/edn/nutrition-condition-adjust.ts --outDir scripts/.tmp/ca --module commonjs --target es2019 --skipLibCheck && node scripts/test-condition-adjust.js",
     "test:cardioplan": "tsc src/lib/edn/cardio-plan-engine.ts src/lib/edn/cardio-autopilot.ts src/lib/edn/cardio-progression-engine.ts src/lib/edn/recovery-engine.ts --outDir scripts/.tmp/cp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-plan.js",
-    "test:cardiodiag": "tsc src/lib/edn/cardio-diagnosis-engine.ts --outDir scripts/.tmp/cd --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-diagnosis.js"
+    "test:cardiodiag": "tsc src/lib/edn/cardio-diagnosis-engine.ts --outDir scripts/.tmp/cd --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-diagnosis.js",
+    "test:cardiohr": "tsc src/lib/edn/hr-outlier-engine.ts src/lib/edn/heart-rate-zone-engine.ts --outDir scripts/.tmp/hr --module commonjs --target es2019 --skipLibCheck && node scripts/test-hr-engines.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
