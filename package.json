@@ -93,7 +93,8 @@
     "test:gpscore": "tsc src/lib/cardio/gps-core.ts src/lib/cardio/gps-filter.ts src/lib/cardio/gps-anomaly-detector.ts --outDir scripts/.tmp/gc --module commonjs --target es2019 --skipLibCheck && node scripts/test-gps-core.js",
     "test:cardioenergy": "tsc src/lib/edn/cardio-energy-engine.ts --outDir scripts/.tmp/ce2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-energy.js",
     "test:cardioresp": "tsc src/lib/edn/cardio-response-profile.ts --outDir scripts/.tmp/crp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-response.js",
-    "test:cardioadh": "tsc src/lib/edn/cardio-adherence-engine.ts src/lib/edn/performance-forecast-engine.ts --outDir scripts/.tmp/af --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-forecast.js"
+    "test:cardioadh": "tsc src/lib/edn/cardio-adherence-engine.ts src/lib/edn/performance-forecast-engine.ts --outDir scripts/.tmp/af --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-forecast.js",
+    "test:concurrent": "tsc src/lib/edn/activity-impact-engine.ts src/lib/edn/concurrent-training-engine.ts --outDir scripts/.tmp/ic --module commonjs --target es2019 --skipLibCheck && node scripts/test-impact-concurrent.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
