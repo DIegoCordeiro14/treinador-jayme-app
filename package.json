@@ -100,7 +100,8 @@
     "test:canonicalbody": "tsc src/lib/edn/canonical-body-state.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/cbs --module commonjs --target es2019 --skipLibCheck && node scripts/test-canonical-body.js",
     "test:aosnba": "tsc src/lib/edn/aos-facts-engine.ts src/lib/edn/next-best-action-engine.ts --outDir scripts/.tmp/an --module commonjs --target es2019 --skipLibCheck && node scripts/test-aos-nba.js",
     "test:datahealth": "tsc src/lib/edn/data-health-engine.ts --outDir scripts/.tmp/dh --module commonjs --target es2019 --skipLibCheck && node scripts/test-data-health.js",
-    "test:athlete-data": "tsc scripts/test-athlete-data.ts src/lib/athlete-data/*.ts src/lib/edn/canonical-body-state.ts src/lib/edn/data-health-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/adh --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/adh/scripts/test-athlete-data.js"
+    "test:athlete-data": "tsc scripts/test-athlete-data.ts src/lib/athlete-data/*.ts src/lib/edn/canonical-body-state.ts src/lib/edn/data-health-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/adh --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/adh/scripts/test-athlete-data.js",
+    "test:athlete-timeline": "tsc scripts/test-athlete-timeline.ts src/lib/athlete-data/athlete-timeline.ts --outDir scripts/.tmp/tl --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/tl/scripts/test-athlete-timeline.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

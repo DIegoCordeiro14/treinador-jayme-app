@@ -9,3 +9,5 @@ export {
   type CanonicalBodyState, type BodyFact, type CanonicalBodyInput, type Provenance,
 } from '../edn/canonical-body-state';
 export { computeDataHealth, type DataHealthResult, type DataHealthInput } from '../edn/data-health-engine';
+export * from './athlete-timeline';
+export { collectBodyMeasurements, writeMeasurement, type WriteMeasurementInput } from './athlete-measurements-repo';
