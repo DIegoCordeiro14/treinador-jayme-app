@@ -6,6 +6,9 @@ import {
   deriveRacePhase, adaptiveWorkout, buildRunnerMoment, type RecoveryCategory, type RunPoint,
 } from '@/lib/cardio/endurance-engine';
 import { computeCardioEvolution } from '@/lib/edn/cardio-progression-engine';
+import { buildCardioPlan } from '@/lib/edn/cardio-plan-engine';
+import { diagnoseCardio } from '@/lib/edn/cardio-diagnosis-engine';
+import { normalizeSportType, sportUsesGps } from '@/lib/cardio/sport-types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -103,7 +106,37 @@ export async function GET(_req: NextRequest) {
     nextWorkout,
   });
 
+  // ── Fonte única de metas (cardio-plan-engine) ──
+  const modalityRaw = (profile as any)?.athlete_sport ?? 'running';
+  const modNorm = normalizeSportType(modalityRaw);
+  const modality = (modNorm === 'corrida' || modNorm === 'trilha') ? 'running' : modNorm === 'ciclismo' || modNorm === 'mtb' ? 'cycling' : modNorm === 'natacao' ? 'swimming' : modNorm === 'caminhada' ? 'walking' : sportUsesGps(modNorm) ? 'running' : 'other';
+  const goal = (profile as any)?.main_goal ?? null;
+  const strengthPriority = /hyper|hipert|massa|bulk/i.test(String(goal ?? ''));
+  const plan = buildCardioPlan({
+    goal, modality: modality as any, bodyFatPct: null, gender: (profile as any)?.gender ?? null,
+    weeksOnPlan: weeksWithRun, recoveryCategory: recCat, daysPerWeekAvailable: (profile as any)?.weekly_frequency ?? 4,
+    runs: runPoints.map((r) => ({ dateMs: r.dateMs, km: r.km, durationMin: r.durationMin, avgHr: r.avgHr })),
+    cardioKm7: km7, cardioSessions7: list.filter((r) => dateMs(r) >= now - 7 * 86400000).length,
+    raceWeeks: weeksToRace, strengthPriority,
+  });
+
+  // ── Diagnóstico único (cardio-diagnosis-engine) ──
+  const volTrendPct = (() => {
+    const prev28 = km(56) - km28; // 28d anteriores
+    if (prev28 <= 0) return null;
+    return Math.round(((km28 - prev28) / prev28) * 100);
+  })();
+  const diagnosis = diagnoseCardio({
+    runsCount: list.length, periodDays: 90,
+    paceTrendPct: evolution.paceTrendPct, hrTrendPct: evolution.hrTrendPct, volumeTrendPct: volTrendPct,
+    acwr: load.acwr, recoveryScore: recovery?.score ?? null,
+    sessions7: list.filter((r) => dateMs(r) >= now - 7 * 86400000).length,
+    plannedSessions: plan.sessionsPerWeek, km7, km28,
+    dataConfidence: Math.min(1, list.length / 8),
+  });
+
   return Response.json({
+    plan, diagnosis,
     runner, load, zones, performance, evolution, racePhase, adaptive, recovery: { score: recovery?.score ?? null, category: recCat },
     race: raceDate ? { date: (profile as any).target_race_date, weeks: weeksToRace } : null,
     moment,
