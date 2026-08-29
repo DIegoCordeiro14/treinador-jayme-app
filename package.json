@@ -84,8 +84,9 @@
     "test:calibration": "tsc src/lib/edn/metabolic-calibration-engine.ts src/lib/edn/nutrition-training-demand.ts --outDir scripts/.tmp/mc --module commonjs --target es2019 --skipLibCheck && node scripts/test-calibration-demand.js",
     "test:fueling": "tsc src/lib/edn/fueling-engine.ts src/lib/edn/food-behavior-engine.ts src/lib/edn/nutrition-training-demand.ts --outDir scripts/.tmp/fb --module commonjs --target es2019 --skipLibCheck && node scripts/test-fueling-behavior.js",
     "test:nutsim": "tsc src/lib/edn/nutrition-simulation-engine.ts src/lib/athlete-os/nutrition-state.ts src/lib/edn/nutrition-decision-engine.ts src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/sn --module commonjs --target es2019 --skipLibCheck && node scripts/test-sim-nutstate.js",
-    "test:nutrition-os": "npm run -s test:nutgoalmap && npm run -s test:nutdecision && npm run -s test:nutadherence && npm run -s test:nutconfidence && npm run -s test:adaptiveenergy && npm run -s test:calibration && npm run -s test:fueling && npm run -s test:nutsim && npm run -s test:foodconsistency",
-    "test:foodconsistency": "tsc src/lib/edn/food-consistency-engine.ts --outDir scripts/.tmp/fc2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-food-consistency.js"
+    "test:nutrition-os": "npm run -s test:nutgoalmap && npm run -s test:nutdecision && npm run -s test:nutadherence && npm run -s test:nutconfidence && npm run -s test:adaptiveenergy && npm run -s test:calibration && npm run -s test:fueling && npm run -s test:nutsim && npm run -s test:foodconsistency && npm run -s test:nutcondition",
+    "test:foodconsistency": "tsc src/lib/edn/food-consistency-engine.ts --outDir scripts/.tmp/fc2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-food-consistency.js",
+    "test:nutcondition": "tsc src/lib/edn/nutrition-condition-adjust.ts --outDir scripts/.tmp/ca --module commonjs --target es2019 --skipLibCheck && node scripts/test-condition-adjust.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

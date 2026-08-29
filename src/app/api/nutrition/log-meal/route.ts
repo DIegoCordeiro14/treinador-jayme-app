@@ -52,7 +52,11 @@ export async function POST(req: NextRequest) { try {
     source: body.source ?? 'manual', confidence: it.confidence, photo_path: idx === 0 ? photoPath : null,
   }));
   const { error } = await supabase.from('food_logs').insert(rows);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // §20: limpar a foto órfã se a persistência falhou após o upload
+    if (photoPath) { try { await supabase.storage.from('meal-photos').remove([photoPath]); } catch { /* best-effort */ } }
+    return Response.json(nutritionErrorPayload('NUTRITION_PERSIST_FAILED', error.message, null), { status: 200 });
+  }
 
   // aprendizado: quantidade habitual por alimento (não altera a base global)
   for (const it of calc.items) {

@@ -91,7 +91,32 @@ export async function POST(req: NextRequest) {
 
     const client = new Anthropic({ apiKey });
 
-    const prompt = `Crie plano nutricional EDN. Perfil: ${levelMap[experienceLevel] ?? experienceLevel}, ${goalMap[goal] ?? goal}, ${profile?.age ?? '?'}anos/${profile?.gender ?? '?'}, ${mealsPerDay} refeições.${evolutionCtx}${lifestyleCtx}
+    // §17: rotina REAL de refeições (horários habituais por tipo, dos últimos 21 dias)
+    let routineCtx = '';
+    try {
+      const { data: fl } = await supabase.from('food_logs')
+        .select('meal, logged_at')
+        .eq('user_id', user.id)
+        .gte('logged_at', new Date(Date.now() - 21 * 86400000).toISOString());
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const byMeal = new Map<string, number[]>();
+      for (const r of ((fl ?? []) as any[])) {
+        const meal = String(r.meal ?? 'outro');
+        const dt = new Date(r.logged_at);
+        const min = dt.getHours() * 60 + dt.getMinutes();
+        const arr = byMeal.get(meal) ?? []; arr.push(min); byMeal.set(meal, arr);
+      }
+      const parts: string[] = [];
+      for (const [meal, mins] of byMeal) {
+        if (mins.length < 2) continue;
+        mins.sort((a, b) => a - b);
+        const med = mins[Math.floor(mins.length / 2)];
+        parts.push(`${meal} ~${String(Math.floor(med / 60)).padStart(2, '0')}h${String(med % 60).padStart(2, '0')}`);
+      }
+      if (parts.length) routineCtx = `\nROTINA REAL do atleta (organize as refeições em torno destes horários habituais, não invente horários genéricos): ${parts.join(', ')}.`;
+    } catch { /* sem rotina — segue com horários padrão */ }
+
+    const prompt = `Crie plano nutricional EDN. Perfil: ${levelMap[experienceLevel] ?? experienceLevel}, ${goalMap[goal] ?? goal}, ${profile?.age ?? '?'}anos/${profile?.gender ?? '?'}, ${mealsPerDay} refeições.${evolutionCtx}${lifestyleCtx}${routineCtx}
 
 ALVOS OFICIAIS (Autopilot EDN — use EXATAMENTE estes números, não recalcule):
 Calorias=${targets.targetKcal}kcal/dia (TDEE ${targets.tdeeKcal}, ${adjLabel}) · Proteína=${targets.proteinG}g (${targets.proteinGPerKg}g/kg, ${proteinPct}%) · Carboidratos=${targets.carbsG}g (${carbsPct}%) · Gordura=${targets.fatG}g (${fatPct}%) · Água=${(targets.waterMl / 1000).toFixed(1)}L

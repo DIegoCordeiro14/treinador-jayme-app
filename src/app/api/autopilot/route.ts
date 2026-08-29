@@ -6,6 +6,7 @@ import { decideNutrition } from '@/lib/edn/nutrition-decision-engine';
 import { normalizeGoal } from '@/lib/edn/nutrition-goal-map';
 import { computeNutritionConfidence, dv } from '@/lib/edn/nutrition-confidence-system';
 import { buildNutritionState } from '@/lib/athlete-os/nutrition-state';
+import { conditionNutritionAdjustment } from '@/lib/edn/nutrition-condition-adjust';
 import { computeCardioPrescription } from '@/lib/edn/cardio-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 
@@ -211,6 +212,12 @@ export async function GET(_req: NextRequest) {
   const loggingAdherence = Math.min(1, loggedDays / 14);
   const canonicalGoal = normalizeGoal((profile as any)?.main_goal ?? (profile as any)?.goal ?? null);
   const recScore = recovery?.score ?? (recovery?.category === 'low' || recovery?.category === 'critical' ? 35 : recovery?.category === 'moderate' ? 55 : 72);
+  // §16: condição física ativa reduz treino → conter agressividade do déficit.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: pcRows } = await supabase.from('physical_conditions').select('status, active, body_region').eq('user_id', user.id).eq('active', true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const conditionAdj = conditionNutritionAdjustment(((pcRows ?? []) as any[]).map((c) => ({ status: c.status, active: c.active !== false, bodyRegion: c.body_region })));
+  const adjustedRecScore = Math.max(0, recScore - conditionAdj.recoveryScorePenalty);
   const nutritionConfidence = computeNutritionConfidence({ fields: {
     weight: bio?.weight_kg != null ? dv(bio.weight_kg, 'bioimpedance') : profile?.weight_kg != null ? dv(profile.weight_kg, 'profile') : null,
     height: profile?.height_cm != null ? dv(profile.height_cm, 'profile') : dv(175, 'estimated'),
@@ -224,7 +231,7 @@ export async function GET(_req: NextRequest) {
     weightTrendKg, bodyFatTrendPct: bfTrendPct, leanMassTrendKg: null,
     strengthTrendPct, volumeTrendPct: null,
     cardioLoad: cardioKmWeek ?? null,
-    recoveryScore: recScore, hrvTrend: 'unknown', sleepTrend: 'unknown',
+    recoveryScore: adjustedRecScore, hrvTrend: 'unknown', sleepTrend: 'unknown',
     loggingAdherence, targetAdherence: null,
     dataConfidence: nutritionConfidence.score / 100,
   }) : null;
@@ -284,6 +291,7 @@ export async function GET(_req: NextRequest) {
     decision,
     nutritionConfidence,
     nutritionState,
+    conditionAdjustment: conditionAdj,
     cardio,
     recovery,
     persisted,
