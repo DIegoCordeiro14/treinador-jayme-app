@@ -20,6 +20,7 @@ import { analyzeWeight } from '@/lib/edn/weight-intelligence';
 import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { MealLogger } from '@/components/edn/meal-logger';
+import { FoodConsistencyCard } from '@/components/edn/food-consistency-card';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -917,6 +918,8 @@ export default function NutricaoPage() {
             TAB EVOLUCAO
         ═══════════════════════════════════════════════════════ */}
         <TabsContent value="evolucao" className="mt-4 space-y-4">
+          <FoodConsistencyCard />
+
 
           {/* Weight log button */}
           <button onClick={() => setShowWeightModal(true)}
