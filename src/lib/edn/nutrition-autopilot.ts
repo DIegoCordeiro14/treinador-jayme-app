@@ -14,6 +14,8 @@
  */
 
 // ── Fases nutricionais ──────────────────────────────────────────────────────
+import { deriveGoalPhase as deriveGoalPhaseFromMap } from './nutrition-goal-map';
+
 export type NutritionPhase =
   | 'cutting'
   | 'definicao'
@@ -98,14 +100,8 @@ export interface NutritionTargets {
 
 // Normaliza objetivos heterogêneos do banco para uma fase nutricional.
 function deriveGoalPhase(rawGoal: string | null): NutritionPhase {
-  const g = (rawGoal ?? 'hypertrophy').toLowerCase();
-  if (g === 'fat_loss' || g === 'weight_loss' || g === 'emagrecimento') return 'cutting';
-  if (g === 'definition' || g === 'definicao' || g === 'cutting') return 'definicao';
-  if (g === 'mass_gain' || g === 'bulk' || g === 'lean_bulk' || g === 'ganho_massa') return 'lean_bulk';
-  if (g === 'recomposition' || g === 'recomposicao' || g === 'recomp') return 'recomposicao';
-  if (g === 'performance' || g === 'endurance' || g === 'corrida') return 'performance';
-  if (g === 'maintenance' || g === 'manutencao') return 'manutencao';
-  return 'hipertrofia';
+  // §3: fonte única de conversão objetivo → fase (nutrition-goal-map).
+  return deriveGoalPhaseFromMap(rawGoal);
 }
 
 export function computeNutritionTargets(input: NutritionAutopilotInput): NutritionTargets | null {

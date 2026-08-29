@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest) {
   const muscleChange = (latestBio && prevBio) ? latestBio.skeletal_muscle_mass_kg - prevBio.skeletal_muscle_mass_kg : null;
 
   const logs = foodLogs ?? [];
-  const daysLogged = new Set(logs.map((l: { logged_at: string }) => l.logged_at)).size;
+  const daysLogged = new Set(logs.map((l: { logged_at: string }) => String(l.logged_at).slice(0, 10))).size; // §19: por DATA, não timestamp
   const avgProtein = logs.length > 0 ? logs.reduce((s: number, l: { protein_g: number | null }) => s + (l.protein_g ?? 0), 0) / Math.max(daysLogged, 1) : null;
   const proteinTarget = (profile?.weight_kg ?? 80) * 2.2;
 
