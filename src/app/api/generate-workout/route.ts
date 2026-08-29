@@ -7,6 +7,7 @@ import { buildGenerationIntelligence } from "@/lib/edn/generation-intelligence";
 import { orchestrateGenerationV3 } from "@/lib/edn/workout-generation-orchestrator-v3";
 import { reorderPlan } from "@/lib/edn/plan-postprocess";
 import { deriveResponseProfiles, rowsToIndividualLandmarks } from "@/lib/edn/training-response-derivation";
+import { buildGenerationExplanation } from "@/lib/edn/generation-explanation-engine";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
 import {
   getEffectiveObjective,
@@ -320,8 +321,9 @@ export async function POST(req: NextRequest) {
     }));
     let conditionStr = '';
     let safeExercises = allowedExercises;
+    const blockedForSafety: string[] = [];
     if (conditions.length) {
-      const blocked: string[] = [];
+      const blocked = blockedForSafety;
       const caution: string[] = [];
       safeExercises = allowedExercises.filter((ex: any) => {
         const r = evaluateExerciseSafety({ name: ex.name, muscle_group: ex.muscle_group }, conditions);
@@ -638,7 +640,36 @@ Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayC
       }
     } catch { /* aditivo */ }
 
-    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct, intelligence: genV2 ? { split: genV2.split?.name ?? null, volumePlan: genV2.volumePlan, retainedIds: genV2.retainedIds, swaps: genV2.swaps, stagnation: genV2.stagnation, topSuitable: genV2.topSuitable, snapshotBullets: genV2.snapshotBullets } : null, quality: qualityV3 });
+    // ─── GERAÇÃO v3: explicação estruturada 'por que este plano' (§22/§18) ────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let generationExplanation: any = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nameById: Record<string, string> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const ex of (safeExercises as any[])) nameById[ex.id] = ex.name;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const retained = (genV2?.retainedIds ?? []).map((id: string) => ({ id, name: nameById[id] ?? id, reason: 'mantido por boa progressão/familiaridade' }));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const changes = (genV2?.swaps ?? []).filter((s: any) => s.to_id).map((s: any) => ({ from: s.from_name, to: s.to_name, reason: (s.reason ?? '').split('→')[0].trim() }));
+      generationExplanation = buildGenerationExplanation({
+        goal: effectiveObjective,
+        splitName: genV2?.split?.name ?? null,
+        splitReason: genV2?.split?.reason ?? null,
+        priorities: (genV3?.priorityAllocations ?? []).map((p: any) => ({ muscle_group: p.muscle_group, level: p.level, interventionOrder: p.interventionOrder })),
+        weakPoints: weakMuscle ? [weakMuscle] : [],
+        volumeVerdict: genV3?.recoveryBudget?.verdict ?? null,
+        volumeCapacity: genV3?.recoveryBudget?.capacityScore ?? null,
+        balanceAdjustments: genV3?.balance?.adjustments ?? [],
+        retained, changes,
+        recoveryLabel: null,
+        cardioSessionsPerWeek: Number(profileData?.cardio_frequency ?? 0),
+        removedForSafety: blockedForSafety,
+        equilibriumScore: qualityV3?.equilibriumScore ?? null,
+      });
+    } catch { /* aditivo */ }
+
+    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct, intelligence: genV2 ? { split: genV2.split?.name ?? null, volumePlan: genV2.volumePlan, retainedIds: genV2.retainedIds, swaps: genV2.swaps, stagnation: genV2.stagnation, topSuitable: genV2.topSuitable, snapshotBullets: genV2.snapshotBullets } : null, quality: qualityV3, generationExplanation });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);
     // AI falhou — retornar 200 com whyText para o client mostrar o card

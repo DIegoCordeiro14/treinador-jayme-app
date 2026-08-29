@@ -74,7 +74,8 @@
     "test:planresponse": "tsc src/lib/edn/adherence-engine.ts src/lib/edn/plan-response-engine.ts --outDir scripts/.tmp/ap --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-planresponse.js",
     "test:orchestrator": "tsc src/lib/edn/workout-generation-orchestrator-v3.ts src/lib/edn/priority-allocation-engine.ts src/lib/edn/priority-budget-engine.ts src/lib/edn/muscle-balance-guard.ts src/lib/edn/effective-muscle-volume-engine.ts src/lib/edn/movement-pattern-engine.ts src/lib/edn/equilibrium-score-engine.ts src/lib/edn/plan-quality-validator.ts --outDir scripts/.tmp/o3 --module commonjs --target es2019 --skipLibCheck && node scripts/test-orchestrator-v3.js",
     "test:postprocess": "tsc src/lib/edn/plan-postprocess.ts src/lib/edn/exercise-order-engine.ts src/lib/edn/exercise-rotation-engine.ts src/lib/edn/session-fatigue-planner.ts --outDir scripts/.tmp/pp --module commonjs --target es2019 --skipLibCheck && node scripts/test-plan-postprocess.js",
-    "test:respderiv": "tsc src/lib/edn/training-response-derivation.ts src/lib/edn/training-response-profile.ts --outDir scripts/.tmp/rd2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-response-derivation.js"
+    "test:respderiv": "tsc src/lib/edn/training-response-derivation.ts src/lib/edn/training-response-profile.ts --outDir scripts/.tmp/rd2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-response-derivation.js",
+    "test:explanation": "tsc src/lib/edn/generation-explanation-engine.ts --outDir scripts/.tmp/ge --module commonjs --target es2019 --skipLibCheck && node scripts/test-generation-explanation.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
