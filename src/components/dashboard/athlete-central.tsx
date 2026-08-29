@@ -5,6 +5,8 @@
  * + Weak Point Engine. Tudo determinístico (vem de /api/athlete-360).
  */
 import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { subscribeAthleteRealtime } from '@/lib/athlete-data';
 import { Activity, AlertTriangle, ArrowRight, Dumbbell, Brain } from 'lucide-react';
 
 interface Edn360 {
@@ -45,6 +47,15 @@ export function AthleteCentral() {
     // §19 — refetch automático quando peso/bioimpedância mudam em qualquer aba.
     const onAthleteEvent = () => loadState();
     if (typeof window !== 'undefined') window.addEventListener('athlete-event', onAthleteEvent);
+    // §17/§19 — sync cross-device: mudanças de peso/bioimpedância em outro
+    // dispositivo reemitem athlete-event localmente e atualizam este dashboard.
+    let unsubRealtime: (() => void) | null = null;
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => {
+        if (data?.user) unsubRealtime = subscribeAthleteRealtime(supabase, data.user.id);
+      }).catch(() => {});
+    } catch { /* */ }
     fetch('/api/decisions/evaluate').catch(() => {});
     // Snapshot diário longitudinal: POST 1x/dia (o GET agora é read-only, §22).
     try {
@@ -57,7 +68,7 @@ export function AthleteCentral() {
       const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
       if (line) setBriefLine(String(line).replace(/\*\*(.*?)\*\*/g, '$1'));
     }).catch(() => {});
-    return () => { if (typeof window !== 'undefined') window.removeEventListener('athlete-event', onAthleteEvent); };
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('athlete-event', onAthleteEvent); if (unsubRealtime) unsubRealtime(); };
   }, []);
 
   if (!edn) return null;

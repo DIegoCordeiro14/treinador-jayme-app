@@ -11,3 +11,4 @@ export {
 export { computeDataHealth, type DataHealthResult, type DataHealthInput } from '../edn/data-health-engine';
 export * from './athlete-timeline';
 export { collectBodyMeasurements, writeMeasurement, type WriteMeasurementInput } from './athlete-measurements-repo';
+export * from './realtime-sync';

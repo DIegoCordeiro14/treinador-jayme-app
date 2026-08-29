@@ -117,6 +117,8 @@ export default function CalendarioPage() {
   const [planTab, setPlanTab] = useState<'cardio' | 'nutrition'>('cardio');
   const [allowWeekends, setAllowWeekends] = useState(true);
   const [recCat, setRecCat] = useState<RecoveryCategory | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [timeline, setTimeline] = useState<{ events: any[]; interference: any[] } | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -127,6 +129,11 @@ export default function CalendarioPage() {
   useEffect(() => { loadData(); }, [currentMonth]);
   useEffect(() => {
     fetch('/api/athlete-360').then(r => r.json()).then(d => { const c = d?.stateV2?.recovery?.category; if (c) setRecCat(c); }).catch(() => {});
+    const loadTimeline = () => fetch('/api/athlete-timeline?days=45').then(r => r.json()).then(d => { if (d && !d.error) setTimeline({ events: d.events ?? [], interference: d.interference ?? [] }); }).catch(() => {});
+    loadTimeline();
+    const onEv = () => { loadTimeline(); loadData(); };
+    if (typeof window !== 'undefined') window.addEventListener('athlete-event', onEv);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('athlete-event', onEv); };
   }, []);
 
   async function loadData() {
@@ -295,6 +302,33 @@ export default function CalendarioPage() {
           </div>
         );
       })()}
+
+      {timeline && timeline.events.length > 0 && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-[#D4853A]" />
+            <span className="text-base font-extrabold italic text-zinc-100">Linha do tempo do atleta</span>
+            <span className="ml-auto text-[10px] bg-black/30 text-zinc-400 px-2 py-0.5 rounded-full">45 dias</span>
+          </div>
+          {timeline.interference.length > 0 && (
+            <div className="rounded-lg border border-[#8B5A5A]/30 bg-[#8B5A5A]/10 px-3 py-2">
+              <p className="text-[11px] text-[#C97B7B] font-semibold">⚠ Interferência detectada</p>
+              {timeline.interference.slice(0, 2).map((w, i) => (
+                <p key={i} className="text-[10px] text-zinc-400 mt-0.5">{w.reason}</p>
+              ))}
+            </div>
+          )}
+          <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+            {[...timeline.events].reverse().slice(0, 40).map((e, i) => (
+              <div key={i} className="flex items-center gap-2 text-[12px]">
+                <span className="w-16 shrink-0 text-[10px] text-zinc-500 tabular-nums">{e.date?.slice(5)}</span>
+                <span className="shrink-0">{e.icon}</span>
+                <span className="text-zinc-300 truncate">{e.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4"><p className="text-2xl font-bold text-green-400">{stats.total}</p><p className="text-xs text-zinc-500 mt-0.5">Treinos no mês</p></div>
