@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { analyzeWeight } from '@/lib/edn/weight-intelligence';
 import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
+import { emitWeightUpdated } from '@/lib/athlete-data';
 import { MealLogger } from '@/components/edn/meal-logger';
 import { FoodConsistencyCard } from '@/components/edn/food-consistency-card';
 import { MetabolicCalibrationCard } from '@/components/edn/metabolic-calibration-card';
@@ -252,6 +253,7 @@ export default function NutricaoPage() {
     const result = await insertOrQueue(supabase, [{ table: 'body_weight_logs', rows: [weightRow], onConflict: 'user_id,log_date' }], 'Peso');
     setSavingWeight(false);
     if (result === 'error') { toast.error('Erro ao registrar'); return; }
+    emitWeightUpdated('self', 'evolution');
     toast.success(result === 'queued' ? 'Peso salvo offline — será enviado ao reconectar.' : 'Peso registrado!');
     if (result === 'sent') flushQueue(supabase).catch(() => {});
     setWeightForm({ weight_kg: '', body_fat_pct: '' });

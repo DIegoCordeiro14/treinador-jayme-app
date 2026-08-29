@@ -38,9 +38,13 @@ export function AthleteCentral() {
   const [dataHealth, setDataHealth] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/athlete-360').then(r => r.json()).then(d => {
+    const loadState = () => fetch('/api/athlete-360').then(r => r.json()).then(d => {
       if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); setSv2(d.stateV2 ?? null); setNba(d.nextBestAction ?? null); setDataHealth(d.dataHealth ?? null); }
     }).catch(() => {});
+    loadState();
+    // §19 — refetch automático quando peso/bioimpedância mudam em qualquer aba.
+    const onAthleteEvent = () => loadState();
+    if (typeof window !== 'undefined') window.addEventListener('athlete-event', onAthleteEvent);
     fetch('/api/decisions/evaluate').catch(() => {});
     // Snapshot diário longitudinal: POST 1x/dia (o GET agora é read-only, §22).
     try {
@@ -53,6 +57,7 @@ export function AthleteCentral() {
       const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
       if (line) setBriefLine(String(line).replace(/\*\*(.*?)\*\*/g, '$1'));
     }).catch(() => {});
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('athlete-event', onAthleteEvent); };
   }, []);
 
   if (!edn) return null;

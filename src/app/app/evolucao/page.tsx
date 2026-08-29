@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
+import { emitAthleteEvent, emitWeightUpdated } from '@/lib/athlete-data';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -361,6 +362,7 @@ export default function EvolucaoPage() {
     if (measForm.thigh_cm) payload.thigh_cm = parseFloat(String(measForm.thigh_cm).replace(',', '.')) || null;
     const result = await insertOrQueue(supabase, [{ table: 'body_measurements', rows: [{ id: newId(), ...payload }] }], 'Medidas');
     if (result === 'error') { toast.error('Erro ao salvar medidas'); return; }
+    emitWeightUpdated('self', 'evolution');
     toast.success(result === 'queued' ? 'Medidas salvas offline — serão enviadas ao reconectar.' : 'Medidas registradas!');
     if (result === 'sent') flushQueue(supabase).catch(() => {});
     setShowMeasDialog(false);
@@ -433,6 +435,7 @@ export default function EvolucaoPage() {
     };
     const bioResult = await insertOrQueue(supabase, [{ table: 'bioimpedance_data', rows: [{ id: newId(), ...payload }] }], 'Bioimpedância');
     if (bioResult === 'error') { toast.error('Erro ao salvar bioimpedância'); return; }
+    emitAthleteEvent({ userId: 'self', eventType: 'BIOIMPEDANCE_IMPORTED', occurredAt: new Date().toISOString(), source: 'bioimpedance' });
     if (bioResult === 'sent') flushQueue(supabase).catch(() => {});
     toast.success(bioResult === 'queued' ? 'Bioimpedância salva offline — será enviada ao reconectar.' : 'Bioimpedância registrada! Recalculando macros nutricionais…');
     setShowBioDialog(false);
