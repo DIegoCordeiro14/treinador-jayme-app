@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Save, LogOut, Zap, Bell, Shield, Trash2, Activity, Target, Dumbbell, CalendarClock, HeartPulse, CheckCircle2, AlertCircle, User } from 'lucide-react';
+import { CanonicalBodyCard } from '@/components/edn/canonical-body-card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
