@@ -78,7 +78,8 @@
     "test:explanation": "tsc src/lib/edn/generation-explanation-engine.ts --outDir scripts/.tmp/ge --module commonjs --target es2019 --skipLibCheck && node scripts/test-generation-explanation.js",
     "test:nutgoalmap": "tsc src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/ngm --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-goal-map.js",
     "test:nutdecision": "tsc src/lib/edn/nutrition-decision-engine.ts src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/nde --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-decision.js",
-    "test:nutadherence": "tsc src/lib/edn/nutrition-adherence-engine.ts src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/nad --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-adherence.js"
+    "test:nutadherence": "tsc src/lib/edn/nutrition-adherence-engine.ts src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/nad --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-adherence.js",
+    "test:nutconfidence": "tsc src/lib/edn/nutrition-confidence-system.ts --outDir scripts/.tmp/nc --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-confidence.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
