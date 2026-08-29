@@ -305,5 +305,10 @@ export async function GET(_req: NextRequest) {
     }, { onConflict: 'user_id,as_of_date' });
   } catch { /* aditivo */ }
 
-  return Response.json({ edn360, weakPoint, athleteState, state, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false, aosFactsReal: realFacts, dataHealth, nextBestAction });
+  // AthleteState único: stateV2 é o superset canônico (estende o AthleteState base
+  // e carrega body/recovery/nutrition/cardio + condições/limitador/segurança).
+  // athleteState e state permanecem apenas como variáveis internas (alimentam
+  // edn360 e a composição do stateV2); não são mais expostos para evitar três
+  // contratos concorrentes no cliente.
+  return Response.json({ edn360, weakPoint, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false, aosFactsReal: realFacts, dataHealth, nextBestAction });
 }

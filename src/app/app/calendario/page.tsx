@@ -126,7 +126,7 @@ export default function CalendarioPage() {
 
   useEffect(() => { loadData(); }, [currentMonth]);
   useEffect(() => {
-    fetch('/api/athlete-360').then(r => r.json()).then(d => { const c = d?.athleteState?.recoveryState?.category; if (c) setRecCat(c); }).catch(() => {});
+    fetch('/api/athlete-360').then(r => r.json()).then(d => { const c = d?.stateV2?.recovery?.category; if (c) setRecCat(c); }).catch(() => {});
   }, []);
 
   async function loadData() {
