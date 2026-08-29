@@ -573,9 +573,26 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
       }
     } catch { /* aditivo */ }
 
+    // ─── Laço cardio→treino: sinal de fadiga por região (persistido) ─────────
+    let fatigueHint = '';
+    try {
+      const { data: fat } = await supabase.from('activity_fatigue_signals')
+        .select('lower_body_fatigue, upper_body_fatigue, central_fatigue, dominant_region, as_of_date')
+        .eq('user_id', user.id).gte('as_of_date', new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10))
+        .order('as_of_date', { ascending: false }).limit(1).maybeSingle();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const f = fat as any;
+      if (f) {
+        const notes: string[] = [];
+        if ((f.lower_body_fatigue ?? 0) >= 55) notes.push('FADIGA de membros inferiores ALTA por cardio recente — reduzir volume de pernas/glúteos/posterior hoje e evitar agachamento/leg press pesados; priorizar superiores ou trabalho leve de pernas.');
+        if ((f.central_fatigue ?? 0) >= 60) notes.push('Fadiga central alta — conter intensidade geral (RIR mais alto).');
+        if (notes.length) fatigueHint = `\nSINAL DE FADIGA (cardio→treino): ${notes.join(' ')}`;
+      }
+    } catch { /* aditivo */ }
+
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}${genV3Block}${planResponseHint}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}${genV3Block}${planResponseHint}${fatigueHint}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 

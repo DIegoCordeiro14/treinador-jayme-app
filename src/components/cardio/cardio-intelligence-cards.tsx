@@ -104,6 +104,14 @@ export function CardioIntelligenceCards({ intel }: { intel: any }) {
         </div>
       )}
 
+      {(() => { const f = intel?.fatigueState; if (!f || (!f.reduceLegVolume && !f.reduceIntensity)) return null;
+        return (
+          <div className="rounded-xl border border-[#A67C3A]/30 bg-[#A67C3A]/5 p-3">
+            <p className="text-[12px] text-[#D4A85A] flex items-start gap-1.5"><Activity className="h-3.5 w-3.5 shrink-0 mt-0.5" />{f.note} O treino de força do dia é ajustado automaticamente.</p>
+          </div>
+        );
+      })()}
+
       {/* Concurrent training (força × endurance) */}
       {(() => { const c: Concurrent | null = intel?.concurrent ?? null; if (!c || (c.interferenceRisk === 'low' && c.conflicts.length === 0)) return null;
         const rc = c.interferenceRisk === 'high' ? '#C97B7B' : c.interferenceRisk === 'moderate' ? '#A67C3A' : '#5A8A6A';

@@ -15,6 +15,7 @@ import { planCardioSafety } from '@/lib/edn/cardio-safety-planner';
 import { learnCardioResponse, toCardioProfileRow } from '@/lib/edn/cardio-response-profile';
 import { analyzeConcurrent, type SessionSlot } from '@/lib/edn/concurrent-training-engine';
 import { computeActivityImpact } from '@/lib/edn/activity-impact-engine';
+import { computeFatigueState } from '@/lib/edn/fatigue-state-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -210,8 +211,25 @@ export async function GET(_req: NextRequest) { try {
     avgHrPctMax: (lastRun.avg_hr ?? lastRun.avg_heart_rate) && zones ? Math.min(1, (lastRun.avg_hr ?? lastRun.avg_heart_rate) / (zones.maxHr || 190)) : null,
   }) : null;
 
+  // ── Estado de fadiga por região (decaimento) + persistência do sinal ──
+  const fatigueActivities = list.filter((r) => dateMs(r) >= now - 5 * 86400000).map((r) => ({
+    dateMs: dateMs(r),
+    kind: 'running' as const,
+    durationMin: r.duration_min ?? 0,
+    distanceKm: r.distance_km ?? null,
+    avgHrPctMax: (r.avg_hr ?? r.avg_heart_rate) && zones ? Math.min(1, (r.avg_hr ?? r.avg_heart_rate) / (zones.maxHr || 190)) : null,
+  }));
+  const fatigueState = computeFatigueState(fatigueActivities, now);
+  try {
+    await supabase.from('activity_fatigue_signals').upsert({
+      user_id: user.id, as_of_date: new Date(now).toISOString().slice(0, 10),
+      lower_body_fatigue: fatigueState.lowerBodyFatigue, upper_body_fatigue: fatigueState.upperBodyFatigue,
+      central_fatigue: fatigueState.centralFatigue, dominant_region: fatigueState.dominantRegion, source: 'cardio_activity',
+    }, { onConflict: 'user_id,as_of_date' });
+  } catch { /* aditivo */ }
+
   return Response.json({
-    plan, diagnosis, forecast, adherence, safety, concurrent, activityImpact,
+    plan, diagnosis, forecast, adherence, safety, concurrent, activityImpact, fatigueState,
     runner, load, zones, performance, evolution, racePhase, adaptive, recovery: { score: recovery?.score ?? null, category: recCat },
     race: raceDate ? { date: (profile as any).target_race_date, weeks: weeksToRace } : null,
     moment,
