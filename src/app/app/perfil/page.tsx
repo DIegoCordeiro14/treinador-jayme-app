@@ -288,9 +288,22 @@ export default function PerfilPage() {
     setDeleting(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setDeleting(false); return; }
-    await supabase.from('profiles').delete().eq('id', user.id);
+    try {
+      const res = await fetch('/api/delete-account', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.ok === false) {
+        // 207 = purga parcial; ainda assim seguimos com o logout para não
+        // deixar o usuário preso numa conta em estado inconsistente.
+        toast.error(body?.error || 'Exclusão parcial — alguns dados podem levar alguns minutos a sumir.');
+      } else {
+        toast.success('Conta e todos os dados excluídos');
+      }
+    } catch {
+      toast.error('Falha ao excluir a conta. Tente novamente.');
+      setDeleting(false);
+      return;
+    }
     await supabase.auth.signOut();
-    toast.success('Conta excluída');
     router.push('/');
     setDeleting(false);
   }
