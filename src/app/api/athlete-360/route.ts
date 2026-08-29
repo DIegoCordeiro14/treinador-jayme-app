@@ -17,7 +17,8 @@ import { persistStateSnapshot } from '@/lib/athlete-os/telemetry';
 import { deriveAosFacts } from '@/lib/edn/aos-facts-engine';
 import { computeDataHealth } from '@/lib/edn/data-health-engine';
 import { computeNextBestAction } from '@/lib/edn/next-best-action-engine';
-import { resolveMeasurement, type Measurement } from '@/lib/athlete-data';
+import { resolveMeasurement } from '@/lib/athlete-data';
+import { collectBodyMeasurements } from '@/lib/athlete-data/athlete-measurements-repo';
 import { detectMesocyclePhase } from '@/lib/edn/training-periodization-engine';
 import { canonicalGoal } from '@/lib/edn/goal';
 
@@ -59,20 +60,14 @@ async function computeAthlete360(persist: boolean) {
   const wl = wlR.data ?? []; const sess14 = sess14R.data ?? []; const food = foodR.data ?? [];
   const cardio28 = cardio28R.data ?? [];
 
-  // ── Peso canônico (Athlete Data Hub, §11) ─────────────────────────────────
-  // Resolve entre bioimpedância, weight logs e perfil — recência > confiança.
-  const weightFacts: Measurement[] = [];
-  if (bio?.weight_kg != null) weightFacts.push({ metric: 'weight', value: bio.weight_kg, source: 'bioimpedance', measuredAt: bio.measured_at ?? null });
-  for (const w of (wl as any[])) if (w?.weight_kg != null) weightFacts.push({ metric: 'weight', value: w.weight_kg, source: 'evolution', measuredAt: w.log_date ?? w.created_at ?? null });
-  if (profile?.weight_kg != null) weightFacts.push({ metric: 'weight', value: profile.weight_kg, source: 'profile', measuredAt: null });
-  const canonicalWeight = resolveMeasurement('weight', weightFacts, now);
-  const compFacts: Measurement[] = [];
-  if (bio?.body_fat_pct != null) compFacts.push({ metric: 'bodyFat', value: bio.body_fat_pct, source: 'bioimpedance', measuredAt: bio.measured_at ?? null });
-  if (bio?.lean_mass_kg != null) compFacts.push({ metric: 'leanMass', value: bio.lean_mass_kg, source: 'bioimpedance', measuredAt: bio.measured_at ?? null });
-  if (wm?.resting_hr != null) compFacts.push({ metric: 'restingHeartRate', value: wm.resting_hr, source: 'wearable', measuredAt: wm.recorded_at ?? wm.created_at ?? null });
-  const rBodyFat = resolveMeasurement('bodyFat', compFacts, now);
-  const rLean = resolveMeasurement('leanMass', compFacts, now);
-  const rRhr = resolveMeasurement('restingHeartRate', compFacts, now);
+  // ── Peso canônico (Athlete Data Hub, §11/§30) ─────────────────────────────
+  // Coleta unificada: tabelas legadas + athlete_measurements → resolver.
+  const bodyMeas = await collectBodyMeasurements(supabase, user.id);
+  if (profile?.weight_kg != null) bodyMeas.push({ metric: 'weight', value: profile.weight_kg, source: 'profile', measuredAt: null });
+  const canonicalWeight = resolveMeasurement('weight', bodyMeas, now);
+  const rBodyFat = resolveMeasurement('bodyFat', bodyMeas, now);
+  const rLean = resolveMeasurement('leanMass', bodyMeas, now);
+  const rRhr = resolveMeasurement('restingHeartRate', bodyMeas, now);
   const bodyBlock = {
     currentWeightKg: canonicalWeight?.value ?? null,
     bodyFatPct: rBodyFat?.value ?? null,
