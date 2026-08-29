@@ -9,6 +9,10 @@ import { computeCardioEvolution } from '@/lib/edn/cardio-progression-engine';
 import { buildCardioPlan } from '@/lib/edn/cardio-plan-engine';
 import { diagnoseCardio } from '@/lib/edn/cardio-diagnosis-engine';
 import { normalizeSportType, sportUsesGps } from '@/lib/cardio/sport-types';
+import { forecastPerformance } from '@/lib/edn/performance-forecast-engine';
+import { computeCardioAdherence } from '@/lib/edn/cardio-adherence-engine';
+import { planCardioSafety } from '@/lib/edn/cardio-safety-planner';
+import { learnCardioResponse, toCardioProfileRow } from '@/lib/edn/cardio-response-profile';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -18,7 +22,7 @@ export const maxDuration = 15;
  * Retorna nível do corredor, carga, zonas, performance/platô, fase de prova,
  * ajuste adaptativo, recovery e o painel "Meu momento na corrida".
  */
-export async function GET(_req: NextRequest) {
+export async function GET(_req: NextRequest) { try {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,11 +30,12 @@ export async function GET(_req: NextRequest) {
   const now = Date.now();
   const d90 = new Date(now - 90 * 86400000);
 
-  const [{ data: profile }, { data: runs }, { data: wearable }, { data: sessions7 }] = await Promise.all([
+  const [{ data: profile }, { data: runs }, { data: wearable }, { data: sessions7 }, { data: pcRows }] = await Promise.all([
     supabase.from('profiles').select('age, gender, main_goal, athlete_sport, target_race_date, sleep_hours, sleep_quality, stress_level, work_type, weekly_frequency').eq('id', user.id).maybeSingle(),
     supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate, type').eq('user_id', user.id).is('deleted_at', null).gte('created_at', d90.toISOString()).order('created_at', { ascending: true }),
     supabase.from('wearable_metrics').select('hrv_ms, hrv_baseline_ms, resting_hr, sleep_hours, body_battery, training_readiness, recovery_time_hours').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('workout_sessions').select('started_at').eq('user_id', user.id).gte('started_at', new Date(now - 7 * 86400000).toISOString()),
+    supabase.from('physical_conditions').select('body_region, status, active').eq('user_id', user.id).eq('active', true),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,12 +140,54 @@ export async function GET(_req: NextRequest) {
     dataConfidence: Math.min(1, list.length / 8),
   });
 
+  // ── Forecast (cenários) a partir do melhor PR ──
+  const bestPr = [...evolution.records].sort((a, b) => b.distanceKm - a.distanceKm)[0] ?? null;
+  const targetKm = bestPr ? (bestPr.distanceKm <= 5 ? 10 : bestPr.distanceKm <= 10 ? 21.1 : 42.2) : 10;
+  const doneSessions7 = list.filter((r) => dateMs(r) >= now - 7 * 86400000).length;
+  const adherence = computeCardioAdherence({
+    plannedSessions: plan.sessionsPerWeek, doneSessions: doneSessions7,
+    plannedKm: plan.weeklyKm.ideal, doneKm: km7,
+  });
+  const forecast = bestPr ? forecastPerformance({
+    bestDistanceKm: bestPr.distanceKm, bestTimeMin: bestPr.timeMin, targetKm,
+    paceTrendPct: evolution.paceTrendPct, efficiencyTrendPct: evolution.hrTrendPct,
+    adherence: adherence.overall, recoveryScore: recovery?.score ?? null, weeksToRace: weeksToRace,
+  }) : null;
+
+  // ── Safety planner (condições físicas → modalidades) ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const safety = planCardioSafety(((pcRows ?? []) as any[]).map((c) => ({ bodyRegion: c.body_region, status: c.status, active: c.active !== false })));
+
+  // ── Write path: cardio-response-profile (best-effort, observações mensais) ──
+  try {
+    // observações: variação de volume mês a mês vs desfecho (melhorou pace / recuperação)
+    const obs: { volumeIncreasePct: number; outcome: 'improved' | 'stable' | 'recovery_dropped'; kind: 'volume' }[] = [];
+    const byMonth = new Map<string, number>();
+    for (const r of list) { const m = new Date(dateMs(r)).toISOString().slice(0, 7); byMonth.set(m, (byMonth.get(m) ?? 0) + (r.distance_km ?? 0)); }
+    const months = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    for (let k = 1; k < months.length; k++) {
+      const prev = months[k - 1][1], cur = months[k][1];
+      if (prev <= 0) continue;
+      const inc = Math.round(((cur - prev) / prev) * 100);
+      if (inc <= 0) continue;
+      const outcome: 'improved' | 'stable' | 'recovery_dropped' = recCat === 'low' || recCat === 'critical' ? 'recovery_dropped' : (evolution.efficiency === 'melhorando' ? 'improved' : 'stable');
+      obs.push({ volumeIncreasePct: inc, outcome, kind: 'volume' });
+    }
+    if (obs.length >= 3) {
+      const prof = learnCardioResponse({ observations: obs });
+      await supabase.from('cardio_response_profiles').upsert(toCardioProfileRow(user.id, prof), { onConflict: 'user_id' });
+    }
+  } catch { /* persistência aditiva */ }
+
   return Response.json({
-    plan, diagnosis,
+    plan, diagnosis, forecast, adherence, safety,
     runner, load, zones, performance, evolution, racePhase, adaptive, recovery: { score: recovery?.score ?? null, category: recCat },
     race: raceDate ? { date: (profile as any).target_race_date, weeks: weeksToRace } : null,
     moment,
     volume: { km7: Math.round(km7 * 10) / 10, km28: Math.round(km28 * 10) / 10, km90: Math.round(km90 * 10) / 10 },
     usedWearable: recovery?.usedWearable ?? false,
   });
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : 'Erro interno', plan: null, diagnosis: null }, { status: 200 });
+  }
 }

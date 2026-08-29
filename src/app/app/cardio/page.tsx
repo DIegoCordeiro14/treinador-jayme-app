@@ -25,6 +25,7 @@ import { Trash2 } from 'lucide-react';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AutopilotCard from '@/components/edn/autopilot-card';
+import { CardioIntelligenceCards } from '@/components/cardio/cardio-intelligence-cards';
 import { ScreenErrorBoundary } from '@/components/error-boundary';
 
 const RunningTracker = dynamic(() => import('@/components/cardio/running-tracker'), { ssr: false });
@@ -419,6 +420,8 @@ export default function CardioPage() {
         </div>
       </div>
       <AutopilotCard mode="cardio" />
+
+      <CardioIntelligenceCards intel={cardioIntel} />
 
       {/* ════ V8.13 — Evolução da corrida ════ */}
       {cardioIntel?.evolution && cardioIntel.evolution.efficiency !== 'sem_dados' && (

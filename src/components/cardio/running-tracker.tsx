@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
+import { computeCardioEnergy } from '@/lib/edn/cardio-energy-engine';
 import { toast } from 'sonner';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio, Heart, Rss, ListChecks } from 'lucide-react';
@@ -514,11 +515,14 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     const durationMin = Math.max(1, Math.round(elapsedRef.current / 60));
     const speed = elapsedRef.current > 0 ? km / (elapsedRef.current / 3600) : 0;
     const intensity = speed > 12 ? 'muito alta' : speed > 8 ? 'alta' : speed > 5 ? 'moderada' : 'leve';
-    const calories = Math.round(km * 65);
     // FC média da corrida — só grava se vier do relógio (Health Connect)
     const runStartTs = pointsRef.current[0]?.timestamp ?? (Date.now() - elapsedRef.current * 1000);
     const avgHr = await fetchAvgHrFromHealthConnect(runStartTs, Date.now());
     if (avgHr) setAvgBpm(String(avgHr));
+    // Calorias pelo cardio-energy-engine (FC/duração quando possível; senão distância)
+    const energy = computeCardioEnergy({ modality: 'running', durationMin, distanceKm: km, avgHr: avgHr ?? null,
+      intensity: (speed > 12 ? 'muito_alta' : speed > 8 ? 'alta' : speed > 5 ? 'moderada' : 'leve') });
+    const calories = energy.kcal;
     const cardioRow = {
       id: newId(),
       user_id: user.id, type: 'Corrida', duration_min: durationMin, intensity,
