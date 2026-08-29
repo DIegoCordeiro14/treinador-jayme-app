@@ -70,7 +70,8 @@
     "test:fatigue": "tsc src/lib/edn/session-fatigue-planner.ts src/lib/edn/exercise-order-engine.ts --outDir scripts/.tmp/fo --module commonjs --target es2019 --skipLibCheck && node scripts/test-fatigue-order.js",
     "test:specialization": "tsc src/lib/edn/specialization-block-engine.ts src/lib/edn/priority-response-engine.ts --outDir scripts/.tmp/sr --module commonjs --target es2019 --skipLibCheck && node scripts/test-specialization-response.js",
     "test:changebudget": "tsc src/lib/edn/plan-change-budget-engine.ts src/lib/edn/equilibrium-score-engine.ts --outDir scripts/.tmp/ce --module commonjs --target es2019 --skipLibCheck && node scripts/test-changebudget-equilibrium.js",
-    "test:validator": "tsc src/lib/edn/workout-complexity-engine.ts src/lib/edn/plan-quality-validator.ts --outDir scripts/.tmp/cv --module commonjs --target es2019 --skipLibCheck && node scripts/test-complexity-validator.js"
+    "test:validator": "tsc src/lib/edn/workout-complexity-engine.ts src/lib/edn/plan-quality-validator.ts --outDir scripts/.tmp/cv --module commonjs --target es2019 --skipLibCheck && node scripts/test-complexity-validator.js",
+    "test:planresponse": "tsc src/lib/edn/adherence-engine.ts src/lib/edn/plan-response-engine.ts --outDir scripts/.tmp/ap --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-planresponse.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
