@@ -66,7 +66,8 @@
     "test:budget": "tsc src/lib/edn/priority-budget-engine.ts --outDir scripts/.tmp/pb --module commonjs --target es2019 --skipLibCheck && node scripts/test-priority-budget.js",
     "test:effective-volume": "tsc src/lib/edn/effective-muscle-volume-engine.ts src/lib/edn/muscle-balance-guard.ts --outDir scripts/.tmp/eb --module commonjs --target es2019 --skipLibCheck && node scripts/test-effvol-balance.js",
     "test:balance": "node scripts/test-effvol-balance.js",
-    "test:role": "tsc src/lib/edn/exercise-role-engine.ts src/lib/edn/movement-pattern-engine.ts --outDir scripts/.tmp/rm --module commonjs --target es2019 --skipLibCheck && node scripts/test-role-movement.js"
+    "test:role": "tsc src/lib/edn/exercise-role-engine.ts src/lib/edn/movement-pattern-engine.ts --outDir scripts/.tmp/rm --module commonjs --target es2019 --skipLibCheck && node scripts/test-role-movement.js",
+    "test:fatigue": "tsc src/lib/edn/session-fatigue-planner.ts src/lib/edn/exercise-order-engine.ts --outDir scripts/.tmp/fo --module commonjs --target es2019 --skipLibCheck && node scripts/test-fatigue-order.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
