@@ -591,25 +591,10 @@ export default function NutricaoPage() {
         </div>
       )}
 
-      {/* Diagnóstico + Simulador */}
-      {intel?.diagnosis && (
+      {/* Simulador de ajustes (o diagnóstico único fica no card "Decisão nutricional") */}
+      {intel?.simulations?.length > 0 && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-sm font-bold text-zinc-100 mb-1.5 flex items-center gap-1.5"><BarChart2 className="h-4 w-4 text-[#5A8A6A]" />Diagnóstico</p>
-          <div className="space-y-0.5 mb-2">
-            {intel.diagnosis.diagnosis.map((dline: string, i: number) => (
-              <p key={i} className="text-[11px] text-zinc-400">• {dline}</p>
-            ))}
-          </div>
-          {intel.diagnosis.causes?.length > 0 && (
-            <div className="mb-1.5">
-              <p className="text-[11px] font-bold text-zinc-300">Possíveis causas:</p>
-              {intel.diagnosis.causes.map((cz: string, i: number) => (
-                <p key={i} className="text-[11px] text-zinc-400">• {cz}</p>
-              ))}
-            </div>
-          )}
-          <p className="text-[12px] text-zinc-200"><span className="font-bold">Conclusão:</span> {intel.diagnosis.conclusion}</p>
-          <p className="text-[12px] text-[#D4853A] mt-0.5"><span className="font-bold">Ação:</span> {intel.diagnosis.action}</p>
+          <p className="text-sm font-bold text-zinc-100 mb-1.5 flex items-center gap-1.5"><BarChart2 className="h-4 w-4 text-[#5A8A6A]" />Simulador de ajustes</p>
           {intel.simulations?.length > 0 && (
             <>
               <button onClick={() => setShowSim(v => !v)} className="mt-2 text-[11px] text-[#D4853A] hover:text-[#E09B5A] flex items-center gap-1">
