@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateExerciseSafety } from "@/lib/edn/physical-condition-engine";
 import { buildGenerationIntelligence } from "@/lib/edn/generation-intelligence";
+import { orchestrateGenerationV3 } from "@/lib/edn/workout-generation-orchestrator-v3";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
 import {
   getEffectiveObjective,
@@ -449,9 +450,61 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
       genV2Block = genV2.promptBlock;
     } catch { /* aditivo: se falhar, gera como antes (sem inteligência v2) */ }
 
+    // ─── GERAÇÃO v3: orquestrador (prioridade+orçamento+equilíbrio+validação) ──
+    let genV3Block = '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let genV3: any = null;
+    try {
+      if (genV2 && Array.isArray(genV2.volumePlan)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vol = genV2.volumePlan as any[];
+        const volumeTargets: Record<string, number> = {};
+        const minFloor: Record<string, number> = {};
+        for (const v of vol) { volumeTargets[v.muscle_group] = v.target_weekly_sets; minFloor[v.muscle_group] = v.landmarks?.mev ?? 8; }
+        const declaredPriorities: string[] = [profileData?.priority_muscle_1, profileData?.priority_muscle_2].filter((x): x is string => !!x);
+        const prioritySet = new Set<string>([...declaredPriorities, ...(weakMuscle ? [weakMuscle] : [])]);
+        const exp = (effectiveLevelKey ?? 'beginner') as 'beginner' | 'intermediate' | 'advanced';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const priorities = [...prioritySet].map((mg) => ({
+          muscle_group: mg,
+          userDeclared: declaredPriorities.includes(mg),
+          isWeakPoint: mg === weakMuscle,
+          aestheticGoalMatch: false,
+          historicalResponse: null,
+          stagnant: (genV2.stagnation?.stagnated ?? false),
+          recoveryCapacity: 0.6, timeAvailability: 0.7, fatigue: 0.4,
+          cardioLoad: Math.min(1, (Number(profileData?.cardio_frequency ?? 0)) / 5),
+        }));
+        const budget = {
+          recoveryScore: null, hrvTrendPerWeek: null,
+          sleepHours: profileData?.sleep_hours != null ? Number(profileData.sleep_hours) : null,
+          acwr: null, recentWeeklySets: null,
+          avgRir: null, sessionDurationMin: profileData?.session_duration_min != null ? Number(profileData.session_duration_min) : null,
+          weeklyFrequency: daysPerWeek ?? dayCount,
+          cardioSessionsPerWeek: Number(profileData?.cardio_frequency ?? 0),
+          experience: exp,
+          priorVolumeResponsePositive: null,
+        };
+        genV3 = orchestrateGenerationV3({
+          objective: (effectiveObjective as 'strength' | 'hypertrophy' | 'weight_loss' | 'definition' | 'recomp' | 'running' | 'health'),
+          experience: exp,
+          priorities,
+          budget,
+          volumeTargets, minFloor,
+          plannedForVolume: [],
+          plannedPatterns: [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          safeExerciseIds: (safeExercises as any[]).map((e) => e.id),
+          forbiddenIds: [...forbiddenIds] as string[],
+          restrictedIds: [],
+        });
+        genV3Block = genV3.promptBlock;
+      }
+    } catch { /* aditivo: fallback silencioso */ }
+
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}${genV3Block}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 
@@ -511,7 +564,23 @@ Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayC
       }
     } catch { /* não-fatal */ }
 
-    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct, intelligence: genV2 ? { split: genV2.split?.name ?? null, volumePlan: genV2.volumePlan, retainedIds: genV2.retainedIds, swaps: genV2.swaps, stagnation: genV2.stagnation, topSuitable: genV2.topSuitable, snapshotBullets: genV2.snapshotBullets } : null });
+    // ─── GERAÇÃO v3: validação determinística pós-IA (gate de qualidade) ──────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let qualityV3: any = null;
+    try {
+      if (genV3?.validate) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vDays = parsed.days.map((d: any) => ({ exercises: (d.exercises ?? []).map((e: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const meta = (safeExercises as any[]).find((x) => x.id === e.exerciseId);
+          return { exerciseId: e.exerciseId, muscle_group: meta?.muscle_group ?? 'full_body', sets: Number(e.sets ?? 0) };
+        }) }));
+        const { validation, equilibrium } = genV3.validate(vDays);
+        qualityV3 = { equilibriumScore: equilibrium.score, verdict: equilibrium.verdict, needsRebalance: equilibrium.needsRebalance, issues: validation.issues, priorityAllocations: genV3.priorityAllocations, recoveryBudget: genV3.recoveryBudget, balanceAdjustments: genV3.balance?.adjustments ?? [], coverage: genV3.coverage };
+      }
+    } catch { /* aditivo */ }
+
+    return Response.json({ days: parsed.days, whyText, effectiveObjective, completionPct, intelligence: genV2 ? { split: genV2.split?.name ?? null, volumePlan: genV2.volumePlan, retainedIds: genV2.retainedIds, swaps: genV2.swaps, stagnation: genV2.stagnation, topSuitable: genV2.topSuitable, snapshotBullets: genV2.snapshotBullets } : null, quality: qualityV3 });
   } catch (err: any) {
     console.error("[generate-workout] error:", err);
     // AI falhou — retornar 200 com whyText para o client mostrar o card
