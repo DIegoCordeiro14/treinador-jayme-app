@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { nutritionErrorPayload } from '@/lib/edn/nutrition-error-handler';
-import { getDefaultProvider } from '@/lib/ai-coach';
 import { format, subDays } from 'date-fns';
 
 export const runtime = 'nodejs';

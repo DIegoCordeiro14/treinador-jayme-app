@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
+import { logNutritionTelemetry } from '@/lib/edn/nutrition-telemetry';
 import { computeNutritionTargets } from '@/lib/edn/nutrition-autopilot';
 
 export const runtime = 'nodejs';
@@ -176,6 +177,7 @@ Gere exatamente ${mealsPerDay} refeições. Seja conciso. APENAS JSON.`;
       await supabase.from('workout_plans').update({ schedule_config: { ...cfg, nutrition } }).eq('id', activePlan.id).eq('user_id', user.id);
     }
 
+    await logNutritionTelemetry(supabase, user.id, 'targets_computed', { phase: targets.phase, targetKcal: targets.targetKcal, source: targets.source });
     return Response.json({ nutrition });
   } catch (err: any) {
     console.error('[generate-nutrition] error:', err);

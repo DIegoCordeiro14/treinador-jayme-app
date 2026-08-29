@@ -7,6 +7,7 @@ import { normalizeGoal } from '@/lib/edn/nutrition-goal-map';
 import { computeNutritionConfidence, dv } from '@/lib/edn/nutrition-confidence-system';
 import { buildNutritionState } from '@/lib/athlete-os/nutrition-state';
 import { conditionNutritionAdjustment } from '@/lib/edn/nutrition-condition-adjust';
+import { logNutritionTelemetry } from '@/lib/edn/nutrition-telemetry';
 import { computeCardioPrescription } from '@/lib/edn/cardio-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 
@@ -240,6 +241,7 @@ export async function GET(_req: NextRequest) {
     proteinAdherence: null, carbVsDemand: 'unknown', hydrationStatus: 'unknown',
     loggingAdherence, targetAdherence: null, metabolicConfidence: null, decision,
   }) : null;
+  if (decision && decision.adjustmentAllowed) { await logNutritionTelemetry(supabase, user.id, 'decision', { state: decision.state, action: decision.recommendedAction, confidence: decision.confidence, dataConfidence: nutritionConfidence.score, estimated: nutritionConfidence.estimatedFields.length }); }
 
   // ── V7.2: Nutrition Intelligence (decisão esportiva) ─────────────────────
   const raceDate = (profile as any)?.target_race_date ? new Date((profile as any).target_race_date) : null;
