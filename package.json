@@ -79,7 +79,8 @@
     "test:nutgoalmap": "tsc src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/ngm --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-goal-map.js",
     "test:nutdecision": "tsc src/lib/edn/nutrition-decision-engine.ts src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/nde --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-decision.js",
     "test:nutadherence": "tsc src/lib/edn/nutrition-adherence-engine.ts src/lib/edn/nutrition-goal-map.ts src/lib/edn/nutrition-autopilot.ts --outDir scripts/.tmp/nad --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-adherence.js",
-    "test:nutconfidence": "tsc src/lib/edn/nutrition-confidence-system.ts --outDir scripts/.tmp/nc --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-confidence.js"
+    "test:nutconfidence": "tsc src/lib/edn/nutrition-confidence-system.ts --outDir scripts/.tmp/nc --module commonjs --target es2019 --skipLibCheck && node scripts/test-nutrition-confidence.js",
+    "test:adaptiveenergy": "tsc src/lib/edn/adaptive-energy-engine.ts --outDir scripts/.tmp/ae --module commonjs --target es2019 --skipLibCheck && node scripts/test-adaptive-energy.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
