@@ -67,7 +67,7 @@
     "test:effective-volume": "tsc src/lib/edn/effective-muscle-volume-engine.ts src/lib/edn/muscle-balance-guard.ts --outDir scripts/.tmp/eb --module commonjs --target es2019 --skipLibCheck && node scripts/test-effvol-balance.js",
     "test:balance": "node scripts/test-effvol-balance.js",
     "test:role": "tsc src/lib/edn/exercise-role-engine.ts src/lib/edn/movement-pattern-engine.ts --outDir scripts/.tmp/rm --module commonjs --target es2019 --skipLibCheck && node scripts/test-role-movement.js",
-    "test:fatigue": "tsc src/lib/edn/session-fatigue-planner.ts src/lib/edn/exercise-order-engine.ts --outDir scripts/.tmp/fo --module commonjs --target es2019 --skipLibCheck && node scripts/test-fatigue-order.js",
+    "test:fatigue": "tsc src/lib/edn/fatigue-state-engine.ts src/lib/edn/activity-impact-engine.ts --outDir scripts/.tmp/fs --module commonjs --target es2019 --skipLibCheck && node scripts/test-fatigue-state.js",
     "test:specialization": "tsc src/lib/edn/specialization-block-engine.ts src/lib/edn/priority-response-engine.ts --outDir scripts/.tmp/sr --module commonjs --target es2019 --skipLibCheck && node scripts/test-specialization-response.js",
     "test:changebudget": "tsc src/lib/edn/plan-change-budget-engine.ts src/lib/edn/equilibrium-score-engine.ts --outDir scripts/.tmp/ce --module commonjs --target es2019 --skipLibCheck && node scripts/test-changebudget-equilibrium.js",
     "test:validator": "tsc src/lib/edn/workout-complexity-engine.ts src/lib/edn/plan-quality-validator.ts --outDir scripts/.tmp/cv --module commonjs --target es2019 --skipLibCheck && node scripts/test-complexity-validator.js",
@@ -96,7 +96,7 @@
     "test:cardioadh": "tsc src/lib/edn/cardio-adherence-engine.ts src/lib/edn/performance-forecast-engine.ts --outDir scripts/.tmp/af --module commonjs --target es2019 --skipLibCheck && node scripts/test-adherence-forecast.js",
     "test:concurrent": "tsc src/lib/edn/activity-impact-engine.ts src/lib/edn/concurrent-training-engine.ts --outDir scripts/.tmp/ic --module commonjs --target es2019 --skipLibCheck && node scripts/test-impact-concurrent.js",
     "test:sportsafety": "tsc src/lib/edn/sport-intelligence-profiles.ts src/lib/edn/cardio-safety-planner.ts --outDir scripts/.tmp/ss --module commonjs --target es2019 --skipLibCheck && node scripts/test-sport-safety.js",
-    "test:cardio-os": "npm run -s test:cardioplan && npm run -s test:cardiodiag && npm run -s test:cardiohr && npm run -s test:gpscore && npm run -s test:cardioenergy && npm run -s test:cardioresp && npm run -s test:cardioadh && npm run -s test:concurrent && npm run -s test:sportsafety"
+    "test:cardio-os": "npm run -s test:cardioplan && npm run -s test:cardiodiag && npm run -s test:cardiohr && npm run -s test:gpscore && npm run -s test:cardioenergy && npm run -s test:cardioresp && npm run -s test:cardioadh && npm run -s test:concurrent && npm run -s test:sportsafety && npm run -s test:fatigue"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
