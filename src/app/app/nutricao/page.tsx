@@ -21,6 +21,8 @@ import { autoSync, isNativeShell } from '@/lib/integrations/wearable-hub';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { MealLogger } from '@/components/edn/meal-logger';
 import { FoodConsistencyCard } from '@/components/edn/food-consistency-card';
+import { MetabolicCalibrationCard } from '@/components/edn/metabolic-calibration-card';
+import { NutritionDecisionCard } from '@/components/edn/nutrition-decision-card';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -129,6 +131,12 @@ export default function NutricaoPage() {
   const [nutriSignals, setNutriSignals] = useState<{ level: string; title: string; message: string }[]>([]);
   const [nutriConfidence, setNutriConfidence] = useState<{ score: number; level: 'high'|'moderate'|'low'; recommendations: string[] } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [nutriDecision, setNutriDecision] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [nutriStateObj, setNutriStateObj] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [nutriCondition, setNutriCondition] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [intel, setIntel] = useState<any>(null);
   const [decisions, setDecisions] = useState<{ id: string; decided_at: string; change_applied: string; reason: string | null; result: string | null }[]>([]);
   const [showWhy, setShowWhy] = useState(false);
@@ -157,6 +165,9 @@ export default function NutricaoPage() {
       setNutriScore(d?.nutritionScore ?? null);
       setNutriSignals(d?.nutritionSignals ?? []);
       setNutriConfidence(d?.nutritionConfidence ?? null);
+      setNutriDecision(d?.decision ?? null);
+      setNutriStateObj(d?.nutritionState ?? null);
+      setNutriCondition(d?.conditionAdjustment ?? null);
       setIntel(d?.intelligence ?? null);
       if (d?.intelligence?.race) { setRaceDate(d.intelligence.race.date ?? ''); setRaceName(d.intelligence.race.name ?? ''); }
     }).catch(() => {});
@@ -331,6 +342,9 @@ export default function NutricaoPage() {
         <span>＋ Registrar refeição</span>
       </button>
       <MealLogger controlledOpen={showLogger} onClose={() => setShowLogger(false)} onLogged={() => { setShowLogger(false); loadConsumedToday(); }} />
+
+      <NutritionDecisionCard decision={nutriDecision} state={nutriStateObj} condition={nutriCondition} />
+
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -919,6 +933,7 @@ export default function NutricaoPage() {
         ═══════════════════════════════════════════════════════ */}
         <TabsContent value="evolucao" className="mt-4 space-y-4">
           <FoodConsistencyCard />
+          <MetabolicCalibrationCard />
 
 
           {/* Weight log button */}
