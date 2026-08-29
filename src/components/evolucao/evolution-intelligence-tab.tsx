@@ -4,7 +4,7 @@
 // memória longitudinal (Fases 2-3). Fetch determinístico de /api/evolution-intelligence.
 
 import { useEffect, useState } from 'react';
-import { FileText, Clock, GitBranch, Brain, CheckCircle2, XCircle, Clock3, ArrowRight } from 'lucide-react';
+import { FileText, Clock, GitBranch, Brain, CheckCircle2, XCircle, Clock3, ArrowRight, Link2 } from 'lucide-react';
 
 interface Report {
   periodLabel: string;
@@ -22,7 +22,8 @@ interface TimelineEvent { dateISO: string; kind: string; title: string; detail?:
 interface TimelineMonth { monthKey: string; label: string; events: TimelineEvent[]; }
 interface DecisionOutcome { id: string; decision: string; verdict: string; summary: string; }
 interface Memory { strategies: { action: string; timesTried: number; successRate: number; recommendation: string }[]; learnedNotes: string[]; }
-interface Payload { report?: Report | null; timeline?: TimelineMonth[]; decisions?: DecisionOutcome[]; decisionStats?: { successRate: number; total: number }; memory?: Memory; }
+interface Correlation { key: string; strength: string; direction: string; reliable: boolean; message: string; r: number | null; }
+interface Payload { report?: Report | null; timeline?: TimelineMonth[]; decisions?: DecisionOutcome[]; decisionStats?: { successRate: number; total: number }; memory?: Memory; correlations?: Correlation[]; }
 
 const MG_PT: Record<string, string> = { chest: 'Peito', back: 'Costas', shoulders: 'Ombros', biceps: 'Bíceps', triceps: 'Tríceps', legs: 'Pernas', glutes: 'Glúteos', abs: 'Abdômen', calves: 'Panturrilha', forearms: 'Antebraço' };
 const mg = (k: string) => MG_PT[k] ?? k;
@@ -126,6 +127,19 @@ export function EvolutionIntelligenceTab() {
           ) : (
             <p className="text-[12px] text-zinc-500">Ainda coletando dados para aprender seus padrões de resposta.</p>
           )}
+        </div>
+      )}
+
+      {/* Correlações observadas */}
+      {(data?.correlations ?? []).filter((c) => c.reliable).length > 0 && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-2">
+          <p className="text-[13px] font-bold text-zinc-100 flex items-center gap-1.5"><Link2 className="h-4 w-4 text-[#5A8A6A]" />Correlações observadas</p>
+          <div className="space-y-1.5">
+            {(data?.correlations ?? []).filter((c) => c.reliable).map((c) => (
+              <p key={c.key} className="text-[12px] text-zinc-400 flex items-start gap-1.5"><span className="text-[#5A8A6A]">•</span>{c.message}</p>
+            ))}
+          </div>
+          <p className="text-[10px] text-zinc-600">Associações estatísticas — não provam causa e efeito.</p>
         </div>
       )}
 

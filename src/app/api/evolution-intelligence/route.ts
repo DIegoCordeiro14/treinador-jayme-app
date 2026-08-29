@@ -12,7 +12,8 @@ import { buildEvolutionReport } from '@/lib/edn/athlete-evolution-report';
 import { buildTimeline, groupTimelineByMonth, type TimelineKind } from '@/lib/edn/evolution-timeline-engine';
 import { summarizeDecisions, type DecisionOutcome } from '@/lib/edn/decision-outcome-engine';
 import { buildEvolutionMemory } from '@/lib/edn/athlete-evolution-memory';
-import type { RecoveryEvolution } from '@/lib/edn/recovery-evolution-engine';
+import { analyzeRecoveryEvolution, type RecoveryEvolution, type RecoveryPoint } from '@/lib/edn/recovery-evolution-engine';
+import { analyzeCorrelation, CORRELATION_SPECS, type PairedSample } from '@/lib/edn/evolution-correlation-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -32,7 +33,7 @@ export async function GET(_req: NextRequest) {
     const iso = new Date(now - 90 * 86400000).toISOString();
     const date90 = iso.slice(0, 10);
 
-    const [{ data: profile }, { data: bios }, { data: meas }, { data: wl }, { data: sess }, { data: sets }, { data: food }, { data: tl }, { data: dec }] =
+    const [{ data: profile }, { data: bios }, { data: meas }, { data: wl }, { data: sess }, { data: sets }, { data: food }, { data: tl }, { data: dec }, { data: recs }, { data: cardio }] =
       await Promise.all([
         supabase.from('profiles').select('main_goal, experience_level, weekly_frequency, sleep_hours, sleep_quality, stress_level').eq('id', user.id).maybeSingle(),
         supabase.from('bioimpedance_data').select('weight_kg, body_fat_pct, lean_mass_kg, skeletal_muscle_mass_kg, measured_at').eq('user_id', user.id).gte('measured_at', date90).order('measured_at', { ascending: true }),
@@ -42,7 +43,9 @@ export async function GET(_req: NextRequest) {
         supabase.from('session_sets').select('weight_kg, rir, completed, exercise:exercises(muscle_group), session:workout_sessions!inner(started_at, user_id)').eq('session.user_id', user.id).gte('session.started_at', iso),
         supabase.from('food_logs').select('logged_at').eq('user_id', user.id).gte('logged_at', new Date(now - 14 * 86400000).toISOString()),
         supabase.from('athlete_timeline').select('kind, title, detail, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(40),
-        supabase.from('athlete_decisions').select('id, decision, domain, applied, outcome, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
+        supabase.from('athlete_decisions').select('id, decision, domain, applied, outcome, baseline_metrics, outcome_metrics, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
+        supabase.from('recovery_logs').select('log_date, sleep_hours, hrv_ms, resting_hr, recovery_score').eq('user_id', user.id).gte('log_date', date90).order('log_date', { ascending: true }),
+        supabase.from('cardio_sessions').select('duration_min, created_at').eq('user_id', user.id).is('deleted_at', null).gte('created_at', iso),
       ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +94,19 @@ export async function GET(_req: NextRequest) {
       if (p.sleep_quality) { if (/bo[am]|good|otim/i.test(String(p.sleep_quality))) r += 10; else if (/ruim|poor|mau/i.test(String(p.sleep_quality))) r -= 10; }
       if (p.stress_level) { if (/alto|high/i.test(String(p.stress_level))) r -= 15; else if (/baixo|low/i.test(String(p.stress_level))) r += 10; }
       recoveryScore = Math.max(0, Math.min(100, r));
+      recoveryLabel = recoveryScore >= 70 ? 'boa' : recoveryScore >= 45 ? 'moderada' : 'baixa';
+    }
+
+    // Recuperação REAL (recovery_logs) sobrepõe o proxy quando disponível.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const REC = (recs ?? []) as any[];
+    const recoveryPoints: RecoveryPoint[] = REC.map((r) => ({
+      dateISO: String(r.log_date), recoveryScore: r.recovery_score ?? null,
+      sleepH: r.sleep_hours ?? null, restingHr: r.resting_hr ?? null, hrv: r.hrv_ms ?? null,
+    }));
+    const lastRec = REC.filter((r) => r.recovery_score != null).slice(-1)[0];
+    if (lastRec) {
+      recoveryScore = Number(lastRec.recovery_score);
       recoveryLabel = recoveryScore >= 70 ? 'boa' : recoveryScore >= 45 ? 'moderada' : 'baixa';
     }
 
@@ -182,6 +198,19 @@ export async function GET(_req: NextRequest) {
       return 'neutral';
     };
     const decisionOutcomes: DecisionOutcome[] = DEC.map((d) => {
+      const om = d.outcome_metrics ?? null;
+      if (om) {
+        // Resultado QUANTITATIVO a partir dos deltas medidos.
+        const parts: number[] = [];
+        if (om.strengthDeltaPct != null) parts.push(Number(om.strengthDeltaPct));
+        if (om.recoveryDeltaPct != null) parts.push(Number(om.recoveryDeltaPct));
+        if (om.bodyFatDeltaPct != null) parts.push(-Number(om.bodyFatDeltaPct) * 5);
+        if (om.leanDeltaKg != null) parts.push(Number(om.leanDeltaKg) * 10);
+        const scoreDelta = parts.length ? Math.round((parts.reduce((a, b) => a + b, 0) / parts.length) * 10) / 10 : 0;
+        const verdict: DecisionOutcome['verdict'] = scoreDelta >= 3 ? 'positive' : scoreDelta <= -3 ? 'negative' : 'neutral';
+        return { id: d.id, decision: d.decision ?? 'Decisão', verdict, scoreDelta,
+          summary: `${verdict === 'positive' ? 'Decisão positiva' : verdict === 'negative' ? 'Decisão negativa' : 'Resultado neutro'} (índice ${scoreDelta > 0 ? '+' : ''}${scoreDelta}): ${d.decision ?? ''}`.trim() };
+      }
       const verdict = mapVerdict(d.outcome, d.applied !== false);
       return { id: d.id, decision: d.decision ?? 'Decisão', verdict, scoreDelta: 0,
         summary: `${verdict === 'positive' ? 'Decisão positiva' : verdict === 'negative' ? 'Decisão negativa' : verdict === 'pending' ? 'Aguardando resultado' : 'Resultado neutro'}: ${d.decision ?? ''}`.trim() };
@@ -203,13 +232,40 @@ export async function GET(_req: NextRequest) {
     })));
     const timeline = groupTimelineByMonth(timelineEvents);
 
-    // ── Recuperação (proxy) em forma de RecoveryEvolution p/ o relatório ──
-    const recoveryEvo: RecoveryEvolution = {
-      recoveryTrendPerWeek: null, sleepTrendPerWeek: null, restingHrTrendPerWeek: null, hrvTrendPerWeek: null,
-      direction: recoveryLabel === 'baixa' ? 'declining' : recoveryLabel === 'boa' ? 'improving' : 'stable',
-      performanceLink: 'unknown',
-      message: recoveryLabel ? `Recuperação estimada: ${recoveryLabel} (sono/estresse do perfil).` : 'Sem dados de recuperação.',
-    };
+    // ── Recuperação: REAL (recovery_logs) ou proxy do perfil ──
+    let recoveryEvo: RecoveryEvolution;
+    if (recoveryPoints.length >= 2) {
+      recoveryEvo = analyzeRecoveryEvolution(recoveryPoints, strengthDeltaPct);
+    } else {
+      recoveryEvo = {
+        recoveryTrendPerWeek: null, sleepTrendPerWeek: null, restingHrTrendPerWeek: null, hrvTrendPerWeek: null,
+        direction: recoveryLabel === 'baixa' ? 'declining' : recoveryLabel === 'boa' ? 'improving' : 'stable',
+        performanceLink: 'unknown',
+        message: recoveryLabel ? `Recuperação estimada: ${recoveryLabel} (sono/estresse do perfil).` : 'Sem dados de recuperação.',
+      };
+    }
+
+    // ── Correlações observadas (só quando há dados pareados suficientes) ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const CARD = (cardio ?? []) as any[];
+    const correlations: ReturnType<typeof analyzeCorrelation>[] = [];
+    // sono (dia) x performance da sessão (top-set daquele dia)
+    const sleepByDay = new Map<string, number>();
+    for (const r of REC) if (r.sleep_hours != null) sleepByDay.set(String(r.log_date), Number(r.sleep_hours));
+    const sleepPerf: PairedSample[] = [...topBySession.entries()]
+      .filter(([day]) => sleepByDay.has(day))
+      .map(([day, top]) => ({ x: sleepByDay.get(day)!, y: top }));
+    if (sleepPerf.length >= 6) correlations.push(analyzeCorrelation(CORRELATION_SPECS.sleep_performance, sleepPerf));
+    // cardio semanal x recovery score semanal
+    const weekKey = (iso2: string) => { const d = new Date(iso2); const on = new Date(d); on.setDate(d.getDate() - d.getDay()); return on.toISOString().slice(0, 10); };
+    const cardioByWeek = new Map<string, number>();
+    for (const c of CARD) { const w = weekKey(String(c.created_at)); cardioByWeek.set(w, (cardioByWeek.get(w) ?? 0) + Number(c.duration_min ?? 0)); }
+    const recByWeek = new Map<string, number[]>();
+    for (const r of REC) if (r.recovery_score != null) { const w = weekKey(String(r.log_date)); const a = recByWeek.get(w) ?? []; a.push(Number(r.recovery_score)); recByWeek.set(w, a); }
+    const cardioRec: PairedSample[] = [...cardioByWeek.entries()]
+      .filter(([w]) => recByWeek.has(w))
+      .map(([w, min]) => ({ x: min, y: recByWeek.get(w)!.reduce((a, b) => a + b, 0) / recByWeek.get(w)!.length }));
+    if (cardioRec.length >= 6) correlations.push(analyzeCorrelation(CORRELATION_SPECS.cardio_recovery, cardioRec));
 
     // ── Relatório mensal (assembler determinístico) ──
     const report = beforeAfter ? buildEvolutionReport({
@@ -218,7 +274,7 @@ export async function GET(_req: NextRequest) {
       decisions: decisionOutcomes, decisionStats,
     }) : null;
 
-    return Response.json({ state, matrix, muscleScores, scenarios, beforeAfter, report, timeline, decisions: decisionOutcomes, decisionStats, memory });
+    return Response.json({ state, matrix, muscleScores, scenarios, beforeAfter, report, timeline, decisions: decisionOutcomes, decisionStats, memory, recovery: recoveryEvo, correlations });
   } catch (err) {
     return Response.json({ state: null, error: err instanceof Error ? err.message : 'Erro interno' }, { status: 200 });
   }
