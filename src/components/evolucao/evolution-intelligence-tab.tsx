@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { FileText, Clock, GitBranch, Brain, CheckCircle2, XCircle, Clock3, ArrowRight, Link2 } from 'lucide-react';
+import { PlanResponseCard } from './plan-response-card';
 
 interface Report {
   periodLabel: string;
@@ -56,6 +57,7 @@ export function EvolutionIntelligenceTab() {
 
   return (
     <div className="space-y-3">
+      <PlanResponseCard />
       {/* Relatório mensal */}
       {report ? (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
