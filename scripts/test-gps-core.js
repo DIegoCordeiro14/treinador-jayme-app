@@ -1,4 +1,4 @@
-const { processGpsTrack } = require('./.tmp/gc/gps-core.js');
+const { processGpsTrack, scoreFromStats } = require('./.tmp/gc/gps-core.js');
 let pass=0, fail=0; const ok=(n,c)=>{c?pass++:(fail++,console.log('  FAIL:',n));};
 
 // gera um traçado reto ~1km, ~5 m/s (12 min/km? no, 5 m/s=3:20/km), pontos a cada 1s
@@ -28,6 +28,13 @@ ok('componente precision menor', poor.quality.components.precision < clean.quali
 const gapPts = straight(60,6); gapPts[30].timestamp += 40000; for(let i=31;i<60;i++) gapPts[i].timestamp+=40000;
 const gap = processGpsTrack(gapPts);
 ok('gap reduz continuidade', gap.quality.components.continuity < clean.quality.components.continuity);
+
+// scoreFromStats coerente com processGpsTrack
+const statsClean = { captured:120, valid:118, discarded:2, spikes:0, rawKm:1.0, sumAccuracy:120*6, accuracyCount:120 };
+const sf = scoreFromStats(statsClean, 1.0, 2);
+ok('scoreFromStats alto p/ stats limpos', sf.score>=80 && ['excelente','boa'].includes(sf.label));
+const sfBad = scoreFromStats({ captured:100, valid:60, discarded:40, spikes:15, rawKm:1.2, sumAccuracy:100*40, accuracyCount:100 }, 1.0, 50);
+ok('scoreFromStats baixo p/ stats ruins', sfBad.score < sf.score);
 
 // vazio
 const empty = processGpsTrack([]);

@@ -3,7 +3,7 @@
 // Cardio OS — cards da fonte única: plano adaptativo, diagnóstico único, forecast
 // e safety planner. Consome o objeto de /api/cardio-intelligence (determinístico).
 
-import { Target, Activity, Gauge, Shield, TrendingUp } from 'lucide-react';
+import { Target, Activity, Gauge, Shield, TrendingUp, GitMerge } from 'lucide-react';
 
 interface AdaptiveGoal { min: number; ideal: number; safetyLimit: number; }
 interface Plan {
@@ -16,6 +16,7 @@ interface Diagnosis { state: string; confidence: number; primaryLimiter: string 
 interface Forecast { conservativeMin: number; expectedMin: number; optimisticMin: number; confidence: string; }
 interface SafetyModality { modality: string; level: string; reason: string; }
 interface Safety { modalities: SafetyModality[]; hasRestriction: boolean; disclaimer: string; }
+interface Concurrent { concurrentLoad: number; strengthLoad: number; enduranceLoad: number; interferenceRisk: string; conflicts: { reason: string }[]; recommendations: string[]; }
 
 const STATE_PT: Record<string, string> = {
   progressing: 'Progredindo', plateau: 'Platô', overreaching: 'Sobrecarga', undertraining: 'Treino insuficiente',
@@ -102,6 +103,25 @@ export function CardioIntelligenceCards({ intel }: { intel: any }) {
           <p className="text-[10px] text-zinc-600">Confiança: {forecast.confidence} · projeção baseada no histórico, não é garantia.</p>
         </div>
       )}
+
+      {/* Concurrent training (força × endurance) */}
+      {(() => { const c: Concurrent | null = intel?.concurrent ?? null; if (!c || (c.interferenceRisk === 'low' && c.conflicts.length === 0)) return null;
+        const rc = c.interferenceRisk === 'high' ? '#C97B7B' : c.interferenceRisk === 'moderate' ? '#A67C3A' : '#5A8A6A';
+        const rt = c.interferenceRisk === 'high' ? 'Alto' : c.interferenceRisk === 'moderate' ? 'Moderado' : 'Baixo';
+        return (
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <GitMerge className="h-4 w-4 text-[#D4853A]" />
+              <span className="text-[13px] font-bold text-zinc-100">Força × Cardio (interferência)</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: rc + '22', color: rc }}>Risco {rt}</span>
+            </div>
+            <p className="text-[11px] text-zinc-500">Carga concorrente {c.concurrentLoad}/100 · força {c.strengthLoad} · endurance {c.enduranceLoad}</p>
+            {c.recommendations.slice(0, 2).map((r, i) => (
+              <p key={i} className="text-[12px] text-zinc-300 flex items-start gap-1.5"><span className="text-[#D4853A]">•</span>{r}</p>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Safety planner */}
       {safety && safety.hasRestriction && (

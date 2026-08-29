@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { Map as LMap, Polyline as LPolyline, Marker as LMarker } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import { computeCardioEnergy } from '@/lib/edn/cardio-energy-engine';
+import { scoreFromStats } from '@/lib/cardio/gps-core';
 import { toast } from 'sonner';
 import { newId, insertOrQueue, flushQueue } from '@/lib/offline-queue';
 import { X, Play, Pause, Square, CheckCircle2, Navigation, Navigation2, Radio, Heart, Rss, ListChecks } from 'lucide-react';
@@ -478,9 +479,13 @@ export default function RunningTracker({ onClose, onSaved }: Props) {
     setAnalysis(a);
     // V6.7 — relatório de qualidade do GPS (dados já validados pelo filtro)
     const qs = filterRef.current.getStats();
+    // GPS Quality Score UNIFICADO (gps-core) a partir dos stats do filtro
+    let maxGapSec = 0;
+    for (let i = 1; i < pts.length; i++) maxGapSec = Math.max(maxGapSec, (pts[i].timestamp - pts[i - 1].timestamp) / 1000);
+    const unified = scoreFromStats(qs, distRef.current, maxGapSec);
     setGpsQuality({
       captured: qs.captured, valid: qs.valid, discarded: qs.discarded, spikes: qs.spikes,
-      rawKm: qs.rawKm, confidence: filterRef.current.getConfidence(), label: filterRef.current.getConfidenceLabel(),
+      rawKm: qs.rawKm, confidence: unified.score, label: unified.label,
     });
     void fetchBriefing(a.sprintCount);
     setStatus('finished');

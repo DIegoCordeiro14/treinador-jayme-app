@@ -13,6 +13,8 @@ import { forecastPerformance } from '@/lib/edn/performance-forecast-engine';
 import { computeCardioAdherence } from '@/lib/edn/cardio-adherence-engine';
 import { planCardioSafety } from '@/lib/edn/cardio-safety-planner';
 import { learnCardioResponse, toCardioProfileRow } from '@/lib/edn/cardio-response-profile';
+import { analyzeConcurrent, type SessionSlot } from '@/lib/edn/concurrent-training-engine';
+import { computeActivityImpact } from '@/lib/edn/activity-impact-engine';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -30,12 +32,13 @@ export async function GET(_req: NextRequest) { try {
   const now = Date.now();
   const d90 = new Date(now - 90 * 86400000);
 
-  const [{ data: profile }, { data: runs }, { data: wearable }, { data: sessions7 }, { data: pcRows }] = await Promise.all([
+  const [{ data: profile }, { data: runs }, { data: wearable }, { data: sessions7 }, { data: pcRows }, { data: activePlan }] = await Promise.all([
     supabase.from('profiles').select('age, gender, main_goal, athlete_sport, target_race_date, sleep_hours, sleep_quality, stress_level, work_type, weekly_frequency').eq('id', user.id).maybeSingle(),
     supabase.from('cardio_sessions').select('performed_at, created_at, distance_km, duration_min, avg_hr, avg_heart_rate, type').eq('user_id', user.id).is('deleted_at', null).gte('created_at', d90.toISOString()).order('created_at', { ascending: true }),
     supabase.from('wearable_metrics').select('hrv_ms, hrv_baseline_ms, resting_hr, sleep_hours, body_battery, training_readiness, recovery_time_hours').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('workout_sessions').select('started_at').eq('user_id', user.id).gte('started_at', new Date(now - 7 * 86400000).toISOString()),
     supabase.from('physical_conditions').select('body_region, status, active').eq('user_id', user.id).eq('active', true),
+    supabase.from('workout_plans').select('schedule_config').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -179,8 +182,36 @@ export async function GET(_req: NextRequest) { try {
     }
   } catch { /* persistência aditiva */ }
 
+  // ── Concurrent training (força × endurance) a partir do plano ativo ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sched: any = (activePlan as any)?.schedule_config ?? null;
+  const slots: SessionSlot[] = [];
+  if (sched?.pattern?.length) {
+    for (const ednDay of sched.pattern as number[]) {
+      const weekday = ednDay === 7 ? 0 : ednDay; // EDN 1-7 (seg-dom) → JS 0-6 (dom=0)
+      const label = String(sched.day_assignments?.[String(ednDay)] ?? '').toLowerCase();
+      const kind: SessionSlot['kind'] = /perna|leg|quadr|posterior|gluteo|panturr/.test(label) ? 'strength_legs' : 'strength_upper';
+      slots.push({ weekday, kind, intensity: 'high' });
+    }
+  }
+  // dias de cardio planejado (rest_days) como corrida leve/intervalado conforme fase
+  if (sched?.cardio) {
+    const cardioKind: SessionSlot['kind'] = plan.intervalSession ? 'run_interval' : 'run_easy';
+    // aproxima cardio nos dias sem musculação
+    for (let d = 0; d < 7; d++) if (!slots.some((sl) => sl.weekday === d)) { slots.push({ weekday: d, kind: cardioKind }); break; }
+  }
+  const strengthPri = plan.racePriority;
+  const concurrent = slots.length ? analyzeConcurrent({ sessions: slots, priority: strengthPri as any, doms: false }) : null;
+
+  // ── Activity impact da atividade mais recente ──
+  const lastRun = list.length ? list[list.length - 1] : null;
+  const activityImpact = lastRun ? computeActivityImpact({
+    kind: 'running', durationMin: lastRun.duration_min ?? 0, distanceKm: lastRun.distance_km ?? null,
+    avgHrPctMax: (lastRun.avg_hr ?? lastRun.avg_heart_rate) && zones ? Math.min(1, (lastRun.avg_hr ?? lastRun.avg_heart_rate) / (zones.maxHr || 190)) : null,
+  }) : null;
+
   return Response.json({
-    plan, diagnosis, forecast, adherence, safety,
+    plan, diagnosis, forecast, adherence, safety, concurrent, activityImpact,
     runner, load, zones, performance, evolution, racePhase, adaptive, recovery: { score: recovery?.score ?? null, category: recCat },
     race: raceDate ? { date: (profile as any).target_race_date, weeks: weeksToRace } : null,
     moment,

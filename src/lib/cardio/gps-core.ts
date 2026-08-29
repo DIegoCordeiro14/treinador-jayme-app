@@ -87,3 +87,18 @@ export function processGpsTrack(points: RawPoint[], modality: 'running' | 'walki
     quality,
   };
 }
+
+
+// Score unificado a partir de stats já coletados (para o rastreador ao vivo,
+// evitando reprocessar os pontos). Mesma fórmula do processGpsTrack.
+export function scoreFromStats(stats: { captured: number; valid: number; discarded: number; spikes: number; rawKm: number; sumAccuracy: number; accuracyCount: number }, distanceKm: number, maxGapSec: number): GpsQualityScore {
+  const avgAccuracyM = stats.accuracyCount > 0 ? stats.sumAccuracy / stats.accuracyCount : 20;
+  const precision = clamp01(1 - Math.max(0, avgAccuracyM - 10) / 30) * 25;
+  const validRatio = stats.captured > 0 ? stats.valid / stats.captured : 1;
+  const kept = validRatio * 20;
+  const anomalies = clamp01(1 - (stats.spikes / Math.max(1, stats.captured)) * 3) * 20;
+  const continuity = clamp01(1 - maxGapSec / 60) * 20;
+  const distConsistency = stats.rawKm > 0.1 ? clamp01(1 - Math.max(0, (stats.rawKm - distanceKm) / stats.rawKm - 0.05)) * 15 : 15;
+  const score = Math.round(precision + kept + anomalies + continuity + distConsistency);
+  return { score, label: labelFor(score), components: { precision: Math.round(precision), kept: Math.round(kept), anomalies: Math.round(anomalies), continuity: Math.round(continuity), distanceConsistency: Math.round(distConsistency) } };
+}
