@@ -10,6 +10,19 @@ import type { SafetyStatus } from '../edn/physical-condition-engine';
 export interface ConditionSnapshot { id: string; region: string; side: string; status: string; restricted: string[]; confirmed: boolean }
 export interface DiscomfortSnapshot { region: string; count: number; recommend: boolean }
 
+export type BodyConfidence = 'high' | 'medium' | 'low' | 'unknown';
+export interface BodyStateBlock {
+  currentWeightKg: number | null;
+  bodyFatPct: number | null;
+  leanMassKg: number | null;
+  muscleMassKg: number | null;
+  restingHeartRate: number | null;
+  latestMeasurementAt: string | null;
+  confidence: BodyConfidence;
+  weightSource: string | null;      // proveniência do peso canônico
+  weightAgeDays: number | null;     // frescor
+}
+
 export interface AthleteStateV2Extras {
   conditions: ConditionSnapshot[];
   discomforts: DiscomfortSnapshot[];
@@ -20,6 +33,7 @@ export interface AthleteStateV2Extras {
   strengths: string[];
   trends: { strengthPct: number | null; volumePct: number | null; weightKgPerWeek: number | null; cardioAcwr: number | null };
   nutritionToday?: { kcal: number; protein: number; carbs: number; fat: number } | null;
+  body?: BodyStateBlock | null;
 }
 
 export type SafetyLevel = 'none' | 'watch' | 'intervene' | 'block';
@@ -36,6 +50,7 @@ export interface AthleteStateV2 extends AthleteState {
   trends: { strengthPct: number | null; volumePct: number | null; weightKgPerWeek: number | null; cardioAcwr: number | null };
   safetyLevel: SafetyLevel;
   nutritionToday: { kcal: number; protein: number; carbs: number; fat: number } | null;
+  body: BodyStateBlock | null;
 }
 
 /** Deriva o nível de segurança a partir de condições + desconfortos + risco de lesão. */
@@ -76,6 +91,7 @@ export function buildAthleteStateV2(base: AthleteState, extras: AthleteStateV2Ex
     limiter,
     safetyLevel,
     nutritionToday: extras.nutritionToday ?? null,
+    body: extras.body ?? null,
   };
 }
 

@@ -48,6 +48,11 @@ export interface NutritionDayType {
 }
 
 export interface NutritionAutopilotInput {
+  // Peso canônico do Athlete Data Hub (§11). Quando presente, TEM PRIORIDADE
+  // sobre bio/profile — a nutrição nunca lê peso de várias tabelas por conta.
+  canonicalWeightKg?: number | null;
+  /** true quando o peso veio de estimativa/fallback (não de medição real). */
+  weightIsAssumed?: boolean;
   // Bioimpedância (mais recente — pode ser null)
   bio: {
     weight_kg: number | null;
@@ -96,6 +101,9 @@ export interface NutritionTargets {
   whyThisPlan: string[];        // narrativa "Por que esse plano?"
   dayTypes: NutritionDayType[]; // periodização: high / moderate / rest
   trainingAlignment: string | null; // observação sobre o treino atual
+  // ── Data Hub ──
+  assumptionUsed: boolean;      // §11 — algum dado corporal foi assumido/estimado
+  weightConfidence: 'high' | 'medium' | 'low'; // confiança do peso usado
 }
 
 // Normaliza objetivos heterogêneos do banco para uma fase nutricional.
@@ -106,10 +114,16 @@ function deriveGoalPhase(rawGoal: string | null): NutritionPhase {
 
 export function computeNutritionTargets(input: NutritionAutopilotInput): NutritionTargets | null {
   const { bio, profile, training } = input;
-  const weight = bio?.weight_kg ?? profile.weight_kg;
+  // §11 — prioridade: peso canônico > bioimpedância > perfil.
+  const weight = input.canonicalWeightKg ?? bio?.weight_kg ?? profile.weight_kg;
   if (!weight) return null; // sem peso não há prescrição
 
   const explanation: string[] = [];
+  const usedCanonical = input.canonicalWeightKg != null;
+  const weightIsAssumed = input.weightIsAssumed === true || (!usedCanonical && bio?.weight_kg == null);
+  const weightConfidence: 'high' | 'medium' | 'low' =
+    usedCanonical ? 'high' : bio?.weight_kg != null ? 'high' : profile.weight_kg != null ? 'medium' : 'low';
+  if (weightIsAssumed) explanation.push('Peso corporal assumido a partir do perfil (sem medição recente) — confiança reduzida.');
 
   // ── 1. TMB ─────────────────────────────────────────────────────────────────
   let tmb: number;
@@ -270,6 +284,8 @@ export function computeNutritionTargets(input: NutritionAutopilotInput): Nutriti
     whyThisPlan,
     dayTypes,
     trainingAlignment,
+    assumptionUsed: weightIsAssumed,
+    weightConfidence,
   };
 }
 

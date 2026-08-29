@@ -99,7 +99,8 @@
     "test:cardio-os": "npm run -s test:cardioplan && npm run -s test:cardiodiag && npm run -s test:cardiohr && npm run -s test:gpscore && npm run -s test:cardioenergy && npm run -s test:cardioresp && npm run -s test:cardioadh && npm run -s test:concurrent && npm run -s test:sportsafety && npm run -s test:fatigue",
     "test:canonicalbody": "tsc src/lib/edn/canonical-body-state.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/cbs --module commonjs --target es2019 --skipLibCheck && node scripts/test-canonical-body.js",
     "test:aosnba": "tsc src/lib/edn/aos-facts-engine.ts src/lib/edn/next-best-action-engine.ts --outDir scripts/.tmp/an --module commonjs --target es2019 --skipLibCheck && node scripts/test-aos-nba.js",
-    "test:datahealth": "tsc src/lib/edn/data-health-engine.ts --outDir scripts/.tmp/dh --module commonjs --target es2019 --skipLibCheck && node scripts/test-data-health.js"
+    "test:datahealth": "tsc src/lib/edn/data-health-engine.ts --outDir scripts/.tmp/dh --module commonjs --target es2019 --skipLibCheck && node scripts/test-data-health.js",
+    "test:athlete-data": "tsc scripts/test-athlete-data.ts src/lib/athlete-data/*.ts src/lib/edn/canonical-body-state.ts src/lib/edn/data-health-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/adh --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/adh/scripts/test-athlete-data.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

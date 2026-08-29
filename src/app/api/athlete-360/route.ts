@@ -17,6 +17,7 @@ import { persistStateSnapshot } from '@/lib/athlete-os/telemetry';
 import { deriveAosFacts } from '@/lib/edn/aos-facts-engine';
 import { computeDataHealth } from '@/lib/edn/data-health-engine';
 import { computeNextBestAction } from '@/lib/edn/next-best-action-engine';
+import { resolveMeasurement, type Measurement } from '@/lib/athlete-data';
 import { detectMesocyclePhase } from '@/lib/edn/training-periodization-engine';
 import { canonicalGoal } from '@/lib/edn/goal';
 
@@ -28,7 +29,9 @@ export const maxDuration = 15;
  * EDN 360 com scores FRESCOS dos motores (nutrição, cardio, recuperação) +
  * principal limitador + próxima ação + Weak Point Engine.
  */
-export async function GET(_req: NextRequest) {
+// Núcleo compartilhado. persist=false → READ ONLY (GET, §22). persist=true →
+// grava o snapshot diário longitudinal (POST, disparado por eventos/ações).
+async function computeAthlete360(persist: boolean) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -56,8 +59,36 @@ export async function GET(_req: NextRequest) {
   const wl = wlR.data ?? []; const sess14 = sess14R.data ?? []; const food = foodR.data ?? [];
   const cardio28 = cardio28R.data ?? [];
 
+  // ── Peso canônico (Athlete Data Hub, §11) ─────────────────────────────────
+  // Resolve entre bioimpedância, weight logs e perfil — recência > confiança.
+  const weightFacts: Measurement[] = [];
+  if (bio?.weight_kg != null) weightFacts.push({ metric: 'weight', value: bio.weight_kg, source: 'bioimpedance', measuredAt: bio.measured_at ?? null });
+  for (const w of (wl as any[])) if (w?.weight_kg != null) weightFacts.push({ metric: 'weight', value: w.weight_kg, source: 'evolution', measuredAt: w.log_date ?? w.created_at ?? null });
+  if (profile?.weight_kg != null) weightFacts.push({ metric: 'weight', value: profile.weight_kg, source: 'profile', measuredAt: null });
+  const canonicalWeight = resolveMeasurement('weight', weightFacts, now);
+  const compFacts: Measurement[] = [];
+  if (bio?.body_fat_pct != null) compFacts.push({ metric: 'bodyFat', value: bio.body_fat_pct, source: 'bioimpedance', measuredAt: bio.measured_at ?? null });
+  if (bio?.lean_mass_kg != null) compFacts.push({ metric: 'leanMass', value: bio.lean_mass_kg, source: 'bioimpedance', measuredAt: bio.measured_at ?? null });
+  if (wm?.resting_hr != null) compFacts.push({ metric: 'restingHeartRate', value: wm.resting_hr, source: 'wearable', measuredAt: wm.recorded_at ?? wm.created_at ?? null });
+  const rBodyFat = resolveMeasurement('bodyFat', compFacts, now);
+  const rLean = resolveMeasurement('leanMass', compFacts, now);
+  const rRhr = resolveMeasurement('restingHeartRate', compFacts, now);
+  const bodyBlock = {
+    currentWeightKg: canonicalWeight?.value ?? null,
+    bodyFatPct: rBodyFat?.value ?? null,
+    leanMassKg: rLean?.value ?? null,
+    muscleMassKg: null as number | null,
+    restingHeartRate: rRhr?.value ?? null,
+    latestMeasurementAt: canonicalWeight?.measuredAt ?? rBodyFat?.measuredAt ?? null,
+    confidence: (canonicalWeight?.confidence ?? 'unknown') as 'high' | 'medium' | 'low' | 'unknown',
+    weightSource: canonicalWeight?.source ?? null,
+    weightAgeDays: canonicalWeight?.ageDays ?? null,
+  };
+
   // ── Nutrição fresca ───────────────────────────────────────────────────────
   const targets = computeNutritionTargets({
+    canonicalWeightKg: canonicalWeight?.value ?? null,
+    weightIsAssumed: canonicalWeight?.source === 'profile',
     bio: bio ?? null,
     training: { sessionsLast7: sess14.filter((w: any) => new Date(w.started_at).getTime() >= now - 7 * 86400000).length, weeklyVolumeKg: sess14.reduce((a: number, w: any) => a + (w.total_volume_kg ?? 0), 0) / 2, cardioKmThisWeek: cardio28.filter((c: any) => new Date(c.created_at).getTime() >= now - 7 * 86400000).reduce((a: number, c: any) => a + (c.distance_km ?? 0), 0) },
     profile: { weight_kg: profile?.weight_kg ?? null, height_cm: profile?.height_cm ?? null, age: profile?.age ?? null, gender: profile?.gender ?? null, main_goal: profile?.main_goal ?? null, weekly_frequency: profile?.weekly_frequency ?? null, work_type: profile?.work_type ?? null, cardio_frequency: profile?.cardio_frequency ?? null, meals_per_day: profile?.meals_per_day ?? null },
@@ -240,7 +271,7 @@ export async function GET(_req: NextRequest) {
     nextBestAction: aos.nextBestAction,
   });
 
-  await persistStateSnapshot(supabase, user.id, state);
+  if (persist) await persistStateSnapshot(supabase, user.id, state);
   // ── AthleteState 2.0 (fonte única) ────────────────────────────────────────
   let stateV2 = null;
   try {
@@ -254,6 +285,7 @@ export async function GET(_req: NextRequest) {
       strengths: weakPoint.strongest ? [weakPoint.strongest.muscle] : [],
       trends: { strengthPct: strengthTrendPct, volumePct: strengthTrendPct, weightKgPerWeek: perWeekGain, cardioAcwr },
       nutritionToday,
+      body: bodyBlock,
     });
   } catch { /* fonte única best-effort */ }
 
@@ -291,8 +323,8 @@ export async function GET(_req: NextRequest) {
     plateau: aosFacts.plateau,
   });
 
-  // ── Snapshot diário longitudinal ──
-  try {
+  // ── Snapshot diário longitudinal (apenas em POST; GET é read-only, §22) ──
+  if (persist) try {
     await supabase.from('athlete_daily_snapshots').upsert({
       user_id: user.id, as_of_date: new Date().toISOString().slice(0, 10),
       weight_kg: (bio?.weight_kg ?? profile?.weight_kg ?? null),
@@ -311,4 +343,15 @@ export async function GET(_req: NextRequest) {
   // edn360 e a composição do stateV2); não são mais expostos para evitar três
   // contratos concorrentes no cliente.
   return Response.json({ edn360, weakPoint, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false, aosFactsReal: realFacts, dataHealth, nextBestAction });
+}
+
+// GET é somente leitura — NUNCA persiste snapshot como efeito colateral (§22).
+export async function GET(_req: NextRequest) {
+  return computeAthlete360(false);
+}
+
+// POST recomputa e persiste o snapshot diário. Chamado por handlers de evento,
+// ações POST e jobs de background — não durante leituras.
+export async function POST(_req: NextRequest) {
+  return computeAthlete360(true);
 }

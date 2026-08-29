@@ -42,6 +42,13 @@ export function AthleteCentral() {
       if (d && !d.error) { setEdn(d.edn360 ?? null); setWp(d.weakPoint ?? null); setAos(d.aos ?? null); setSession(d.session ?? null); setAlertU(d.alertsUnified ?? null); setSv2(d.stateV2 ?? null); setNba(d.nextBestAction ?? null); setDataHealth(d.dataHealth ?? null); }
     }).catch(() => {});
     fetch('/api/decisions/evaluate').catch(() => {});
+    // Snapshot diário longitudinal: POST 1x/dia (o GET agora é read-only, §22).
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (typeof window !== 'undefined' && localStorage.getItem('edn:last-snapshot') !== today) {
+        fetch('/api/athlete-360', { method: 'POST' }).then(() => { try { localStorage.setItem('edn:last-snapshot', today); } catch { /* */ } }).catch(() => {});
+      }
+    } catch { /* SSR-safe */ }
     fetch('/api/daily-briefing').then(r => r.json()).then(d => {
       const line = d?.alert || d?.todayAction || (Array.isArray(d?.highlights) ? d.highlights[0] : null);
       if (line) setBriefLine(String(line).replace(/\*\*(.*?)\*\*/g, '$1'));
