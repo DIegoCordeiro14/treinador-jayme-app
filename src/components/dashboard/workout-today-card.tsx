@@ -12,7 +12,7 @@ interface WorkoutTodayCardProps {
   /** Data de "hoje" já formatada no fuso correto (vem do servidor para casar com o Calendário) */
   todayLabel?: string;
   /** Cardio realizado hoje (para não rotular dia de cardio como descanso/musculação) */
-  cardioToday?: { count: number; km: number | null; type: string | null } | null;
+  cardioToday?: { count: number; km: number | null; type: string | null; planned?: boolean } | null;
 }
 
 function NextWorkoutInfo({ nextWorkout }: { nextWorkout?: { weekday: string; name: string; label?: string | null } | null }) {
@@ -48,7 +48,7 @@ export function WorkoutTodayCard({
     });
 
   if (isRestDay || !workoutDay || !plan) {
-    const isCardioDay = !!cardioToday && cardioToday.count > 0;
+    const isCardioDay = !!cardioToday && (cardioToday.count > 0 || cardioToday.planned === true);
     return (
       <div className={`rounded-xl border p-6 ${isCardioDay ? 'border-[#3FA7C4]/30 bg-[#3FA7C4]/[0.05]' : 'border-zinc-800 bg-zinc-900'}`}>
         <div className="flex items-center gap-3 mb-4">
@@ -62,10 +62,24 @@ export function WorkoutTodayCard({
         </div>
         {isCardioDay ? (
           <div className="text-center py-4">
-            <p className="text-[#8FD0E0] font-medium">{cardioToday!.type ? cardioToday!.type : 'Cardio'} concluído</p>
-            <p className="text-xs text-zinc-500 mt-1">
-              {cardioToday!.count > 1 ? `${cardioToday!.count} sessões` : '1 sessão'}{cardioToday!.km ? ` · ${cardioToday!.km} km` : ''} · sem musculação hoje
-            </p>
+            {cardioToday!.planned ? (
+              <>
+                <p className="text-[#8FD0E0] font-medium">{cardioToday!.type ? cardioToday!.type : 'Cardio'} planejado hoje</p>
+                <p className="text-xs text-zinc-500 mt-1">Dia de cardio — sem musculação. Registre ao concluir.</p>
+                <Link href="/app/cardio">
+                  <Button className="w-full mt-4 gap-2" size="sm">
+                    <Activity className="h-4 w-4" /> Ir para o Cardio
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-[#8FD0E0] font-medium">{cardioToday!.type ? cardioToday!.type : 'Cardio'} concluído</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  {cardioToday!.count > 1 ? `${cardioToday!.count} sessões` : '1 sessão'}{cardioToday!.km ? ` · ${cardioToday!.km} km` : ''} · sem musculação hoje
+                </p>
+              </>
+            )}
           </div>
         ) : (
         <div className="text-center py-4">

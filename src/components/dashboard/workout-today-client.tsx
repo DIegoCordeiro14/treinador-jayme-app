@@ -18,7 +18,7 @@ export function WorkoutTodayClient({ plan }: { plan: WorkoutPlan | null }) {
   const [todayLabel, setTodayLabel] = useState(() =>
     new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
   );
-  const [cardioToday, setCardioToday] = useState<{ count: number; km: number | null; type: string | null } | null>(null);
+  const [cardioToday, setCardioToday] = useState<{ count: number; km: number | null; type: string | null; planned: boolean } | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -48,12 +48,28 @@ export function WorkoutTodayClient({ plan }: { plan: WorkoutPlan | null }) {
         const rows = (data ?? []) as { type: string | null; distance_km: number | null }[];
         if (rows.length) {
           const km = rows.reduce((a, r) => a + (r.distance_km ?? 0), 0);
-          setCardioToday({ count: rows.length, km: km > 0 ? Math.round(km * 10) / 10 : null, type: rows[0].type ?? null });
-        } else setCardioToday(null);
+          setCardioToday({ count: rows.length, km: km > 0 ? Math.round(km * 10) / 10 : null, type: rows[0].type ?? null, planned: false });
+          return;
+        }
+        // Sem cardio feito hoje: verifica se há cardio PLANEJADO para hoje
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cfg = (plan as any)?.schedule_config as { start_date?: string; pattern?: number[]; cardio?: { training_days?: { type?: string; duration_min?: number }; rest_days?: { type?: string; duration_min?: number } } | null } | null;
+        if (cfg?.cardio) {
+          const meaningful = (c?: { type?: string; duration_min?: number } | null) => {
+            const t = String(c?.type ?? '').toLowerCase();
+            if (!t || /nenhum|none|sem\s|descanso|repouso|off/.test(t)) return false;
+            return (c?.duration_min ?? 0) > 0;
+          };
+          const ednDay = new Date().getDay() === 0 ? 7 : new Date().getDay();
+          const isWorkout = (cfg.pattern ?? []).includes(ednDay);
+          const c = isWorkout ? cfg.cardio.training_days : cfg.cardio.rest_days;
+          if (meaningful(c)) { setCardioToday({ count: 0, km: null, type: c!.type ?? null, planned: true }); return; }
+        }
+        setCardioToday(null);
       } catch { /* silencioso */ }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [plan]);
 
   return (
     <WorkoutTodayCard

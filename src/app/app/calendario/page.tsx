@@ -44,6 +44,22 @@ function getWorkoutLabel(date: Date, cfg: ScheduleConfig | null) {
   return cfg.day_assignments?.[String(jsToEdn(getDay(date)))] ?? '';
 }
 
+// Cardio PLANEJADO para o dia, derivado do schedule_config.cardio:
+// - dia de treino => cardio de training_days; dia de descanso => cardio de rest_days.
+function isMeaningfulCardio(c?: { type?: string; duration_min?: number } | null) {
+  if (!c) return false;
+  const t = String(c.type ?? '').toLowerCase();
+  if (!t || /nenhum|none|sem\s|descanso|repouso|off/.test(t)) return false;
+  return (c.duration_min ?? 0) > 0;
+}
+function plannedCardioForDay(date: Date, cfg: ScheduleConfig | null): { type: string; duration_min: number } | null {
+  if (!cfg?.cardio) return null;
+  if (date < new Date(cfg.start_date + 'T00:00:00')) return null;
+  const isWorkout = isScheduledDay(date, cfg);
+  const c = isWorkout ? cfg.cardio.training_days : cfg.cardio.rest_days;
+  return isMeaningfulCardio(c) ? { type: c.type, duration_min: c.duration_min } : null;
+}
+
 // Abreviação de grupo muscular (a partir do muscle_group em inglês dos exercícios)
 const MUSCLE_EN: Record<string, string> = {
   chest: 'Peit', back: 'Cost', shoulders: 'Omb', biceps: 'Bíc', triceps: 'Trí',
@@ -292,13 +308,14 @@ export default function CalendarioPage() {
             const session = sessionDays.get(dateStr);
             const hasCardio = cardioDays.has(dateStr);
             const planned = !session && !hasCardio && isScheduledDay(day, cfg) && day >= TODAY_START;
+            const plannedCardio = !session && !hasCardio && day >= TODAY_START ? plannedCardioForDay(day, cfg) : null;
             const workoutLabel = getWorkoutLabel(day, cfg);
             const isPast = day < TODAY_START;
             return (
               <button key={day.toISOString()} onClick={() => inMonth && loadDaySessions(day)}
                 className={cn('relative flex flex-col items-center justify-center rounded-lg p-1 min-h-[48px] transition-all text-sm font-medium',
                   !inMonth && 'opacity-20 cursor-default', inMonth && 'hover:bg-zinc-800',
-                  isToday(day) && 'ring-1 ring-[#D4853A]', isSelected && 'bg-zinc-800',
+                  isToday(day) && 'ring-1 ring-[#D4853A]', !isToday(day) && plannedCardio && !planned && 'ring-1 ring-[#3FA7C4]/40', isSelected && 'bg-zinc-800',
                   session && 'text-zinc-100', !session && hasCardio && 'text-[#8FD0E0]', planned && 'text-[#E09B5A]',
                   !session && !planned && inMonth && (isPast ? 'text-zinc-500' : 'text-zinc-600'))}>
                 <span>{format(day, 'd')}</span>
@@ -310,9 +327,15 @@ export default function CalendarioPage() {
                 )}
                 {planned && (
                   <>
-                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#D4853A]/70" />
+                    <span className="absolute bottom-1 flex items-center gap-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D4853A]/70" />
+                      {plannedCardio && <span className="w-1.5 h-1.5 rounded-full border border-[#3FA7C4]/80" />}
+                    </span>
                     {workoutLabel && <span className="absolute top-0.5 right-0.5 text-[7px] text-[#D4853A]/70 font-medium leading-none truncate max-w-[46px]">{resolveMuscle(workoutLabel, dayMuscleMap) ?? shortLabel(workoutLabel)}</span>}
                   </>
+                )}
+                {!planned && plannedCardio && (
+                  <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full border border-[#3FA7C4]/80" />
                 )}
               </button>
             );
@@ -321,7 +344,8 @@ export default function CalendarioPage() {
         <div className="flex items-center gap-4 px-4 py-3 border-t border-zinc-800 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" />Musculação</div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-[#3FA7C4] inline-block" />Cardio</div>
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-[#D4853A]/70 inline-block" />Treino planejado</div>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-[#D4853A]/70 inline-block" />Musculação planejada</div>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full border border-[#3FA7C4]/80 inline-block" />Cardio planejado</div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-4 h-0.5 rounded bg-[#D4853A] inline-block" />Hoje</div>
         </div>
       </div>
