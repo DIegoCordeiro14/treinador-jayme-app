@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { evaluateExerciseSafety } from "@/lib/edn/physical-condition-engine";
 import { buildGenerationIntelligence } from "@/lib/edn/generation-intelligence";
 import { orchestrateGenerationV3 } from "@/lib/edn/workout-generation-orchestrator-v3";
+import { reorderPlan } from "@/lib/edn/plan-postprocess";
+import { deriveResponseProfiles, rowsToIndividualLandmarks } from "@/lib/edn/training-response-derivation";
 import { getDefaultProvider, EDN_SYSTEM_PROMPT } from "@/lib/ai-coach";
 import {
   getEffectiveObjective,
@@ -425,6 +427,17 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
           reps: r.reps_done ?? null,
           rir: r.rir ?? null,
         }));
+      // Read path: landmarks individuais persistidos (resposta ao volume aprendida)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let individualLandmarks: Record<string, { mev: number; mav: number; mrv: number }> = {};
+      try {
+        const { data: trp } = await supabase.from('training_response_profiles')
+          .select('muscle_group, estimated_mev, estimated_mav, estimated_mrv, confidence_score')
+          .eq('user_id', user.id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        individualLandmarks = rowsToIndividualLandmarks((trp ?? []) as any[]);
+      } catch { /* usa landmarks populacionais */ }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const candidates = (safeExercises as any[]).map((ex) => ({
         id: ex.id, name: ex.name, muscle_group: ex.muscle_group, equipment: ex.equipment ?? 'machine',
@@ -446,8 +459,43 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
         recovery: 'good',
         likedIds: [...favoriteIds] as string[],
         dislikedIds: [...dislikedIds] as string[],
+        individualLandmarks,
       });
       genV2Block = genV2.promptBlock;
+
+      // Write path (fire-and-forget): deriva e persiste o response profile por mês
+      try {
+        const baseLm: Record<string, { mev: number; mav: number; mrv: number }> = {};
+        for (const v of (genV2.volumePlan ?? [])) baseLm[v.muscle_group] = v.landmarks;
+        // observações mensais por grupo (weekly_sets + desfecho top-set vs mês anterior)
+        const byMuscleMonth = new Map<string, Map<string, { sets: number; top: number }>>();
+        for (const r of snapSets) {
+          const mg = r.muscle_group; const month = String(r.performed_at).slice(0, 7);
+          const w = r.weight_kg ?? 0;
+          const mm = byMuscleMonth.get(mg) ?? new Map();
+          const cell = mm.get(month) ?? { sets: 0, top: 0 };
+          cell.sets += 1; if (w > cell.top) cell.top = w;
+          mm.set(month, cell); byMuscleMonth.set(mg, mm);
+        }
+        const blocks: { muscle_group: string; weekly_sets: number; outcome: 'progressed' | 'maintained' | 'regressed'; recovery_ok: boolean }[] = [];
+        for (const [mg, mm] of byMuscleMonth) {
+          const months = [...mm.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+          for (let k = 1; k < months.length; k++) {
+            const cur = months[k][1]; const prev = months[k - 1][1];
+            const outcome = cur.top > prev.top ? 'progressed' : cur.top < prev.top ? 'regressed' : 'maintained';
+            blocks.push({ muscle_group: mg, weekly_sets: Math.round((cur.sets / 4.3) * 10) / 10, outcome, recovery_ok: true });
+          }
+        }
+        if (blocks.length) {
+          const rows = deriveResponseProfiles({ baseLandmarks: baseLm, blocks }).map((r) => ({
+            user_id: user.id, muscle_group: r.muscle_group,
+            estimated_mev: r.estimated_mev, estimated_mav: r.estimated_mav, estimated_mrv: r.estimated_mrv,
+            volume_response: r.volume_response, confidence_score: r.confidence_score, observations: r.observations,
+            last_updated: new Date().toISOString(),
+          }));
+          if (rows.length) await supabase.from('training_response_profiles').upsert(rows, { onConflict: 'user_id,muscle_group' });
+        }
+      } catch { /* persistência aditiva; nunca bloqueia a geração */ }
     } catch { /* aditivo: se falhar, gera como antes (sem inteligência v2) */ }
 
     // ─── GERAÇÃO v3: orquestrador (prioridade+orçamento+equilíbrio+validação) ──
@@ -563,6 +611,16 @@ Mantenha as notes com no máximo 6 palavras. ${dayCount} dias (dayIndex 0-${dayC
         }
       }
     } catch { /* não-fatal */ }
+
+    // ─── GERAÇÃO v3: reordenação determinística pós-IA (segurança→prioridade→composto→técnica→fadiga) ──
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const metaById: Record<string, any> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const ex of (safeExercises as any[])) metaById[ex.id] = { id: ex.id, name: ex.name, muscle_group: ex.muscle_group, equipment: ex.equipment ?? 'machine', is_compound: ex.is_compound, difficulty: ex.difficulty };
+      const priorityMuscles = [profileData?.priority_muscle_1, profileData?.priority_muscle_2, weakMuscle].filter((x): x is string => !!x);
+      parsed.days = reorderPlan(parsed.days, { metaById, priorityMuscles, objective: effectiveObjective, highFatigue: effectiveObjective === 'strength' });
+    } catch { /* aditivo: mantém a ordem da IA se falhar */ }
 
     // ─── GERAÇÃO v3: validação determinística pós-IA (gate de qualidade) ──────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
