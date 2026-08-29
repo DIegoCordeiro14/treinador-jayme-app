@@ -552,9 +552,30 @@ CONDIÇÕES FÍSICAS (adaptar treino): ${conditions.map((c) => `${c.bodyRegion}/
       }
     } catch { /* aditivo: fallback silencioso */ }
 
+    // ─── Feedback loop: hint da última classificação de bloco (plan-response) ──
+    let planResponseHint = '';
+    try {
+      const { data: lastPR } = await supabase.from('athlete_decisions')
+        .select('decision, inputs, created_at').eq('user_id', user.id).eq('engine', 'plan-response')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pr = lastPR as any;
+      if (pr?.decision) {
+        const map: Record<string, string> = {
+          HIGHLY_EFFECTIVE: 'Bloco anterior MUITO efetivo — manter estrutura e progredir; preservar exercícios que deram resultado.',
+          EFFECTIVE: 'Bloco anterior efetivo — pequenos ajustes, sem revisão ampla.',
+          NEUTRAL: 'Bloco anterior com resposta morna — investigar recuperação/aderência antes de aumentar volume.',
+          INEFFECTIVE: 'Bloco anterior de baixa resposta — revisar seleção de exercícios, volume e aderência.',
+          EXCESSIVE_FATIGUE: 'Bloco anterior gerou fadiga excessiva — reduzir volume/frequência e priorizar recuperação (considerar deload).',
+        };
+        const hint = map[pr.decision as string];
+        if (hint) planResponseHint = `\nRESPOSTA DO BLOCO ANTERIOR: ${hint}`;
+      }
+    } catch { /* aditivo */ }
+
     // ─── Prompt ───────────────────────────────────────────────────────────────
     const userPrompt = `Nível: ${levelRule}
-Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}${genV3Block}
+Crie plano EDN considerando o CONTEXTO COMPLETO do atleta (anamnese ${completionPct}% completa), como um treinador profissional em avaliação presencial. Perfil: ${goalMap[effectiveObjective] ?? objMap[effectiveObjective] ?? mainGoal}, ${daysPerWeek}dias/sem, ${levelMap[effectiveLevelKey] ?? effectiveLevelKey}, ${biometricCtx}.${bioCtx}${sexRuleStr}${sexRulesStr}${aestheticRuleStr}${bfOverrideStr}${prioritiesStr}${weakPointStr}${guidelinesStr}${sportStr}${expStr}${availabilityStr}${structureStr}${recoveryStr}${cardioStr}${limitationStr}${conditionStr}${preferencesStr}${ednEvalStr}${genV2Block}${genV3Block}${planResponseHint}
 
 Regras base: iniciante=sem[ADV]; definição/emagrecimento=12-20rep,45-75s,3-4s; hipertrofia=8-15rep,75-90s,3-4s; força=4-8rep,120-180s,4-5s; compostos antes isolados; ${dayCount} dias equilibrados; ${maxExPerDay ? `máx ${maxExPerDay}ex/dia` : '4-7ex/dia'}.${bioRulesStr}
 
