@@ -14,6 +14,9 @@ import { orchestrate, type AOSFacts } from '@/lib/athlete-os';
 import { buildNotifications } from '@/lib/athlete-os/notifications';
 import { mergeAthleteState } from '@/lib/athlete-os/athlete-state';
 import { persistStateSnapshot } from '@/lib/athlete-os/telemetry';
+import { deriveAosFacts } from '@/lib/edn/aos-facts-engine';
+import { computeDataHealth } from '@/lib/edn/data-health-engine';
+import { computeNextBestAction } from '@/lib/edn/next-best-action-engine';
 import { detectMesocyclePhase } from '@/lib/edn/training-periodization-engine';
 import { canonicalGoal } from '@/lib/edn/goal';
 
@@ -159,6 +162,26 @@ export async function GET(_req: NextRequest) {
   const recurringDiscomfort = discomfortSignals.some((d) => d.recommend);
   const restrictedRegions = Array.from(new Set(conditionSnaps.filter((c) => c.confirmed).map((c) => c.region)));
 
+  // ── Fatos REAIS para o AOS (substitui hardcoded) ──
+  let planCreatedAtISO: string | null = null;
+  try {
+    const { data: ap } = await supabase.from('workout_plans').select('created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    planCreatedAtISO = (ap as any)?.created_at ?? null;
+  } catch { /* opcional */ }
+  const severeConditions = conditionSnaps.filter((c) => c.confirmed && /injur|lesa|lesã|acute|agud|fratura/i.test(String(c.status ?? ''))).length;
+  const realFacts = deriveAosFacts({
+    activePhysicalConditions: conditionSnaps.filter((c) => c.confirmed).length,
+    severePhysicalConditions: severeConditions,
+    recurringDiscomfort,
+    recoveryCategory: (recovery?.category ?? 'moderate') as any,
+    deloadSignalActive: false,
+    planCreatedAtISO,
+    declaredExperience: (profile as any)?.experience_level ?? null,
+    advancedPerformanceSignals: (strengthTrendPct ?? 0) >= 3 ? 5 : 0,
+    nowMs: now,
+  });
+
   // ── Athlete Operating System: decisão única coordenada ────────────────────
   const perWeekGain = weightTrendKg != null ? weightTrendKg / (30 / 7) : null;
   const aosFacts: AOSFacts = {
@@ -166,13 +189,13 @@ export async function GET(_req: NextRequest) {
     recoveryScore: recovery?.score ?? null,
     hrvDropPct,
     sleepHours: wm?.sleep_hours ?? null,
-    injuryRisk: 'none',
+    injuryRisk: realFacts.injuryRisk === 'moderate' ? 'high' : realFacts.injuryRisk,
     physicalRestricted,
     recurringDiscomfort,
     restrictedRegions,
     overreaching: (strengthTrendPct != null && strengthTrendPct < -10) && load.risk === 'alto',
     plateau: goalIsCut && weightTrendKg != null && Math.abs(weightTrendKg) < 0.3,
-    inDeload: false,
+    inDeload: realFacts.inDeload,
     cardioLoadRisk: load.risk,
     strengthTrendPct,
     weightTrendKg,
@@ -199,7 +222,7 @@ export async function GET(_req: NextRequest) {
   });
 
   // ── AthleteState canônico (Bloco 2) — fonte única versionada ──────────────
-  const meso = detectMesocyclePhase({ weeksOnPlan: 0, recentVolumeTrendPct: strengthTrendPct, recoveryCategory: (recovery?.category ?? 'moderate') as any, hadPrRecently: (strengthTrendPct ?? 0) >= 3 });
+  const meso = detectMesocyclePhase({ weeksOnPlan: realFacts.weeksOnPlan, recentVolumeTrendPct: strengthTrendPct, recoveryCategory: (recovery?.category ?? 'moderate') as any, hadPrRecently: (strengthTrendPct ?? 0) >= 3 });
   const state = mergeAthleteState({
     profile: { name: profile?.name ?? null, sex: profile?.gender ?? null, age: profile?.age ?? null, heightCm: profile?.height_cm ?? null, experience: (profile as any)?.experience_level ?? null, sport: (profile as any)?.athlete_sport ?? null },
     goal: { main: profile?.main_goal ?? null, aesthetic: (profile as any)?.aesthetic_goal ?? null, targetWeightKg: (profile as any)?.target_weight_kg ?? null, targetRaceDate: (profile as any)?.target_race_date ?? null },
@@ -241,5 +264,46 @@ export async function GET(_req: NextRequest) {
     nutritionAdherencePct: nutritionScore,
     strengthTrendPct,
   });
-  return Response.json({ edn360, weakPoint, athleteState, state, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false });
+  // ── Data Health Score ──
+  const lastWorkoutAgeDays = sess14 && sess14.length ? Math.floor((now - new Date(sess14[sess14.length - 1].started_at ?? sess14[0].started_at).getTime()) / 86400000) : null;
+  const weightAgeDays = weightTrendKg != null && wl && wl.length ? Math.floor((now - new Date((wl[wl.length - 1] as any).log_date ?? now).getTime()) / 86400000) : null;
+  const bioAgeDays = bio?.measured_at ? Math.floor((now - new Date(bio.measured_at).getTime()) / 86400000) : null;
+  const dataHealth = computeDataHealth({
+    profileCompletionPct: (profile as any)?.profile_completion_pct ?? null,
+    weightAgeDays, bioAgeDays, lastWorkoutAgeDays,
+    nutritionLoggedDays14: loggedDays,
+    wearableConnected: !!wm,
+  });
+
+  // ── Next Best Action priorizado ──
+  const proteinTarget = targets ? targets.proteinG : null;
+  const proteinBelowTarget = !!(proteinTarget && nutritionToday && nutritionToday.protein < proteinTarget * 0.85);
+  const trainedTodayFlag = !!(sess14 && sess14.some((x: any) => new Date(x.started_at).toISOString().slice(0,10) === new Date().toISOString().slice(0,10)));
+  const nextBestAction = computeNextBestAction({
+    injuryRisk: realFacts.injuryRisk,
+    recoveryScore: recovery?.score ?? null,
+    proteinBelowTarget,
+    trainedToday: trainedTodayFlag,
+    hasWorkoutToday: !!session && !aosFacts.plateau ? true : !!session,
+    cardioPlannedToday: false,
+    weightStaleDays: weightAgeDays,
+    acwrHigh: load.risk === 'alto',
+    plateau: aosFacts.plateau,
+  });
+
+  // ── Snapshot diário longitudinal ──
+  try {
+    await supabase.from('athlete_daily_snapshots').upsert({
+      user_id: user.id, as_of_date: new Date().toISOString().slice(0, 10),
+      weight_kg: (bio?.weight_kg ?? profile?.weight_kg ?? null),
+      edn_score: Math.round((edn360 as any)?.overall ?? s.overall ?? 0),
+      recovery_score: recovery?.score ?? null,
+      training_score: Math.round(((s.consistency ?? 0) + (s.progression ?? 0)) / 2),
+      nutrition_score: nutritionScore ?? null,
+      cardio_score: null,
+      data_health_score: dataHealth.score,
+    }, { onConflict: 'user_id,as_of_date' });
+  } catch { /* aditivo */ }
+
+  return Response.json({ edn360, weakPoint, athleteState, state, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false, aosFactsReal: realFacts, dataHealth, nextBestAction });
 }
