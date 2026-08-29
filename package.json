@@ -87,7 +87,8 @@
     "test:nutrition-os": "npm run -s test:nutgoalmap && npm run -s test:nutdecision && npm run -s test:nutadherence && npm run -s test:nutconfidence && npm run -s test:adaptiveenergy && npm run -s test:calibration && npm run -s test:fueling && npm run -s test:nutsim && npm run -s test:foodconsistency && npm run -s test:nutcondition",
     "test:foodconsistency": "tsc src/lib/edn/food-consistency-engine.ts --outDir scripts/.tmp/fc2 --module commonjs --target es2019 --skipLibCheck && node scripts/test-food-consistency.js",
     "test:nutcondition": "tsc src/lib/edn/nutrition-condition-adjust.ts --outDir scripts/.tmp/ca --module commonjs --target es2019 --skipLibCheck && node scripts/test-condition-adjust.js",
-    "test:cardioplan": "tsc src/lib/edn/cardio-plan-engine.ts src/lib/edn/cardio-autopilot.ts src/lib/edn/cardio-progression-engine.ts src/lib/edn/recovery-engine.ts --outDir scripts/.tmp/cp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-plan.js"
+    "test:cardioplan": "tsc src/lib/edn/cardio-plan-engine.ts src/lib/edn/cardio-autopilot.ts src/lib/edn/cardio-progression-engine.ts src/lib/edn/recovery-engine.ts --outDir scripts/.tmp/cp --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-plan.js",
+    "test:cardiodiag": "tsc src/lib/edn/cardio-diagnosis-engine.ts --outDir scripts/.tmp/cd --module commonjs --target es2019 --skipLibCheck && node scripts/test-cardio-diagnosis.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
