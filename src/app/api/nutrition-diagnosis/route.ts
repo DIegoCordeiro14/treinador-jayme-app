@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { nutritionErrorPayload } from '@/lib/edn/nutrition-error-handler';
 import { getDefaultProvider } from '@/lib/ai-coach';
 import { format, subDays } from 'date-fns';
 
@@ -8,7 +9,7 @@ export const maxDuration = 20;
 
 const cache = new Map<string, { data: unknown; exp: number }>();
 
-export async function GET(_req: NextRequest) {
+export async function GET(_req: NextRequest) { try {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -60,4 +61,7 @@ export async function GET(_req: NextRequest) {
   };
   cache.set(user.id, { data: fallback, exp: Date.now() + 60 * 60 * 1000 });
   return Response.json(fallback);
+  } catch (err) {
+    return Response.json(nutritionErrorPayload('NUTRITION_CONTEXT_UNAVAILABLE', err instanceof Error ? err.message : 'Erro interno', null), { status: 200 });
+  }
 }

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { nutritionErrorPayload } from '@/lib/edn/nutrition-error-handler';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -9,7 +10,7 @@ export const maxDuration = 15;
  * se houver poucos resultados, complementa com Open Food Facts (fallback).
  * Normaliza tudo para o mesmo formato (por 100 g/ml).
  */
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest) { try {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -52,4 +53,7 @@ export async function GET(req: NextRequest) {
   }
 
   return Response.json({ foods, preferences: prefs ?? [] });
+  } catch (err) {
+    return Response.json(nutritionErrorPayload('NUTRITION_CONTEXT_UNAVAILABLE', err instanceof Error ? err.message : 'Erro interno', { foods: [], preferences: [] }), { status: 200 });
+  }
 }

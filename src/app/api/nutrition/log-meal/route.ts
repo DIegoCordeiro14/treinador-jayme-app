@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { nutritionErrorPayload } from '@/lib/edn/nutrition-error-handler';
 import { calculateMeal, type MealItemInput } from '@/lib/edn/nutrition-calculation-engine';
 
 export const runtime = 'nodejs';
@@ -11,7 +12,7 @@ export const maxDuration = 20;
  * calcula os macros pelo motor (nunca pela IA) e grava em food_logs.
  * Também aprende as quantidades habituais (user_food_preferences).
  */
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest) { try {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -63,4 +64,7 @@ export async function POST(req: NextRequest) {
   }
 
   return Response.json({ ok: true, totals: calc.totals, confidenceLevel: calc.confidenceLevel, event: 'MEAL_LOGGED' });
+  } catch (err) {
+    return Response.json(nutritionErrorPayload('NUTRITION_CALC_FAILED', err instanceof Error ? err.message : 'Erro interno', null), { status: 200 });
+  }
 }

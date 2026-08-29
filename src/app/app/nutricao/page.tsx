@@ -126,6 +126,7 @@ export default function NutricaoPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [nutriScore, setNutriScore] = useState<{ score: number; label: string; breakdown: { label: string; points: number; max: number }[] } | null>(null);
   const [nutriSignals, setNutriSignals] = useState<{ level: string; title: string; message: string }[]>([]);
+  const [nutriConfidence, setNutriConfidence] = useState<{ score: number; level: 'high'|'moderate'|'low'; recommendations: string[] } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [intel, setIntel] = useState<any>(null);
   const [decisions, setDecisions] = useState<{ id: string; decided_at: string; change_applied: string; reason: string | null; result: string | null }[]>([]);
@@ -154,6 +155,7 @@ export default function NutricaoPage() {
       setAutoNutri(d?.nutrition ?? null);
       setNutriScore(d?.nutritionScore ?? null);
       setNutriSignals(d?.nutritionSignals ?? []);
+      setNutriConfidence(d?.nutritionConfidence ?? null);
       setIntel(d?.intelligence ?? null);
       if (d?.intelligence?.race) { setRaceDate(d.intelligence.race.date ?? ''); setRaceName(d.intelligence.race.name ?? ''); }
     }).catch(() => {});
@@ -305,7 +307,7 @@ export default function NutricaoPage() {
   const weightInsight = latestWeightEntry ? analyzeWeight({
     series: weightSeries,
     targetWeightKg: metaWeight ?? coachData?.target_weight ?? null,
-    goal: activeGoal || (autoNutri ? null : null),
+    goal: activeGoal || null,
     gender,
     latestBfPct: latestWeightEntry.bf,
   }) : null;
@@ -349,6 +351,9 @@ export default function NutricaoPage() {
           <span className="text-base font-extrabold italic">Plano Nutricional EDN</span>
           <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
             {autoNutri?.phaseLabel && <span className="text-[10px] bg-[#5A8A6A]/20 text-[#7FB58F] px-2 py-0.5 rounded-full font-bold">Fase: {autoNutri.phaseLabel}</span>}
+            {nutriConfidence && (
+              <span title={nutriConfidence.recommendations.join(' ')} className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${nutriConfidence.level==='high'?'bg-[#5A8A6A]/20 text-[#7FB58F]':nutriConfidence.level==='moderate'?'bg-[#A67C3A]/20 text-[#D4A85A]':'bg-[#8B5A5A]/20 text-[#C97B7B]'}`}>{nutriConfidence.level==='high'?'🟢':nutriConfidence.level==='moderate'?'🟡':'🔴'} Precisão {nutriConfidence.score}%</span>
+            )}
             {plan && <span className="text-[10px] bg-[#D4853A]/15 text-[#D4853A] px-2 py-0.5 rounded-full font-semibold">{plan.strategy}</span>}
             {autoNutri?.source === 'bioimpedance_tmb' && (
               <span className="text-[10px] text-zinc-500 bg-black/30 px-2 py-0.5 rounded-full">TMB medida pela bioimpedância</span>

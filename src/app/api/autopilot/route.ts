@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { computeNutritionTargets, detectNutritionAdjustments, computeNutritionScore } from '@/lib/edn/nutrition-autopilot';
 import { deriveAthleteCycle, computeTrainingDemand, recoveryNutritionAdvice, enduranceMode, diagnoseProgress, simulateAdjustments, buildMoment, deriveSportProfile, type RecoveryCategory } from '@/lib/edn/nutrition-intelligence';
+import { decideNutrition } from '@/lib/edn/nutrition-decision-engine';
+import { normalizeGoal } from '@/lib/edn/nutrition-goal-map';
+import { computeNutritionConfidence, dv } from '@/lib/edn/nutrition-confidence-system';
+import { buildNutritionState } from '@/lib/athlete-os/nutrition-state';
 import { computeCardioPrescription } from '@/lib/edn/cardio-autopilot';
 import { computeRecoveryState } from '@/lib/edn/recovery-engine';
 
@@ -203,6 +207,33 @@ export async function GET(_req: NextRequest) {
     loggedDays, periodDays: 14,
   }) : null;
 
+  // ── §1/§2/§15: diagnóstico ÚNICO + confiança + estado canônico ───────────
+  const loggingAdherence = Math.min(1, loggedDays / 14);
+  const canonicalGoal = normalizeGoal((profile as any)?.main_goal ?? (profile as any)?.goal ?? null);
+  const recScore = recovery?.score ?? (recovery?.category === 'low' || recovery?.category === 'critical' ? 35 : recovery?.category === 'moderate' ? 55 : 72);
+  const nutritionConfidence = computeNutritionConfidence({ fields: {
+    weight: bio?.weight_kg != null ? dv(bio.weight_kg, 'bioimpedance') : profile?.weight_kg != null ? dv(profile.weight_kg, 'profile') : null,
+    height: profile?.height_cm != null ? dv(profile.height_cm, 'profile') : dv(175, 'estimated'),
+    age: profile?.age != null ? dv(profile.age, 'profile') : dv(30, 'estimated'),
+    bodyFat: bio?.body_fat_pct != null ? dv(bio.body_fat_pct, 'bioimpedance') : null,
+    tmb: bio?.basal_metabolic_rate_kcal != null ? dv(bio.basal_metabolic_rate_kcal, 'bioimpedance') : null,
+    activity: (sessions7?.length ?? 0) > 0 ? dv(sessions7!.length, 'measured') : dv(3, 'estimated'),
+  }});
+  const decision = nutrition ? decideNutrition({
+    goal: canonicalGoal, periodDays: 30,
+    weightTrendKg, bodyFatTrendPct: bfTrendPct, leanMassTrendKg: null,
+    strengthTrendPct, volumeTrendPct: null,
+    cardioLoad: cardioKmWeek ?? null,
+    recoveryScore: recScore, hrvTrend: 'unknown', sleepTrend: 'unknown',
+    loggingAdherence, targetAdherence: null,
+    dataConfidence: nutritionConfidence.score / 100,
+  }) : null;
+  const nutritionState = nutrition ? buildNutritionState({
+    phase: nutrition.phase, calorieTarget: nutrition.targetKcal, tdee: nutrition.tdeeKcal,
+    proteinAdherence: null, carbVsDemand: 'unknown', hydrationStatus: 'unknown',
+    loggingAdherence, targetAdherence: null, metabolicConfidence: null, decision,
+  }) : null;
+
   // ── V7.2: Nutrition Intelligence (decisão esportiva) ─────────────────────
   const raceDate = (profile as any)?.target_race_date ? new Date((profile as any).target_race_date) : null;
   const upcomingRaceWeeks = raceDate && raceDate.getTime() >= Date.now() - 86400000
@@ -250,6 +281,9 @@ export async function GET(_req: NextRequest) {
     nutritionScore,
     intelligence,
     nutritionTrends: { weightTrendKg, bfTrendPct, strengthTrendPct },
+    decision,
+    nutritionConfidence,
+    nutritionState,
     cardio,
     recovery,
     persisted,

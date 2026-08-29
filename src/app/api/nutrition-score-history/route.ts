@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { nutritionErrorPayload } from '@/lib/edn/nutrition-error-handler';
 import { computeNutritionScore, type NutritionPhase } from '@/lib/edn/nutrition-autopilot';
 
 export const runtime = 'nodejs';
@@ -21,7 +22,7 @@ function derivePhase(rawGoal: string | null): NutritionPhase {
  * Série semanal do Nutrition Score (últimas ~9 semanas) + janelas 14/30/60d.
  * Tudo determinístico (computeNutritionScore) — sem IA.
  */
-export async function GET(_req: NextRequest) {
+export async function GET(_req: NextRequest) { try {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -86,4 +87,7 @@ export async function GET(_req: NextRequest) {
       d60: scoreForWindow(now, 60),
     },
   });
+  } catch (err) {
+    return Response.json(nutritionErrorPayload('NUTRITION_CONTEXT_UNAVAILABLE', err instanceof Error ? err.message : 'Erro interno', null), { status: 200 });
+  }
 }
