@@ -179,12 +179,20 @@ export async function GET(_req: NextRequest) {
     }) : null;
 
     // ── Before/After (últimos ~45d vs anteriores) ──
-    const mid = Math.floor(unified.length / 2);
-    const avg = (arr: (number | null)[]) => { const v = arr.filter((x): x is number => x != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null; };
-    const beforeAfter = unified.length >= 2 ? compareBeforeAfter(Math.round(spanDays / 2), [
-      { label: 'Peso', unit: 'kg', before: avg(unified.slice(0, mid).map((u) => u.weightKg)), after: avg(unified.slice(mid).map((u) => u.weightKg)), higherIsBetter: false },
-      { label: 'Gordura', unit: '%', before: avg(unified.slice(0, mid).map((u) => u.bodyFatPct)), after: avg(unified.slice(mid).map((u) => u.bodyFatPct)), higherIsBetter: false },
-      { label: 'Massa magra', unit: 'kg', before: avg(unified.slice(0, mid).map((u) => u.leanKg)), after: avg(unified.slice(mid).map((u) => u.leanKg)), higherIsBetter: true },
+    // "Antes vs Depois": PRIMEIRO valor real do período vs ÚLTIMO (mais recente).
+    // O "Depois" é o valor atual — coerente com o peso/BF exibidos nas demais abas
+    // (antes usávamos média das metades, o que fazia "Depois" divergir do atual).
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+    const firstLast = (metric: 'weightKg' | 'bodyFatPct' | 'leanKg'): { before: number | null; after: number | null } => {
+      const vals = seriesOf(unified, metric).map((pt) => pt.value).filter((v): v is number => v != null);
+      if (vals.length === 0) return { before: null, after: null };
+      return { before: round1(vals[0]), after: round1(vals[vals.length - 1]) };
+    };
+    const wBA = firstLast('weightKg'); const bfBA = firstLast('bodyFatPct'); const lnBA = firstLast('leanKg');
+    const beforeAfter = unified.length >= 2 ? compareBeforeAfter(Math.round(spanDays), [
+      { label: 'Peso', unit: 'kg', before: wBA.before, after: wBA.after, higherIsBetter: false },
+      { label: 'Gordura', unit: '%', before: bfBA.before, after: bfBA.after, higherIsBetter: false },
+      { label: 'Massa magra', unit: 'kg', before: lnBA.before, after: lnBA.after, higherIsBetter: true },
     ]) : null;
 
     // ── Decisões → resultados (mapeia outcome textual em verdict) ──
