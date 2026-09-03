@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AvatarUploader } from '@/components/edn/avatar-uploader';
 import { createClient } from '@/lib/supabase/client';
+import { emitWeightUpdated } from '@/lib/athlete-data';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { xpProgress } from '@/lib/edn/progression';
@@ -197,6 +198,14 @@ export default function PerfilPage() {
         setBioSummary(parts.join(' · '));
       }
       if (exList) setExercises(exList as ExerciseLite[]);
+
+      // Peso canônico (fonte única): o campo editável reflete o MESMO valor que
+      // Dashboard/Evolução exibem, evitando divergência entre abas.
+      try {
+        const bs = await fetch('/api/body-state').then((r) => r.json()).catch(() => null);
+        const canonical = bs?.bodyState?.currentWeightKg?.value;
+        if (canonical != null) setForm((f) => ({ ...f, weight_kg: String(canonical) }));
+      } catch { /* best-effort */ }
     }
     load();
   }, []);
@@ -270,6 +279,20 @@ export default function PerfilPage() {
     });
 
     if (error) { toast.error('Erro ao salvar perfil'); setSaving(false); return; }
+
+    // Propaga o peso editado como medição (fonte única) para que Dashboard,
+    // Evolução, Nutrição e Coach vejam imediatamente o mesmo valor.
+    if (form.weight_kg) {
+      const w = parseFloat(form.weight_kg);
+      if (Number.isFinite(w)) {
+        const today = new Date().toISOString().slice(0, 10);
+        await supabase.from('body_weight_logs').upsert(
+          { user_id: user.id, weight_kg: w, log_date: today },
+          { onConflict: 'user_id,log_date' },
+        );
+        emitWeightUpdated('self', 'profile');
+      }
+    }
 
     // Bloco 11 — Avaliação automática EDN
     const { data: evalData, error: evalErr } = await supabase.rpc('evaluate_athlete', { p_user_id: user.id });

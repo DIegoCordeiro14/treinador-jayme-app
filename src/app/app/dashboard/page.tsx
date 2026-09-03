@@ -110,19 +110,19 @@ export default async function DashboardPage() {
     checkDate = subDays(checkDate, 1);
   }
 
-  const [{ data: latestBioWeight }, { data: latestMeasurement }] = await Promise.all([
-    supabase.from("bioimpedance_data").select("weight_kg, measured_at").eq("user_id", user.id).order("measured_at", { ascending: false }).limit(1).single(),
-    supabase.from("body_measurements").select("weight_kg, date").eq("user_id", user.id).order("date", { ascending: false }).limit(1).single(),
+  const [{ data: latestBioWeight }, { data: latestMeasurement }, { data: latestWeightLog }] = await Promise.all([
+    supabase.from("bioimpedance_data").select("weight_kg, measured_at").eq("user_id", user.id).order("measured_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("body_measurements").select("weight_kg, date").eq("user_id", user.id).order("date", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("body_weight_logs").select("weight_kg, log_date").eq("user_id", user.id).order("log_date", { ascending: false }).limit(1).maybeSingle(),
   ]);
+  // Peso atual = medição mais RECENTE entre as três fontes (fonte única).
   const latestWeightKg = (() => {
-    const bioW = latestBioWeight?.weight_kg ?? null;
-    const measW = latestMeasurement?.weight_kg ?? null;
-    if (bioW && measW) {
-      const bioDate = new Date(latestBioWeight!.measured_at);
-      const measDate = new Date(latestMeasurement!.date);
-      return bioDate >= measDate ? bioW : measW;
-    }
-    return bioW ?? measW;
+    const cands: { w: number; t: number }[] = [];
+    if (latestBioWeight?.weight_kg != null) cands.push({ w: latestBioWeight.weight_kg, t: new Date(latestBioWeight.measured_at).getTime() });
+    if (latestMeasurement?.weight_kg != null) cands.push({ w: latestMeasurement.weight_kg, t: new Date(latestMeasurement.date).getTime() });
+    if (latestWeightLog?.weight_kg != null) cands.push({ w: latestWeightLog.weight_kg, t: new Date(latestWeightLog.log_date).getTime() });
+    if (cands.length === 0) return null;
+    return cands.sort((a, b) => b.t - a.t)[0].w;
   })();
 
   const todayDayOfWeek = today.getDay();

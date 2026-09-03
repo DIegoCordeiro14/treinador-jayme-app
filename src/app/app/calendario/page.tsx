@@ -144,15 +144,15 @@ export default function CalendarioPage() {
     const [{ data: sessions }, { data: plan }, { data: prof }, { data: cardioSessions }] = await Promise.all([
       supabase.from('workout_sessions').select('started_at, finished_at, total_volume_kg')
         .eq('user_id', user.id)
-        .gte('started_at', format(calStart, 'yyyy-MM-dd'))
-        .lte('started_at', format(calEnd, 'yyyy-MM-dd') + 'T23:59:59'),
+        .gte('started_at', format(addDays(calStart, -1), 'yyyy-MM-dd'))
+        .lte('started_at', format(addDays(calEnd, 1), 'yyyy-MM-dd') + 'T23:59:59'),
       supabase.from('workout_plans').select('id, name, days_per_week, goal, schedule_config')
         .eq('user_id', user.id).eq('is_active', true).maybeSingle(),
       supabase.from('profiles').select('train_weekends').eq('id', user.id).maybeSingle(),
       supabase.from('cardio_sessions').select('performed_at')
         .eq('user_id', user.id).is('deleted_at', null)
-        .gte('performed_at', format(calStart, 'yyyy-MM-dd'))
-        .lte('performed_at', format(calEnd, 'yyyy-MM-dd') + 'T23:59:59'),
+        .gte('performed_at', format(addDays(calStart, -1), 'yyyy-MM-dd'))
+        .lte('performed_at', format(addDays(calEnd, 1), 'yyyy-MM-dd') + 'T23:59:59'),
     ]);
 
     const map = new Map<string, SessionDay>();
@@ -204,15 +204,18 @@ export default function CalendarioPage() {
     setSelectedDay(date);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const dateStr = format(date, 'yyyy-MM-dd');
+    // Limites do DIA LOCAL convertidos para UTC — evita off-by-one por fuso
+    // (um treino às 22h de Brasília fica no dia seguinte em UTC).
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0).toISOString();
+    const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999).toISOString();
     const { data } = await supabase.from('workout_sessions').select('*, workout_day:workout_days(name)')
-      .eq('user_id', user.id).gte('started_at', dateStr).lte('started_at', dateStr + 'T23:59:59');
+      .eq('user_id', user.id).gte('started_at', dayStart).lte('started_at', dayEnd);
     setSelectedSessions(data ?? []);
     // Cardios realizados no dia (para exibir km + kcal abaixo dos treinos)
     const { data: cardio } = await supabase.from('cardio_sessions')
       .select('id, type, distance_km, calories_burned, performed_at')
       .eq('user_id', user.id).is('deleted_at', null)
-      .gte('performed_at', dateStr).lte('performed_at', dateStr + 'T23:59:59')
+      .gte('performed_at', dayStart).lte('performed_at', dayEnd)
       .order('performed_at', { ascending: true });
     setSelectedCardio(cardio ?? []);
   }
