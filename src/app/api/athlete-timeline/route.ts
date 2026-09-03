@@ -33,7 +33,15 @@ export async function GET(req: NextRequest) {
     q(() => supabase.from('workout_discomfort_logs').select('created_at, region').eq('user_id', uid).gte('created_at', sinceISO)),
   ]);
 
-  const dOf = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : '');
+  // Data no fuso do atleta (app é focado no Brasil) — evita off-by-one em
+  // relação ao calendário, que agrupa por dia local.
+  const dOf = (v: string | null | undefined) => {
+    if (!v) return '';
+    const t = new Date(v);
+    if (Number.isNaN(t.getTime())) return String(v).slice(0, 10);
+    try { return t.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); }
+    catch { return String(v).slice(0, 10); }
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const inputs: TimelineInputs = {
     workouts: (sessions as any[]).map((w) => ({ date: dOf(w.started_at), label: w.name ?? 'Treino', heavy: (w.total_volume_kg ?? 0) > 8000 })),
