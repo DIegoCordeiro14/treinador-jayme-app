@@ -114,7 +114,7 @@ async function computeAthlete360(persist: boolean) {
   // ── Estado consolidado do atleta (motor central) ─────────────────────────
   const sessions7 = sess14.filter((w: any) => new Date(w.started_at).getTime() >= now - 7 * 86400000).length;
   const athleteState: AthleteState = {
-    profile: { sex: profile?.gender ?? null, age: profile?.age ?? null, heightCm: profile?.height_cm ?? null, experience: null, mainGoal: profile?.main_goal ?? null, aestheticGoal: null, sport: null },
+    profile: { sex: profile?.gender ?? null, age: profile?.age ?? null, heightCm: profile?.height_cm ?? null, experience: (profile as any)?.experience_level ?? null, mainGoal: profile?.main_goal ?? null, aestheticGoal: (profile as any)?.aesthetic_goal ?? null, sport: (profile as any)?.athlete_sport ?? null },
     bodyComposition: { weightKg: bio?.weight_kg ?? profile?.weight_kg ?? null, bodyFatPct: bio?.body_fat_pct ?? null, leanMassKg: bio?.lean_mass_kg ?? null, tmbKcal: targets?.tmbKcal ?? null },
     trainingState: { score: Math.round((s.consistency + s.progression) / 2), sessionsLast7: sessions7, weeklyVolumeKg: Math.round(sess14.reduce((a: number, w: any) => a + (w.total_volume_kg ?? 0), 0) / 2), consistency: s.consistency, progression: s.progression },
     cardioState: { score: cardioScore, km7: Math.round(kmIn(7) * 10) / 10, km28: Math.round(kmIn(28) * 10) / 10, loadRisk: load.risk },
