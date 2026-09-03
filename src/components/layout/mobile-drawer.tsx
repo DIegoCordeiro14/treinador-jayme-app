@@ -28,6 +28,7 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Profile } from "@/types";
 import { GOAL_LABELS } from "@/types";
+import { goalLabel } from "@/lib/edn/goal";
 
 const NAV_GROUPS = [
   {
@@ -165,7 +166,7 @@ export function MobileDrawer({ profile, isOpen, onClose }: MobileDrawerProps) {
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-zinc-100 truncate">{profile?.name ?? "Usuario"}</p>
               <p className="text-[10px] text-zinc-500 capitalize">
-                {GOAL_LABELS[profile?.goal as keyof typeof GOAL_LABELS] ?? profile?.goal ?? ""}
+                {goalLabel((profile as any)?.main_goal ?? profile?.goal)}
               </p>
             </div>
             <button

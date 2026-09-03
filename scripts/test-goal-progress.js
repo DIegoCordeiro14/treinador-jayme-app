@@ -6,7 +6,7 @@ ok('emagrecimento => cutting', normalizeGoal('emagrecimento')==='cutting');
 ok('hipertrofia => hypertrophy', normalizeGoal('hipertrofia')==='hypertrophy');
 ok('recomp => recomposition', normalizeGoal('recomposicao')==='recomposition');
 ok('running => performance', normalizeGoal('running')==='performance');
-ok('default => hypertrophy', normalizeGoal(null)==='hypertrophy');
+ok('default => maintenance (neutro, nao hipertrofia)', normalizeGoal(null)==='maintenance');
 
 // cutting indo bem: BF -1.5, magra preservada, força +5, consistente, recovery ok
 const cut = computeGoalProgress({ goal:'cutting', weightDeltaKg:-2, bodyFatDeltaPct:-1.5, leanDeltaKg:-0.1,

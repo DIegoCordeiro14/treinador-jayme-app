@@ -22,7 +22,7 @@ export function normalizeGoal(raw: string | null | undefined): Goal {
   if (/perf|running|corrida|endurance|cardio/.test(g)) return 'performance';
   if (/manut|maint|health|saude/.test(g)) return 'maintenance';
   if (/hyper|hipert|massa|bulk|ganho/.test(g)) return 'hypertrophy';
-  return 'hypertrophy';
+  return 'maintenance'; // default NEUTRO (não presumir hipertrofia p/ objetivo vazio)
 }
 
 export interface GoalProgressInput {

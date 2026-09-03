@@ -13,8 +13,8 @@ const cases = {
 };
 for (const [raw, exp] of Object.entries(cases)) ok(`normalizeGoal(${raw})=${exp}`, normalizeGoal(raw)===exp);
 ok('maiúsculas/espaços', normalizeGoal('  Fat_Loss ')==='weight_loss');
-ok('null => hypertrophy (default)', normalizeGoal(null)==='hypertrophy');
-ok('desconhecido => hypertrophy', normalizeGoal('xyz')==='hypertrophy');
+ok('null => maintenance (default neutro, nao hipertrofia)', normalizeGoal(null)==='maintenance');
+ok('desconhecido => maintenance (neutro)', normalizeGoal('xyz')==='maintenance');
 ok('substring fallback', normalizeGoal('weight_loss_fast')==='weight_loss');
 
 // deriveGoalPhase — fase PT-BR

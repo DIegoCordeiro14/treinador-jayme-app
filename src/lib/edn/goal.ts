@@ -13,7 +13,10 @@ export function canonicalGoal(raw: string | null | undefined): CanonicalGoal {
   if (g === 'mass_gain' || g === 'bulk' || g === 'lean_bulk' || g === 'ganho_massa') return 'mass_gain';
   if (g === 'performance' || g === 'endurance') return 'performance';
   if (g === 'maintenance' || g === 'manutencao') return 'maintenance';
-  return 'hypertrophy';
+  if (g === 'hypertrophy' || g === 'hipertrofia' || g === 'muscle_gain') return 'hypertrophy';
+  // Objetivo ausente/desconhecido NÃO deve virar "Hipertrofia" (default perigoso
+  // que fazia um perfil de emagrecimento aparecer como hipertrofia). Neutro.
+  return 'maintenance';
 }
 
 export const GOAL_LABEL_PT: Record<CanonicalGoal, string> = {

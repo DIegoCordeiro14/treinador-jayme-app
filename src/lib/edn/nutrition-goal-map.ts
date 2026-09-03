@@ -57,7 +57,7 @@ export function normalizeGoal(raw: string | null | undefined): CanonicalGoal {
   for (const [alias, canon] of Object.entries(GOAL_ALIASES)) {
     if (g && g.includes(alias)) return canon;
   }
-  return 'hypertrophy'; // default explícito
+  return 'maintenance'; // default NEUTRO (objetivo ausente não vira hipertrofia)
 }
 
 export function deriveGoalPhase(raw: string | null | undefined): NutritionPhase {
