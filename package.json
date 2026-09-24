@@ -102,7 +102,8 @@
     "test:datahealth": "tsc src/lib/edn/data-health-engine.ts --outDir scripts/.tmp/dh --module commonjs --target es2019 --skipLibCheck && node scripts/test-data-health.js",
     "test:athlete-data": "tsc scripts/test-athlete-data.ts src/lib/athlete-data/*.ts src/lib/edn/canonical-body-state.ts src/lib/edn/data-health-engine.ts src/lib/edn/body-metrics-unifier.ts --outDir scripts/.tmp/adh --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/adh/scripts/test-athlete-data.js",
     "test:athlete-timeline": "tsc scripts/test-athlete-timeline.ts src/lib/athlete-data/athlete-timeline.ts --outDir scripts/.tmp/tl --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/tl/scripts/test-athlete-timeline.js",
-    "test:metric-catalog": "tsc scripts/test-metric-catalog.ts src/lib/athlete-data/metric-catalog.ts src/lib/athlete-data/types.ts --outDir scripts/.tmp/mc --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/mc/scripts/test-metric-catalog.js"
+    "test:metric-catalog": "tsc scripts/test-metric-catalog.ts src/lib/athlete-data/metric-catalog.ts src/lib/athlete-data/types.ts --outDir scripts/.tmp/mc --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/mc/scripts/test-metric-catalog.js",
+    "test:data-resolution": "tsc scripts/test-data-resolution.ts src/lib/athlete-data/data-resolution-engine.ts src/lib/athlete-data/metric-catalog.ts src/lib/athlete-data/types.ts --outDir scripts/.tmp/dr --module commonjs --target es2019 --skipLibCheck --esModuleInterop && node scripts/.tmp/dr/scripts/test-data-resolution.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
