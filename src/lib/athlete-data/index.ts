@@ -16,3 +16,4 @@ export * from './metric-catalog';
 export * from './data-resolution-engine';
 export { collectAllMetrics, wearableToMetrics, cardioToMetrics, nutritionToMetrics } from './athlete-metrics-collector';
 export * from './current-athlete-snapshot';
+export * from './data-quality-engine';
