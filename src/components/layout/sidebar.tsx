@@ -20,6 +20,7 @@ import {
   Utensils,
   Rss,
   RefreshCw,
+  Database,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,6 +40,7 @@ const NAV_GROUPS = [
       { href: "/app/exercicios", label: "Exercícios", icon: BookOpen },
       { href: "/app/calendario", label: "Calendário", icon: Calendar },
       { href: "/app/evolucao", label: "Evolução", icon: TrendingUp },
+      { href: "/app/dados", label: "Central de Dados", icon: Database },
       { href: "/app/cardio", label: "Cárdio", icon: Flame },
       { href: "/app/nutricao", label: "Nutrição", icon: Utensils },
     ],

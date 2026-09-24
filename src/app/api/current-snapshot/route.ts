@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { collectAllMetrics } from '@/lib/athlete-data/athlete-metrics-collector';
 import { resolveMetrics } from '@/lib/athlete-data/data-resolution-engine';
 import { buildCurrentAthleteSnapshot } from '@/lib/athlete-data/current-athlete-snapshot';
+import { computeDataQuality } from '@/lib/athlete-data/data-quality-engine';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +34,8 @@ export async function GET(_req: NextRequest) {
       goalKey: p.main_goal ?? p.goal ?? null,
       nowISO,
     });
-    return Response.json({ snapshot });
+    const quality = computeDataQuality(metrics);
+    return Response.json({ snapshot, quality });
   } catch (err) {
     return Response.json({ snapshot: null, error: err instanceof Error ? err.message : 'erro' }, { status: 200 });
   }

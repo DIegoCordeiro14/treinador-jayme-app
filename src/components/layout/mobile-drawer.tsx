@@ -21,6 +21,7 @@ import {
   X,
   Rss,
   RefreshCw,
+  Database,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,7 @@ const NAV_GROUPS = [
     label: "Progresso",
     items: [
       { href: "/app/evolucao", label: "Evolucao", icon: TrendingUp },
+      { href: "/app/dados", label: "Central de Dados", icon: Database },
       { href: "/app/cardio", label: "Cardio", icon: Flame },
       { href: "/app/nutricao", label: "Nutricao", icon: Utensils },
       { href: "/app/conquistas", label: "Conquistas", icon: Trophy },
