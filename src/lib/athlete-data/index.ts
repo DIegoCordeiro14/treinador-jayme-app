@@ -12,3 +12,4 @@ export { computeDataHealth, type DataHealthResult, type DataHealthInput } from '
 export * from './athlete-timeline';
 export { collectBodyMeasurements, writeMeasurement, type WriteMeasurementInput } from './athlete-measurements-repo';
 export * from './realtime-sync';
+export * from './metric-catalog';
