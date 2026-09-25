@@ -19,6 +19,10 @@ import { computeDataHealth } from '@/lib/edn/data-health-engine';
 import { computeNextBestAction } from '@/lib/edn/next-best-action-engine';
 import { resolveMeasurement } from '@/lib/athlete-data';
 import { collectBodyMeasurements } from '@/lib/athlete-data/athlete-measurements-repo';
+import { collectAllMetrics } from '@/lib/athlete-data/athlete-metrics-collector';
+import { resolveMetrics } from '@/lib/athlete-data/data-resolution-engine';
+import { buildCurrentAthleteSnapshot } from '@/lib/athlete-data/current-athlete-snapshot';
+import { computeDataQuality } from '@/lib/athlete-data/data-quality-engine';
 import { detectMesocyclePhase } from '@/lib/edn/training-periodization-engine';
 import { canonicalGoal } from '@/lib/edn/goal';
 
@@ -63,6 +67,21 @@ async function computeAthlete360(persist: boolean) {
   // ── Peso canônico (Athlete Data Hub, §11/§30) ─────────────────────────────
   // Coleta unificada: tabelas legadas + athlete_measurements → resolver.
   const bodyMeas = await collectBodyMeasurements(supabase, user.id);
+  // CurrentAthleteSnapshot (Fase 4) — contrato canônico consumido também aqui.
+  let currentSnapshot: ReturnType<typeof buildCurrentAthleteSnapshot> | null = null;
+  let dataQuality: ReturnType<typeof computeDataQuality> | null = null;
+  try {
+    const allMetrics = await collectAllMetrics(supabase, user.id, new Date(now).toISOString());
+    if (profile?.weight_kg != null) allMetrics.push({ metric: 'weight', value: profile.weight_kg, source: 'profile', measuredAt: null });
+    const resolved = resolveMetrics(allMetrics, now);
+    currentSnapshot = buildCurrentAthleteSnapshot({
+      metrics: resolved,
+      identity: { name: profile?.name ?? null, sex: profile?.gender ?? null, age: profile?.age ?? null, experience: (profile as any)?.experience_level ?? null },
+      goalKey: profile?.main_goal ?? (profile as any)?.goal ?? null,
+      nowISO: new Date(now).toISOString(),
+    });
+    dataQuality = computeDataQuality(resolved);
+  } catch { /* aditivo/best-effort */ }
   if (profile?.weight_kg != null) bodyMeas.push({ metric: 'weight', value: profile.weight_kg, source: 'profile', measuredAt: null });
   const canonicalWeight = resolveMeasurement('weight', bodyMeas, now);
   const rBodyFat = resolveMeasurement('bodyFat', bodyMeas, now);
@@ -337,7 +356,7 @@ async function computeAthlete360(persist: boolean) {
   // athleteState e state permanecem apenas como variáveis internas (alimentam
   // edn360 e a composição do stateV2); não são mais expostos para evitar três
   // contratos concorrentes no cliente.
-  return Response.json({ edn360, weakPoint, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false, aosFactsReal: realFacts, dataHealth, nextBestAction });
+  return Response.json({ edn360, weakPoint, stateV2, alertsUnified, alerts, aos, notifications, session, league: s.league, usedWearable: recovery?.usedWearable ?? false, aosFactsReal: realFacts, dataHealth, nextBestAction, currentSnapshot, dataQuality });
 }
 
 // GET é somente leitura — NUNCA persiste snapshot como efeito colateral (§22).

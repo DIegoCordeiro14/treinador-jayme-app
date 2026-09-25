@@ -26,6 +26,16 @@ export default function DadosPage() {
   const [quality, setQuality] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [busy, setBusy] = useState<string | null>(null);
+  const confirmValue = async (metric: string, value: number, source: string, unit: string) => {
+    setBusy(metric);
+    try {
+      const res = await fetch('/api/measurements/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metric, value, source }) });
+      if (res.ok) {
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('athlete-event', { detail: { eventType: 'BODY_MEASUREMENT_UPDATED', metric } }));
+      }
+    } catch { /* */ } finally { setBusy(null); }
+  };
   const load = () => fetch('/api/current-snapshot').then((r) => r.json()).then((d) => { setSnap(d.snapshot ?? null); setQuality(d.quality ?? null); }).catch(() => {}).finally(() => setLoading(false));
   useEffect(() => {
     load();
@@ -65,11 +75,31 @@ export default function DadosPage() {
         </div>
       </div>
 
-      {/* Conflitos / avisos */}
-      {quality?.issues?.filter((i: { kind: string }) => i.kind === 'conflict' || i.kind === 'implausible' || i.kind === 'abrupt_change').length > 0 && (
+      {/* Conflitos acionáveis: usuário escolhe qual valor é o correto */}
+      {snap.conflicts?.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[13px] font-bold text-zinc-100 flex items-center gap-1.5"><TriangleAlert className="h-4 w-4 text-[#C97B7B]" /> Requer atenção</p>
-          {quality.issues.filter((i: { kind: string }) => i.kind === 'conflict' || i.kind === 'implausible' || i.kind === 'abrupt_change').map((i: { label: string; detail: string; severity: string }, idx: number) => (
+          <p className="text-[13px] font-bold text-zinc-100 flex items-center gap-1.5"><TriangleAlert className="h-4 w-4 text-[#C97B7B]" /> Divergências — qual está correto?</p>
+          {snap.conflicts.map((c: any, idx: number) => (
+            <div key={idx} className="rounded-xl border border-[#8B5A5A]/40 bg-[#8B5A5A]/10 px-3 py-2.5 space-y-2">
+              <p className="text-[12px] text-zinc-300">Duas fontes divergem em <b>{c.metric}</b> (Δ {c.diffAbs}).</p>
+              <div className="flex gap-2">
+                {[c.a, c.b].map((opt: any, j: number) => (
+                  <button key={j} disabled={busy === c.metric}
+                    onClick={() => confirmValue(c.metric, opt.value, opt.source, '')}
+                    className="flex-1 rounded-lg border border-zinc-700 bg-black/30 px-2 py-1.5 text-[12px] text-zinc-200 hover:border-[#D4853A] disabled:opacity-50 transition-colors">
+                    Usar <b>{opt.value}</b><br /><span className="text-[10px] text-zinc-500">{opt.source}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Outros avisos (implausível / mudança abrupta) — informativos */}
+      {quality?.issues?.filter((i: { kind: string }) => i.kind === 'implausible' || i.kind === 'abrupt_change').length > 0 && (
+        <div className="space-y-2">
+          {quality.issues.filter((i: { kind: string }) => i.kind === 'implausible' || i.kind === 'abrupt_change').map((i: { label: string; detail: string; severity: string }, idx: number) => (
             <div key={idx} className={`rounded-xl border px-3 py-2 text-[12px] ${SEV_CLR[i.severity] ?? SEV_CLR.info}`}>
               <b>{i.label}:</b> {i.detail}
             </div>

@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Measurement, BodyMetric, DataSource, DataConfidence } from './types';
+import type { MetricKey } from './metric-catalog';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DB = any;
@@ -62,7 +63,7 @@ export async function collectBodyMeasurements(supabase: DB, userId: string): Pro
 }
 
 export interface WriteMeasurementInput {
-  metric: BodyMetric;
+  metric: BodyMetric | MetricKey;
   value: number;
   unit?: string;
   source?: DataSource;
