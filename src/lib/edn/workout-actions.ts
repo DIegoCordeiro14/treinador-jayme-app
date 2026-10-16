@@ -17,6 +17,7 @@ import { logTimeline } from '@/lib/athlete-os/timeline';
 import { logDecision } from '@/lib/edn/decision-log';
 import { computeExerciseDeload, deloadSignal, type DeloadSetRecord } from '@/lib/edn/deload-engine';
 import { computeFingerprint } from '@/lib/cardio/activity-fingerprint';
+import { computeCardioRecommendationPatch } from '@/lib/edn/cardio-recommendation';
 
 export type WorkoutActionType =
   | 'substitute_exercise'
@@ -34,6 +35,8 @@ export type WorkoutActionType =
   | 'upgrade_training_level'
   | 'create_race_preparation'
   | 'adjust_running_goal'
+  | 'set_cardio_recommendation'
+  | 'remove_cardio_recommendation'
   | 'soft_delete_cardio_session'
   | 'restore_cardio_session'
   | 'permanently_delete_cardio_session'
@@ -91,6 +94,14 @@ export interface WorkoutAction {
   restrictedMovements?: string[];
   allowedMovements?: string[];
   conditionTitle?: string;
+  /** recomendação de cardio visível no calendário (schedule_config.cardio) */
+  cardioType?: string;              // ex.: "Z2 LISS", "HIIT", "nenhum"
+  cardioDurationMin?: number;
+  cardioIntensity?: string;         // ex.: "leve", "moderada"
+  cardioRestType?: string;
+  cardioRestDurationMin?: number;
+  cardioRestIntensity?: string;
+  removeCardio?: boolean;           // true = remove toda recomendação de cardio
 }
 
 export interface WorkoutActionResult {
@@ -530,6 +541,32 @@ async function applyOne(supabase: any, userId: string, a: WorkoutAction): Promis
     }
 
     // ── Exclusão de corrida (soft delete) pelo Coach ──────────────────────────
+    // ── Alterar/remover a recomendação de cardio visível no CALENDÁRIO ────────
+    case 'set_cardio_recommendation':
+    case 'remove_cardio_recommendation': {
+      const { data: active } = await supabase
+        .from('workout_plans').select('id, schedule_config').eq('user_id', userId).eq('is_active', true).maybeSingle();
+      if (!active) return { ok: false, message: 'Cardio: nenhum plano ativo encontrado.' };
+      const planId = (active as any).id as string;
+      const cfg = (((active as any).schedule_config as Record<string, unknown>) ?? {}) as any;
+      const remove = a.type === 'remove_cardio_recommendation' || a.removeCardio === true;
+      const nextCardio = computeCardioRecommendationPatch(cfg.cardio, {
+        remove,
+        trainingType: a.cardioType, trainingDurationMin: a.cardioDurationMin, trainingIntensity: a.cardioIntensity,
+        restType: a.cardioRestType, restDurationMin: a.cardioRestDurationMin, restIntensity: a.cardioRestIntensity,
+      });
+      const next = { ...cfg, cardio: nextCardio };
+      const { error } = await supabase.from('workout_plans').update({ schedule_config: next }).eq('id', planId);
+      if (error) return { ok: false, message: `Cardio: falha ao atualizar — ${error.message}` };
+      if (remove) {
+        await logCoachDecision(supabase, userId, 'cardio', 'Recomendação de cardio removida do calendário (apenas força/Z2 conforme definido)', a.reason);
+        return { ok: true, message: 'Pronto — removi a recomendação de cardio do calendário.' };
+      }
+      const td = nextCardio!.training_days;
+      await logCoachDecision(supabase, userId, 'cardio', `Cardio do calendário atualizado: ${td.type} ${td.duration_min}min (${td.intensity})`, a.reason);
+      return { ok: true, message: `Pronto — cardio do calendário agora é ${td.type} ${td.duration_min}min (${td.intensity}).` };
+    }
+
     case 'soft_delete_cardio_session': {
       if (!a.sessionId) return { ok: false, message: 'Exclusão: falta sessionId.' };
       const { data: sess } = await supabase.from('cardio_sessions').select('*').eq('id', a.sessionId).eq('user_id', userId).is('deleted_at', null).maybeSingle();
