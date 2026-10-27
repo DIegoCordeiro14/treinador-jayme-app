@@ -142,6 +142,8 @@ export default function CardioPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importRuns, setImportRuns] = useState<WatchRun[]>([]);
   const [importingId, setImportingId] = useState<string | null>(null);
+  const [importDiag, setImportDiag] = useState<string | null>(null);
+  const [importedStamps, setImportedStamps] = useState<Set<string>>(new Set());
   const [showLog, setShowLog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
@@ -191,11 +193,27 @@ export default function CardioPage() {
   }, []);
 
   async function openImport() {
-    setShowImport(true); setImportLoading(true); setImportRuns([]);
+    setShowImport(true); setImportLoading(true); setImportRuns([]); setImportDiag(null);
+    // atividades já no app (p/ marcar como importadas no modal)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: ex } = await supabase.from('cardio_sessions').select('performed_at').eq('user_id', user.id).is('deleted_at', null).gte('performed_at', new Date(Date.now() - 95 * 86400000).toISOString());
+        setImportedStamps(new Set((ex ?? []).map((e: any) => String(e.performed_at))));
+      }
+    } catch { /* */ }
     const r = await fetchWatchRuns();
     setImportLoading(false);
     if (!r.ok) { toast.error(r.error ?? 'Não foi possível ler o relógio'); setShowImport(false); return; }
-    if (r.runs.length === 0) { toast('Nenhuma corrida com rota encontrada no relógio (últimos 21 dias).'); }
+    // diagnóstico: o que o relógio realmente retornou (ajuda a ver se o Health Connect sincronizou)
+    const parts: string[] = [];
+    if (typeof r.rawCount === 'number') parts.push(`${r.rawCount} atividade(s) lidas do Health Connect`);
+    if (r.skippedStrength) parts.push(`${r.skippedStrength} de musculação (vão p/ Treinos)`);
+    if (r.skippedNoSignal) parts.push(`${r.skippedNoSignal} sem dados`);
+    setImportDiag(parts.length ? parts.join(' · ') : null);
+    if (r.runs.length === 0) {
+      toast(r.rawCount ? 'O relógio retornou atividades, mas nenhuma de cardio para importar.' : 'Nenhuma atividade encontrada no Health Connect (últimos 90 dias).');
+    }
     setImportRuns(r.runs);
   }
 
@@ -953,11 +971,13 @@ export default function CardioPage() {
                 </div>
               ) : importRuns.length === 0 ? (
                 <div className="text-center py-8 text-zinc-500">
-                  <p className="text-sm">Nenhuma corrida com rota encontrada (últimos 21 dias).</p>
-                  <p className="text-xs mt-1">Confirme que o relógio sincronizou o treino — com a rota — no Health Connect.</p>
+                  <p className="text-sm">Nenhuma atividade de cardio encontrada (últimos 90 dias).</p>
+                  {importDiag && <p className="text-xs mt-2 text-zinc-400">{importDiag}</p>}
+                  <p className="text-xs mt-2">Se você treinou mas não aparece aqui: abra o <b>Health Connect</b> e confirme que o app do relógio (Zepp/Mi Fitness/Garmin) está sincronizando os treinos, e que o Coach EDN tem permissão de leitura de exercícios.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
+                  {importDiag && <p className="text-[11px] text-zinc-500 pb-1">{importDiag}</p>}
                   {importRuns.map(run => (
                     <div key={run.externalId} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -968,9 +988,13 @@ export default function CardioPage() {
                         <p className="text-xs text-zinc-500 mt-0.5">{format(parseISO(run.startedAt), "dd 'de' MMM · HH:mm", { locale: ptBR })}</p>
                         <p className="text-xs text-zinc-400 mt-0.5">{run.distanceKm > 0 ? `${run.distanceKm.toFixed(2)} km · ` : ''}{run.durationMin} min{run.avgHr ? ` · ${run.avgHr} bpm` : ''}</p>
                       </div>
-                      <Button size="sm" disabled={importingId === run.externalId} onClick={() => importRun(run)} className="shrink-0 bg-orange-500 hover:bg-orange-400 text-white border-0">
-                        {importingId === run.externalId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Importar'}
-                      </Button>
+                      {importedStamps.has(run.startedAt) ? (
+                        <span className="shrink-0 text-[11px] text-[#5A8A6A] font-semibold">já importada</span>
+                      ) : (
+                        <Button size="sm" disabled={importingId === run.externalId} onClick={() => importRun(run)} className="shrink-0 bg-orange-500 hover:bg-orange-400 text-white border-0">
+                          {importingId === run.externalId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Importar'}
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

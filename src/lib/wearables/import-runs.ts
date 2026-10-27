@@ -38,7 +38,9 @@ function extractRoute(wk: any): { lat: number; lng: number; t: string | null; al
   return out;
 }
 
-export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs: WatchRun[]; error?: string }> {
+export interface FetchWatchResult { ok: boolean; runs: WatchRun[]; error?: string; rawCount?: number; skippedStrength?: number; skippedNoSignal?: number; rangeStartISO?: string }
+
+export async function fetchWatchRuns(daysBack = 90): Promise<FetchWatchResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cap = (typeof window !== 'undefined' ? (window as any).Capacitor : null);
   if (!cap?.isNativePlatform?.()) return { ok: false, runs: [], error: 'Disponível apenas no app instalado.' };
@@ -68,6 +70,7 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = (r?.workouts ?? []) as any[];
     const runs: WatchRun[] = [];
+    let skippedStrength = 0; let skippedNoSignal = 0;
     for (const wk of raw) {
       const gpts = extractRoute(wk);
       const coords = gpts.map(p => ({ lat: p.lat, lng: p.lng }));
@@ -90,9 +93,9 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
       const sportLabel = SPORT_LABEL[sportType];
       // Multiesporte: mantém toda atividade com duração/distância/FC ou rota — não só corrida/caminhada.
       // Dedup vs força: musculação é registrada em workout_sessions, não como cardio.
-      if (sportType === 'musculacao') continue;
+      if (sportType === 'musculacao') { skippedStrength++; continue; }
       const hasSignal = coords.length >= 2 || distanceKm > 0 || (cal != null && cal > 0) || bpms.length > 0 || durationMin >= 1;
-      if (!hasSignal) continue;
+      if (!hasSignal) { skippedNoSignal++; continue; }
       runs.push({
         externalId: `${startISO ?? ''}|${sportType}|${distanceKm}`,
         type: sportLabel,
@@ -108,7 +111,7 @@ export async function fetchWatchRuns(daysBack = 21): Promise<{ ok: boolean; runs
       });
     }
     runs.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
-    return { ok: true, runs: runs.slice(0, 15) };
+    return { ok: true, runs: runs.slice(0, 80), rawCount: raw.length, skippedStrength, skippedNoSignal, rangeStartISO: startD.toISOString() };
   } catch (e) {
     return { ok: false, runs: [], error: e instanceof Error ? e.message : 'Erro ao ler o relógio' };
   }
