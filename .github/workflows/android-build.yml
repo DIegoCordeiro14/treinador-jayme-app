@@ -208,8 +208,11 @@ jobs:
           echo "MainActivity.java escrito:"; cat "$pkgdir/MainActivity.java"
 
       - name: Set version from run number (OTA)
+        id: ver
         run: |
-          sed -i "s/versionCode 1$/versionCode $((2000 + ${{ github.run_number }}))/" android/app/build.gradle
+          BUILD_NO=$((2000 + ${{ github.run_number }}))
+          echo "build_no=$BUILD_NO" >> "$GITHUB_OUTPUT"
+          sed -i "s/versionCode 1$/versionCode $BUILD_NO/" android/app/build.gradle
           sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
 
@@ -259,8 +262,8 @@ jobs:
       - name: Publish Release (canal OTA)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v${{ 2000 + github.run_number }}
-          name: Coach EDN APK v1.${{ github.run_number }} (build ${{ 2000 + github.run_number }})
+          tag_name: apk-v${{ steps.ver.outputs.build_no }}
+          name: Coach EDN APK v1.${{ github.run_number }} (build ${{ steps.ver.outputs.build_no }})
           body: "APK Android (debug) do Coach EDN com Health Connect (Capacitor 8). O app instalado detecta esta release e oferece a atualização automaticamente."
           files: coach-edn-v1.${{ github.run_number }}.apk
           make_latest: true
