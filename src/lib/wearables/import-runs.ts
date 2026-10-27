@@ -44,13 +44,16 @@ export async function fetchWatchRuns(daysBack = 90): Promise<FetchWatchResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cap = (typeof window !== 'undefined' ? (window as any).Capacitor : null);
   if (!cap?.isNativePlatform?.()) return { ok: false, runs: [], error: 'Disponível apenas no app instalado.' };
-  const hc = cap?.Plugins?.HealthPlugin;
+  // o nome do plugin nativo pode variar entre builds (capacitor-health = HealthPlugin;
+  // plugin próprio = CoachEdnHealth). Resolve qualquer um dos dois.
+  const hc = cap?.Plugins?.HealthPlugin ?? cap?.Plugins?.CoachEdnHealth ?? cap?.Plugins?.Health;
   if (!hc?.queryWorkouts) return { ok: false, runs: [], error: 'Integração de saúde indisponível neste app. Atualize o APK.' };
   try {
     // IMPORTANTE: inicializa o healthConnectClient (senão o queryWorkouts lança
     // "lateinit property healthConnectClient has not been initialized").
     try {
-      const avail = await hc.isHealthAvailable?.();
+      const availFn = hc.isHealthAvailable ?? hc.isAvailable;
+      const avail = await availFn?.call(hc);
       if (avail && avail.available === false) {
         return { ok: false, runs: [], error: 'Google Health Connect não está instalado/configurado neste aparelho.' };
       }
@@ -63,8 +66,11 @@ export async function fetchWatchRuns(daysBack = 90): Promise<FetchWatchResult> {
 
     const end = new Date();
     const startD = new Date(end.getTime() - daysBack * 86400000);
+    const startISO = startD.toISOString(); const endISO = end.toISOString();
     const r = await hc.queryWorkouts({
-      startDate: startD.toISOString(), endDate: end.toISOString(),
+      // compatível com os dois contratos de plugin (startDate/startTime)
+      startDate: startISO, endDate: endISO,
+      startTime: startISO, endTime: endISO,
       includeHeartRate: true, includeRoute: true, includeSteps: false,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,20 +80,20 @@ export async function fetchWatchRuns(daysBack = 90): Promise<FetchWatchResult> {
     for (const wk of raw) {
       const gpts = extractRoute(wk);
       const coords = gpts.map(p => ({ lat: p.lat, lng: p.lng }));
-      const distM = num(wk?.distance) ?? 0;
+      const distM = num(wk?.distance) ?? num(wk?.distanceMeters) ?? 0;
       const distanceKm = distM > 0 ? Math.round((distM / 1000) * 1000) / 1000 : 0;
-      const startISO: string | null = wk?.startDate ?? wk?.startTime ?? null;
-      const endISO: string | null = wk?.endDate ?? wk?.endTime ?? null;
-      const durationSec = num(wk?.duration) ?? (startISO && endISO ? (new Date(endISO).getTime() - new Date(startISO).getTime()) / 1000 : 0);
+      const startISO: string | null = wk?.startDate ?? wk?.startTime ?? wk?.startedAt ?? null;
+      const endISO: string | null = wk?.endDate ?? wk?.endTime ?? wk?.endedAt ?? null;
+      const durationSec = num(wk?.duration) ?? num(wk?.durationSeconds) ?? (startISO && endISO ? (new Date(endISO).getTime() - new Date(startISO).getTime()) / 1000 : 0);
       const durationMin = Math.max(1, Math.round((durationSec || 0) / 60));
-      const cal = num(wk?.calories) ?? num(wk?.totalCalories) ?? num(wk?.activeCalories);
+      const cal = num(wk?.calories) ?? num(wk?.totalCalories) ?? num(wk?.activeCalories) ?? num(wk?.caloriesActive) ?? num(wk?.caloriesTotal);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hrRaw = (wk?.heartRate ?? []) as any[];
       const hrSamples = hrRaw.map((h: any) => ({ t: h?.time ?? h?.timestamp ?? h?.recordedAt ?? null, bpm: num(h?.bpm) ?? num(h?.value) })).filter((x: any) => x.bpm != null) as { t: string | null; bpm: number }[];
       const bpms = hrSamples.map(h => h.bpm);
-      const avgHr = bpms.length ? Math.round(bpms.reduce((a, b) => a + b, 0) / bpms.length) : null;
-      const maxHr = bpms.length ? Math.max(...bpms) : null;
-      const wtypeRaw = String(wk?.workoutType ?? wk?.type ?? wk?.exerciseType ?? '');
+      const avgHr = bpms.length ? Math.round(bpms.reduce((a, b) => a + b, 0) / bpms.length) : (num(wk?.avgHeartRate) ?? num(wk?.avg_hr));
+      const maxHr = bpms.length ? Math.max(...bpms) : (num(wk?.maxHeartRate) ?? num(wk?.max_hr));
+      const wtypeRaw = String(wk?.workoutType ?? wk?.type ?? wk?.exerciseType ?? wk?.sportType ?? wk?.sourceSportType ?? '');
       const sportType = normalizeSportType(wtypeRaw);
       const usesGps = sportUsesGps(sportType);
       const sportLabel = SPORT_LABEL[sportType];
@@ -97,7 +103,7 @@ export async function fetchWatchRuns(daysBack = 90): Promise<FetchWatchResult> {
       const hasSignal = coords.length >= 2 || distanceKm > 0 || (cal != null && cal > 0) || bpms.length > 0 || durationMin >= 1;
       if (!hasSignal) { skippedNoSignal++; continue; }
       runs.push({
-        externalId: `${startISO ?? ''}|${sportType}|${distanceKm}`,
+        externalId: (wk?.externalId ?? wk?.id) ? String(wk.externalId ?? wk.id) : `${startISO ?? ''}|${sportType}|${distanceKm}`,
         type: sportLabel,
         sportType, sportLabel, usesGps,
         startedAt: startISO ?? new Date().toISOString(),

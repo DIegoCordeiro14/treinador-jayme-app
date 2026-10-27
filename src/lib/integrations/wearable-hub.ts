@@ -159,12 +159,12 @@ export async function syncFromHealthKit(): Promise<{ ok: boolean; error?: string
 export async function syncFromHealthConnect(): Promise<{ ok: boolean; error?: string }> {
   if (nativePlatform() !== 'android') return { ok: false, error: 'Health Connect disponível apenas no app Android' };
   const cap = getCapacitor();
-  const hc = cap?.Plugins?.HealthPlugin;
+  const hc = cap?.Plugins?.HealthPlugin ?? cap?.Plugins?.CoachEdnHealth ?? cap?.Plugins?.Health;
   if (!hc) return { ok: false, error: 'Plugin de saúde não instalado no shell' };
 
   try {
     try {
-      const avail = await hc.isHealthAvailable?.();
+      const avail = await (hc.isHealthAvailable ?? hc.isAvailable)?.call(hc);
       if (avail && avail.available === false) {
         return { ok: false, error: 'Google Health Connect não está instalado neste aparelho.' };
       }
@@ -196,12 +196,12 @@ export async function syncFromHealthConnect(): Promise<{ ok: boolean; error?: st
     let restingHr: number | undefined;
     let distanceKm: number | undefined;
     try {
-      const w = await hc.queryWorkouts({ startDate: startISO, endDate: endISO, includeHeartRate: true, includeRoute: false, includeSteps: false });
+      const w = await hc.queryWorkouts({ startDate: startISO, endDate: endISO, startTime: startISO, endTime: endISO, includeHeartRate: true, includeRoute: false, includeSteps: false });
       const bpms: number[] = [];
       let dist = 0;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const wk of (w?.workouts ?? [])) {
-        dist += Number(wk?.distance ?? 0) || 0;
+        dist += Number(wk?.distance ?? wk?.distanceMeters ?? 0) || 0;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const hr of (wk.heartRate ?? [])) if (hr?.bpm) bpms.push(Number(hr.bpm));
       }

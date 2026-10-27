@@ -29,6 +29,16 @@ class CoachEdnHealthPlugin : Plugin() {
     call.resolve(JSObject().put("available", reader.isAvailable()).put("platform", "android"))
   }
 
+  // Alias: o contrato web (capacitor-health) chama isHealthAvailable.
+  @PluginMethod
+  fun isHealthAvailable(call: PluginCall) {
+    call.resolve(JSObject().put("available", reader.isAvailable()).put("platform", "android"))
+  }
+
+  // Aceita os dois nomes de parâmetro (startTime/startDate, endTime/endDate).
+  private fun startOf(call: PluginCall): String? = call.getString("startTime") ?: call.getString("startDate")
+  private fun endOf(call: PluginCall): String? = call.getString("endTime") ?: call.getString("endDate")
+
   @PluginMethod
   fun getHealthPermissionsStatus(call: PluginCall) {
     scope.launch {
@@ -59,8 +69,8 @@ class CoachEdnHealthPlugin : Plugin() {
 
   @PluginMethod
   fun queryWorkouts(call: PluginCall) {
-    val start = call.getString("startTime") ?: return call.reject("startTime obrigatório")
-    val end = call.getString("endTime") ?: return call.reject("endTime obrigatório")
+    val start = startOf(call) ?: return call.reject("startTime/startDate obrigatório")
+    val end = endOf(call) ?: return call.reject("endTime/endDate obrigatório")
     scope.launch {
       try {
         val list = reader.queryWorkouts(start, end)
@@ -72,8 +82,8 @@ class CoachEdnHealthPlugin : Plugin() {
   @PluginMethod
   fun queryWorkoutDetails(call: PluginCall) {
     val id = call.getString("externalId") ?: return call.reject("externalId obrigatório")
-    val start = call.getString("startTime") ?: return call.reject("startTime obrigatório")
-    val end = call.getString("endTime") ?: return call.reject("endTime obrigatório")
+    val start = startOf(call) ?: return call.reject("startTime/startDate obrigatório")
+    val end = endOf(call) ?: return call.reject("endTime/endDate obrigatório")
     scope.launch {
       try { call.resolve(reader.queryWorkoutDetails(id, start, end).toJs()) }
       catch (e: Exception) { call.reject("HEALTH_QUERY_DETAILS", e) }
@@ -82,8 +92,8 @@ class CoachEdnHealthPlugin : Plugin() {
 
   @PluginMethod
   fun queryHeartRateSamples(call: PluginCall) {
-    val start = call.getString("startTime") ?: return call.reject("startTime obrigatório")
-    val end = call.getString("endTime") ?: return call.reject("endTime obrigatório")
+    val start = startOf(call) ?: return call.reject("startTime/startDate obrigatório")
+    val end = endOf(call) ?: return call.reject("endTime/endDate obrigatório")
     scope.launch {
       try {
         val samples = reader.readHeartRate(start, end)
@@ -95,8 +105,8 @@ class CoachEdnHealthPlugin : Plugin() {
   @PluginMethod
   fun queryWorkoutRoute(call: PluginCall) {
     val id = call.getString("externalId") ?: return call.reject("externalId obrigatório")
-    val start = call.getString("startTime") ?: return call.reject("startTime obrigatório")
-    val end = call.getString("endTime") ?: return call.reject("endTime obrigatório")
+    val start = startOf(call) ?: return call.reject("startTime/startDate obrigatório")
+    val end = endOf(call) ?: return call.reject("endTime/endDate obrigatório")
     scope.launch {
       try {
         val route = reader.readRoute(id, start, end)

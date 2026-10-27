@@ -113,8 +113,18 @@ class HealthConnectReader(private val context: Context) {
 
   suspend fun queryWorkouts(startIso: String, endIso: String): List<NativeWorkout> {
     val range = TimeRangeFilter.between(Instant.parse(startIso), Instant.parse(endIso))
-    val sessions = client.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, range)).records
-    return sessions.map { mapSession(it) }
+    // Paginação: o Health Connect retorna páginas; sem seguir o pageToken,
+    // janelas longas perdem registros. Acumula todas as páginas.
+    val all = ArrayList<ExerciseSessionRecord>()
+    var pageToken: String? = null
+    do {
+      val resp = client.readRecords(
+        ReadRecordsRequest(ExerciseSessionRecord::class, timeRangeFilter = range, pageSize = 1000, pageToken = pageToken)
+      )
+      all.addAll(resp.records)
+      pageToken = resp.pageToken
+    } while (pageToken != null)
+    return all.map { mapSession(it) }
   }
 
   suspend fun queryWorkoutDetails(externalId: String, startIso: String, endIso: String): NativeWorkoutDetails {
