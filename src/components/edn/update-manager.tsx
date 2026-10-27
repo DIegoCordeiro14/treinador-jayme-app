@@ -51,7 +51,9 @@ export function UpdateManager() {
   const check = useCallback(async () => {
     setError(''); setStatus('checking');
     try {
-      const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
+      // cache-bust + no-store: sem isso o GitHub/CDN pode devolver a release ANTIGA
+      // e o app continua achando que já está atualizado.
+      const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest?t=${Date.now()}`, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
       if (!r.ok) throw new Error('Não foi possível consultar atualizações agora.');
       const rel = await r.json();
       // Número do build publicado. A tag pode estar na escala do versionCode
