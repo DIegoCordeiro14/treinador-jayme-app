@@ -259,8 +259,8 @@ jobs:
       - name: Publish Release (canal OTA)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v${{ github.run_number }}
-          name: Coach EDN APK v1.${{ github.run_number }}
+          tag_name: apk-v${{ 2000 + github.run_number }}
+          name: Coach EDN APK v1.${{ github.run_number }} (build ${{ 2000 + github.run_number }})
           body: "APK Android (debug) do Coach EDN com Health Connect (Capacitor 8). O app instalado detecta esta release e oferece a atualização automaticamente."
           files: coach-edn-v1.${{ github.run_number }}.apk
           make_latest: true

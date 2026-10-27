@@ -54,7 +54,12 @@ export function UpdateManager() {
       const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
       if (!r.ok) throw new Error('Não foi possível consultar atualizações agora.');
       const rel = await r.json();
-      const build = parseInt(String(rel.tag_name ?? '').replace(/\D/g, ''), 10) || 0;
+      // Número do build publicado. A tag pode estar na escala do versionCode
+      // (apk-v2031) ou, em releases legadas, na escala do run_number (apk-v30).
+      // Normaliza para a MESMA escala do versionCode instalado (2000 + run) para
+      // uma comparação correta — senão 30 > 2028 dava falso-"atualizado".
+      let build = parseInt(String(rel.tag_name ?? '').replace(/\D/g, ''), 10) || 0;
+      if (build > 0 && build < 1000 && (currentBuild ?? 0) >= 1000) build = 2000 + build;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apk = (rel.assets ?? []).find((a: any) => String(a.name).endsWith('.apk'));
       if (!apk) throw new Error('Nenhum APK publicado na última versão.');
